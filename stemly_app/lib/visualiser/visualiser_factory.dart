@@ -11,6 +11,7 @@ import 'projectile_motion.dart';
 import 'shm_component.dart';
 import 'equation_plotter.dart';
 import 'generic_diagram.dart';
+import 'phet_visualiser_widget.dart';
 
 class VisualiserFactory {
   /// Creates the appropriate visualiser widget based on the template ID.
@@ -92,6 +93,15 @@ class VisualiserFactory {
         primitives = List<Map<String, dynamic>>.from(template.metadata["primitives"]);
       }
       return GenericDiagramWidget(primitives: primitives);
+    }
+
+    // PhET Simulations
+    if (id == "phet-webview" || (template.metadata.containsKey("type") && template.metadata["type"] == "phet")) {
+        final url = template.metadata["url"]?.toString() ?? "";
+        final title = template.metadata["title"]?.toString() ?? "Simulation";
+        if (url.isNotEmpty) {
+           return PhetVisualiserWidget(url: url, title: title);
+        }
     }
 
     // Default Fallback

@@ -6,6 +6,7 @@ class ScanHistory {
   bool isStarred;
   final DateTime timestamp;
   List<Map<String, dynamic>> quizResults;
+  String? visualiserHistoryId;
 
   ScanHistory({
     required this.topic,
@@ -15,6 +16,7 @@ class ScanHistory {
     this.isStarred = false,
     required this.timestamp,
     this.quizResults = const [],
+    this.visualiserHistoryId,
   });
 
   Map<String, dynamic> toJson() {
@@ -26,6 +28,7 @@ class ScanHistory {
       "isStarred": isStarred,
       "timestamp": timestamp.toIso8601String(),
       "quizResults": quizResults,
+      "visualiserHistoryId": visualiserHistoryId,
     };
   }
 
@@ -40,6 +43,7 @@ class ScanHistory {
       quizResults: List<Map<String, dynamic>>.from(
         (json["quizResults"] ?? []).map((x) => Map<String, dynamic>.from(x)),
       ),
+      visualiserHistoryId: json["visualiserHistoryId"],
     );
   }
 }

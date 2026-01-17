@@ -41,6 +41,7 @@ class VisualiserController extends ChangeNotifier {
         parameters: params,
         userPrompt: userPrompt,
         userId: userId,
+        historyId: template!.historyId,
       );
 
       final merged = resp['parameters'] as Map<String, dynamic>? ?? {};

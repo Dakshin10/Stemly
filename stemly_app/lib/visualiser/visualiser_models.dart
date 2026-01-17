@@ -48,6 +48,7 @@ class TemplateParameter {
 
 class VisualTemplate {
   String templateId;
+  String? historyId;
   String title;
   String animationType;
   String description;
@@ -61,6 +62,7 @@ class VisualTemplate {
     required this.description,
     required this.parameters,
     this.metadata = const {},
+    this.historyId,
   });
 
   factory VisualTemplate.fromJson(Map<String, dynamic> json) {
@@ -77,6 +79,7 @@ class VisualTemplate {
       description: json['description'] ?? '',
       parameters: params,
       metadata: json['metadata'] ?? {},
+      historyId: json['history_id'],
     );
   }
 
@@ -96,6 +99,7 @@ class VisualTemplate {
       'description': description,
       'parameters': p,
       'metadata': metadata,
+      'history_id': historyId,
     };
   }
 }

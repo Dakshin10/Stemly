@@ -12,12 +12,15 @@ import '../quiz/quiz_play_screen.dart';
 // Existing imports
 import '../visualiser/visualiser_models.dart';
 import '../visualiser/visualiser_factory.dart';
+import '../models/scan_history.dart';
+import '../storage/history_store.dart';
 
 class ScanResultScreen extends StatefulWidget {
   final String topic;
   final List<String> variables;
   final Map<String, dynamic> notesJson;
   final String imagePath;
+  final ScanHistory? historyItem; // NEW
 
   const ScanResultScreen({
     super.key,
@@ -25,6 +28,7 @@ class ScanResultScreen extends StatefulWidget {
     required this.variables,
     required this.notesJson,
     required this.imagePath,
+    this.historyItem,
   });
 
   @override
@@ -37,6 +41,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   VisualTemplate? visualiserTemplate;
   Widget? visualiserWidget;
   bool loadingVisualiser = true;
+  String? _scanHistoryId; // Added for history tracking
 
   // AI Chat state
   final TextEditingController _chatController = TextEditingController();
@@ -98,12 +103,47 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       }
 
       final data = jsonDecode(response.body);
-      final template = VisualTemplate.fromJson(data["template"]);
+      
+      // Inject history_id into templateJson if present (to ensure VisualTemplate has it)
+      final templateJson = data["template"];
+      if (data.containsKey("history_id")) {
+        templateJson["history_id"] = data["history_id"];
+        
+        // Save history ID to store
+        if (widget.historyItem != null) {
+           // We need to access the backing field since it's final? 
+           // Wait, ScanHistory fields are final?
+           // I modified ScanHistory to have final visualiserHistoryId? 
+           // No, I added it as final String? visualiserHistoryId.
+           // I cannot update it!
+           
+           // I should have made it non-final or mutable.
+           // Or I iterate and replace the item in HistoryStore.
+           // But HistoryStore stores the OBJECTS.
+        }
+      }
+
+      final template = VisualTemplate.fromJson(templateJson);
+
+      // Store the history ID for updates
+      if (data.containsKey("history_id")) {
+        _scanHistoryId = data["history_id"];
+      }
+
+      // Persist ID to History Store
+      if (template.historyId != null && widget.historyItem != null) {
+          _updateHistoryItem(template.historyId!);
+      }
 
       if (mounted) {
         setState(() {
           visualiserTemplate = template;
-          visualiserWidget = _createVisualiser(template);
+          visualiserWidget = VisualiserFactory.create(
+            template,
+            onSimulationUpdate: (stats) {
+              setState(() => _simulationStats = stats);
+            },
+          );
           loadingVisualiser = false;
         });
       }
@@ -111,6 +151,48 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       debugPrint("❌ Visualiser error: $e");
       if (mounted) setState(() => loadingVisualiser = false);
     }
+  }
+
+  // ==========================================================
+  // HELPER: Update History Item & Store
+  // ==========================================================
+  Future<void> _updateHistoryItem(String historyId) async {
+    if (widget.historyItem != null) {
+      widget.historyItem!.visualiserHistoryId = historyId;
+      await HistoryStore.update();
+    }
+  }
+
+  // ==========================================================
+  // HELPER: Persist Updates to Backend (Silent)
+  // ==========================================================
+  Future<void> _persistUpdates(Map<String, dynamic> params) async {
+      try {
+        final auth = context.read<FirebaseAuthService>();
+        final token = await auth.getIdToken();
+        if (token == null) return;
+        
+        final historyId = visualiserTemplate?.historyId;
+        final templateId = visualiserTemplate?.templateId;
+        
+        if (historyId == null || templateId == null) return;
+
+        await http.post(
+          Uri.parse("$serverIp/visualiser/update"),
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer $token",
+          },
+          body: jsonEncode({
+            "template_id": templateId,
+            "parameters": params,
+            "history_id": historyId,
+            // empty prompt signals "just save"
+          }),
+        );
+      } catch (e) {
+        debugPrint("Silent persist failed: $e");
+      }
   }
 
   // ==========================================================
@@ -269,6 +351,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
           if (needsRebuild) {
              visualiserWidget = _createVisualiser(visualiserTemplate!);
+             // Save changes to DB
+             _persistUpdates(visualiserTemplate!.parameters.map((k, v) => MapEntry(k, v.value)));
           }
 
           setState(() {
@@ -305,6 +389,106 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     }
   }
 
+  void _updateWidgetFromTemplate() {
+    if (visualiserTemplate == null) return;
+    setState(() {
+      visualiserWidget = VisualiserFactory.create(
+        visualiserTemplate!,
+        onSimulationUpdate: (stats) {
+          setState(() => _simulationStats = stats);
+        },
+      );
+    });
+  }
+
+  Future<void> _sendMessage() async {
+      final text = _chatController.text.trim();
+      if (text.isEmpty) return;
+
+      setState(() {
+        _chatMessages.add({"text": text, "isUser": true});
+        _isSendingChat = true;
+        _chatController.clear();
+      });
+
+      // Scroll to bottom
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (_chatScrollController.hasClients) {
+          _chatScrollController.animateTo(
+            _chatScrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+
+      try {
+        if (visualiserTemplate == null) {
+           setState(() {
+              _chatMessages.add({"text": "No active simulation to control.", "isUser": false});
+              _isSendingChat = false;
+           });
+           return;
+        }
+
+        final auth = context.read<FirebaseAuthService>();
+        final token = await auth.getIdToken();
+
+        // Convert parameters to map
+        final params = <String, dynamic>{};
+        visualiserTemplate!.parameters.forEach((k, v) => params[k] = v.value);
+
+        final response = await http.post(
+          Uri.parse("$serverIp/visualiser/update"),
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer $token",
+          },
+          body: jsonEncode({
+             "template_id": visualiserTemplate!.templateId,
+             "parameters": params,
+             "user_prompt": text,
+             "history_id": _scanHistoryId,
+          }),
+        );
+        
+        if (response.statusCode == 200) {
+           final result = jsonDecode(response.body);
+           if (result.containsKey("ai_response")) {
+             setState(() {
+               _chatMessages.add({"text": result["ai_response"], "isUser": false});
+             });
+           }
+           
+           if (result.containsKey("parameters")) {
+               final newParams = result["parameters"] as Map<String, dynamic>;
+               bool changed = false;
+               visualiserTemplate!.parameters.forEach((key, param) {
+                  if (newParams.containsKey(key)) {
+                     param.value = newParams[key];
+                     changed = true;
+                  }
+               });
+               if (changed) {
+                  _updateWidgetFromTemplate();
+               }
+           }
+        } else {
+           setState(() => _chatMessages.add({"text": "Failed to update parameters.", "isUser": false}));
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+             _chatMessages.add({"text": "Error: ${e.toString()}", "isUser": false});
+          });
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSendingChat = false);
+        }
+      }
+    }
+
   Widget _visualiser(Color deepBlue) {
     if (loadingVisualiser) {
       return Center(
@@ -312,257 +496,387 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(color: deepBlue),
-            const SizedBox(height: 12),
-            Text("Loading interactive model...", style: TextStyle(color: deepBlue)),
+            const SizedBox(height: 16),
+            Text("Generating Simulation...", 
+              style: TextStyle(color: deepBlue, fontWeight: FontWeight.w600, fontSize: 16)),
           ],
         ),
       );
     }
 
-    // IF INTERACTIVE WIDGET EXISTS, SHOW IT
-    if (visualiserWidget != null) {
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Container(
-               // Reduced height as requested to give more room? 
-               // Actually user said put flags in param section to give more room.
-               // So keeping height or slightly increasing it is fine if overlay is gone.
-              height: 320, 
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: deepBlue.withOpacity(0.10),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+    if (visualiserWidget == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (generatedImageUrl != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(
+                    generatedImageUrl!, 
+                    height: 300, 
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return SizedBox(height: 300, child: Center(child: CircularProgressIndicator(color: deepBlue)));
+                    },
                   ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              if (!generatingImage && generatedImageUrl == null) ...[
+                 Icon(Icons.image_search_rounded, size: 60, color: deepBlue.withOpacity(0.5)),
+                 const SizedBox(height: 16),
+                 Text(
+                  "No interactive simulation available.",
+                  style: TextStyle(fontSize: 16, color: deepBlue),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              if (generatingImage)
+                 Column(children: [
+                   CircularProgressIndicator(color: deepBlue),
+                   const SizedBox(height: 10),
+                   Text("Generating AI Diagram...", style: TextStyle(color: deepBlue))
+                 ])
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _generateImage,
+                    icon: const Icon(Icons.auto_awesome),
+                    label: Text(generatedImageUrl == null ? "Generate AI Diagram" : "Regenerate Diagram"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: deepBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. VISUALISER CARD
+          Container(
+            height: 340,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: deepBlue.withOpacity(0.08),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Stack(
+                children: [
+                  // The Interactive Widget
+                  Positioned.fill(child: visualiserWidget!),
+                  
+                  // Overlay Gradient for better visibility of controls (optional)
+                  // Positioned(
+                  //   top: 0, left: 0, right: 0, height: 60,
+                  //   child: Container(
+                  //     decoration: BoxDecoration(
+                  //       gradient: LinearGradient(
+                  //         colors: [Colors.black12, Colors.transparent],
+                  //         begin: Alignment.topCenter,
+                  //         end: Alignment.bottomCenter
+                  //       )
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
-              child: visualiserWidget,
             ),
-            const SizedBox(height: 18),
-            if (visualiserTemplate != null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // SIMULATION STATS (FLAGS)
-                    if (_simulationStats.isNotEmpty) ...[
-                       Row(
-                        children: [
-                          Icon(Icons.analytics, size: 18, color: Colors.orange),
-                          const SizedBox(width: 8),
-                          Text("Simulation Status", style: TextStyle(fontWeight: FontWeight.bold, color: deepBlue)),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 8,
-                        children: _simulationStats.entries.map((e) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(e.key, style: TextStyle(fontSize: 10, color: Colors.black54)),
-                                Text(e.value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 16),
-                      Divider(color: Colors.grey.withOpacity(0.1)),
-                      const SizedBox(height: 16),
-                    ],
+          ),
 
-                    Row(
-                      children: [
-                        Icon(Icons.settings, size: 18, color: deepBlue),
-                        const SizedBox(width: 8),
-                        Text("Parameters", style: TextStyle(fontWeight: FontWeight.bold, color: deepBlue)),
-                      ],
+          const SizedBox(height: 24),
+
+          // 2. CONTROLS & STATUS CARD
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: deepBlue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.tune_rounded, size: 20, color: deepBlue),
                     ),
-                    const SizedBox(height: 12),
-                    ...visualiserTemplate!.parameters.entries.map((e) {
-                      final v = e.value.value;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    const SizedBox(width: 12),
+                    Text(
+                      "Simulation Parameters",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: deepBlue,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 20),
+
+                // Live Stats (Chips)
+                if (_simulationStats.isNotEmpty) ...[
+                   Wrap(
+                    spacing: 12,
+                    runSpacing: 10,
+                    children: _simulationStats.entries.map((e) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange.withOpacity(0.2)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(e.key, style: TextStyle(color: deepBlue)),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: deepBlue.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(v.toString(), style: TextStyle(color: deepBlue, fontWeight: FontWeight.w600)),
-                            ),
+                            Text(e.key, style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                            const SizedBox(height: 2),
+                            Text(e.value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
                           ],
                         ),
                       );
                     }).toList(),
-                  ],
-                ),
-              ),
+                  ),
+                  const SizedBox(height: 24),
+                  Divider(height: 1, color: Colors.grey.withOpacity(0.1)),
+                  const SizedBox(height: 20),
+                ],
 
-            // AI CHAT SECTION (Collapsible & Solid Blue)
-            const SizedBox(height: 24),
-            Card(
-              elevation: 4,
-              shadowColor: deepBlue.withOpacity(0.2),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: ExpansionTile(
-                initiallyExpanded: false,
-                collapsedBackgroundColor: Colors.transparent,
-                backgroundColor: Colors.transparent,
-                shape: const Border(), // Remove default borders
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: deepBlue.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.smart_toy, color: deepBlue, size: 20),
-                ),
-                title: Text(
-                  "AI Assistant",
-                  style: TextStyle(
-                    color: deepBlue,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                subtitle: Text(
-                  "Ask questions or control visuals",
-                  style: TextStyle(color: deepBlue.withOpacity(0.6), fontSize: 12),
-                ),
-                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                // Parameters List
+                if (visualiserTemplate != null && visualiserTemplate!.parameters.isNotEmpty)
+                  ...visualiserTemplate!.parameters.entries.map((e) {
+                      final v = e.value.value;
+                      // Determine if we can show a slider (if range is known)
+                      // For now, simpler robust list
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          children: [
+                            Text(
+                              e.key, 
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: deepBlue.withOpacity(0.8),
+                              ),
+                            ),
+                            const Spacer(),
+                            Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: deepBlue.withOpacity(0.06),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  v is double ? v.toStringAsFixed(2) : v.toString(),
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontWeight: FontWeight.bold,
+                                    color: deepBlue,
+                                    fontSize: 15
+                                  ),
+                                ),
+                            ),
+                          ],
+                        ),
+                      );
+                  }).toList()
+                else 
+                   const Padding(
+                     padding: EdgeInsets.symmetric(vertical: 10),
+                     child: Text("No adjustable parameters"),
+                   ),
+              ],
+            ),
+          ),
+
+          // 3. AI CHAT SECTION (Managed in separate method/widget potentially, but kept inline or below)
+          const SizedBox(height: 24),
+          _buildAiAssistantCard(deepBlue),
+          
+          // Bottom spacer for scrolling
+          const SizedBox(height: 80), 
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAiAssistantCard(Color deepBlue) {
+     return Card(
+        elevation: 0,
+        color: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: Colors.grey.shade100, width: 1),
+        ),
+        child: ExpansionTile(
+          initiallyExpanded: true, // Keep open by default for engagement
+          shape: const Border(),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          leading: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: deepBlue.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.auto_awesome, color: deepBlue, size: 22),
+          ),
+          title: Text(
+            "AI Assistant",
+            style: TextStyle(
+              color: deepBlue,
+              fontWeight: FontWeight.bold,
+              fontSize: 17,
+            ),
+          ),
+          subtitle: Text(
+            "Ask to change parameters or explain concepts",
+            style: TextStyle(color: deepBlue.withOpacity(0.5), fontSize: 13),
+          ),
+          children: [
+            Container(
+              height: 280,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FA),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
                 children: [
-                  Container(
-                    height: 250,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      children: [
-                        // Messages
-                        Expanded(
-                          child: _chatMessages.isEmpty
-                              ? Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.chat_bubble_outline, size: 32, color: Colors.grey.shade400),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        "Ask me anything!",
-                                        style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                                      ),
+                  // Messages Area
+                  Expanded(
+                    child: _chatMessages.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.chat_bubble_outline_rounded, size: 36, color: Colors.grey.shade300),
+                                const SizedBox(height: 12),
+                                Text(
+                                  "Try: 'Set velocity to 50' or 'Explain gravity'",
+                                  style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: _chatScrollController,
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _chatMessages.length,
+                            itemBuilder: (context, index) {
+                              final msg = _chatMessages[index];
+                              final isUser = msg["isUser"] == true;
+                              return Align(
+                                alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+                                  decoration: BoxDecoration(
+                                    color: isUser ? deepBlue : Colors.white,
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: const Radius.circular(16),
+                                      topRight: const Radius.circular(16),
+                                      bottomLeft: Radius.circular(isUser ? 16 : 4),
+                                      bottomRight: Radius.circular(isUser ? 4 : 16),
+                                    ),
+                                    boxShadow: isUser ? [] : [
+                                      BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 2))
                                     ],
                                   ),
-                                )
-                              : ListView.builder(
-                                  controller: _chatScrollController,
-                                  padding: const EdgeInsets.all(12),
-                                  itemCount: _chatMessages.length,
-                                  itemBuilder: (context, index) {
-                                    final msg = _chatMessages[index];
-                                    final isUser = msg["isUser"] == true;
-                                    return Align(
-                                      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                                      child: Container(
-                                        margin: const EdgeInsets.symmetric(vertical: 4),
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.65),
-                                        decoration: BoxDecoration(
-                                          color: isUser ? deepBlue : Colors.white,
-                                          borderRadius: BorderRadius.circular(12),
-                                          boxShadow: isUser 
-                                              ? [] 
-                                              : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1))],
-                                          border: isUser ? null : Border.all(color: Colors.grey.shade200),
-                                        ),
-                                        child: Text(
-                                          msg["text"] ?? "",
-                                          style: TextStyle(
-                                            color: isUser ? Colors.white : Colors.black87,
-                                            fontSize: 13,
-                                            height: 1.4,
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                        ),
-                        
-                        // Input
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border(top: BorderSide(color: Colors.grey.shade200)),
-                            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _chatController,
-                                  style: const TextStyle(fontSize: 14),
-                                  decoration: InputDecoration(
-                                    hintText: "Type a message...",
-                                    hintStyle: TextStyle(color: Colors.grey.shade400),
-                                    isDense: true,
-                                    filled: true,
-                                    fillColor: Colors.grey.shade100,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                      borderSide: BorderSide.none,
+                                  child: Text(
+                                    msg["text"] ?? "",
+                                    style: TextStyle(
+                                      color: isUser ? Colors.white : Colors.black87,
+                                      fontSize: 14,
+                                      height: 1.4,
                                     ),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                   ),
-                                  onSubmitted: (_) => _sendChatMessage(),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              InkWell(
-                                onTap: _isSendingChat ? null : _sendChatMessage,
-                                borderRadius: BorderRadius.circular(20),
-                                child: Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: deepBlue,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: _isSendingChat
-                                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                      : const Icon(Icons.send, color: Colors.white, size: 16),
-                                ),
-                              ),
-                            ],
+                              );
+                            },
+                          ),
+                  ),
+                  
+                  // Input Area
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                      border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _chatController,
+                            decoration: InputDecoration(
+                              hintText: "Type a command...",
+                              border: InputBorder.none,
+                              hintStyle: TextStyle(color: Colors.grey.shade400),
+                            ),
+                            onSubmitted: (_) => _sendMessage(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: _sendMessage,
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: deepBlue,
+                              shape: BoxShape.circle,
+                            ),
+                            child: _isSendingChat
+                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : const Icon(Icons.send, color: Colors.white, size: 16),
                           ),
                         ),
                       ],
@@ -576,60 +890,42 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       );
     }
 
-    // IF NO INTERACTIVE WIDGET -> SHOW IMAGE GEN OPTION
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+  @override
+  Widget build(BuildContext context) {
+    final deepBlue = Theme.of(context).primaryColor;
+    
+    return DefaultTabController(
+      length: 3,
+      initialIndex: 1, 
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: Text("Scan Results", style: TextStyle(color: deepBlue, fontWeight: FontWeight.bold)),
+          centerTitle: true,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new, color: deepBlue),
+            onPressed: () => Navigator.pop(context),
+          ),
+          bottom: TabBar(
+            labelColor: deepBlue,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: deepBlue,
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+            tabs: const [
+              Tab(text: "Notes", icon: Icon(Icons.description_rounded)),
+              Tab(text: "Visualiser", icon: Icon(Icons.play_circle_fill_rounded)),
+              Tab(text: "Quiz", icon: Icon(Icons.quiz_rounded)),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          physics: const NeverScrollableScrollPhysics(), // Prevent horizontal swipe if simulations capture touch
           children: [
-            if (generatedImageUrl != null) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  generatedImageUrl!, 
-                  height: 300, 
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return SizedBox(height: 300, child: Center(child: CircularProgressIndicator(color: deepBlue)));
-                  },
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
-
-            if (!generatingImage && generatedImageUrl == null) ...[
-               Icon(Icons.image_search_rounded, size: 60, color: deepBlue.withOpacity(0.5)),
-               const SizedBox(height: 16),
-               Text(
-                "No interactive simulation available.",
-                style: TextStyle(fontSize: 16, color: deepBlue),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-            ],
-
-            if (generatingImage)
-               Column(children: [
-                 CircularProgressIndicator(color: deepBlue),
-                 const SizedBox(height: 10),
-                 Text("Generating AI Diagram...", style: TextStyle(color: deepBlue))
-               ])
-            else
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _generateImage,
-                  icon: const Icon(Icons.auto_awesome),
-                  label: Text(generatedImageUrl == null ? "Generate AI Diagram" : "Regenerate Diagram"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: deepBlue,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
+            _notes(Colors.white, deepBlue),
+            _visualiser(deepBlue),
+            _quizTab(deepBlue),
           ],
         ),
       ),
@@ -1100,89 +1396,5 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         .replaceFirst(raw[0], raw[0].toUpperCase());
   }
 
-  // ==========================================================
-  // ROOT BUILD
-  // ==========================================================
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
 
-    final deepBlue = cs.primary;
-    final primaryColor = cs.primaryContainer;
-    final cardColor = theme.cardColor;
-    final background = theme.scaffoldBackgroundColor;
-
-    return DefaultTabController(
-      length: 3, // UPDATED (added AI Quiz)
-      child: Scaffold(
-        backgroundColor: background,
-        appBar: AppBar(
-          elevation: 0,
-          backgroundColor: primaryColor,
-          iconTheme: IconThemeData(color: deepBlue),
-          title: Text(
-            "Scan Result",
-            style: TextStyle(
-              color: deepBlue,
-              fontWeight: FontWeight.w700,
-              fontSize: 22,
-            ),
-          ),
-          centerTitle: true,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(26)),
-          ),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(65),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 10, left: 16, right: 16),
-              child: Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  color: deepBlue.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: TabBar(
-                  dividerColor: Colors.transparent,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: deepBlue.withOpacity(0.7),
-                  indicator: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    gradient: LinearGradient(
-                      colors: [deepBlue, deepBlue.withOpacity(0.85)],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: deepBlue.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  labelStyle: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                  tabs: const [
-                    Tab(text: "AI Visualiser"),
-                    Tab(text: "AI Notes"),
-                    Tab(text: "AI Quiz"), // NEW TAB
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            _visualiser(deepBlue),
-            _notes(cardColor, deepBlue),
-            _quizTab(deepBlue), // NEW TAB SCREEN
-          ],
-        ),
-      ),
-    );
-  }
 }

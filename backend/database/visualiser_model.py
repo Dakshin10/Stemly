@@ -7,7 +7,7 @@ from .db import db
 visualiser_collection = db["visualiser"] if db is not None else None
 
 
-async def save_visualiser_entry(user_id: str, template_id: str, parameters: Dict[str, Any]):
+async def save_visualiser_entry(user_id: str, template_id: str, parameters: Dict[str, Any], history_id: str = None):
     if not user_id:
         raise ValueError("user_id is required")
 
@@ -22,6 +22,19 @@ async def save_visualiser_entry(user_id: str, template_id: str, parameters: Dict
         print("⚠ Database disabled, skipping save_visualiser_entry")
         return "no-db-record"
 
+    if history_id:
+        from bson import ObjectId
+        try:
+            # Update existing entry
+            await visualiser_collection.update_one(
+                {"_id": ObjectId(history_id), "user_id": user_id},
+                {"$set": doc}
+            )
+            return history_id
+        except Exception as e:
+            print(f"Error updating visualiser entry: {e}")
+            # Fallback to insert if update fails
+    
     result = await visualiser_collection.insert_one(doc)
     return str(result.inserted_id)
 

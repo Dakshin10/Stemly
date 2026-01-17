@@ -35,6 +35,10 @@ class VisualiserApi {
     }
     final data = jsonDecode(res.body);
     final templateJson = data['template'] as Map<String, dynamic>;
+    // Inject history_id from root response if present
+    if (data.containsKey('history_id')) {
+        templateJson['history_id'] = data['history_id'];
+    }
     return VisualTemplate.fromJson(templateJson);
   }
 
@@ -43,6 +47,7 @@ class VisualiserApi {
     required Map<String, dynamic> parameters,
     String? userPrompt,
     String? userId,
+    String? historyId,
   }) async {
     final url = Uri.parse('$baseUrl/visualiser/update');
     final body = jsonEncode({
@@ -50,6 +55,7 @@ class VisualiserApi {
       'parameters': parameters,
       'user_prompt': userPrompt,
       'user_id': userId,
+      'history_id': historyId,
     });
     final res = await http.post(url, headers: _headers(), body: body);
     if (res.statusCode >= 400) {

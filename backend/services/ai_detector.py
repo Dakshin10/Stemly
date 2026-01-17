@@ -62,9 +62,20 @@ def detect_topic_from_keywords(text: str) -> str:
     """Fallback: detect topic using keyword matching."""
     text_lower = text.lower()
     
+    # Priority check for Projectile Motion first to avoid misclassification
+    priority_topics = ["Projectile Motion"]
+    for topic in priority_topics:
+        if topic in TOPIC_KEYWORDS:
+            for keyword in TOPIC_KEYWORDS[topic]:
+                # Use regex for whole word match to avoid "flight" -> "light"
+                if re.search(r'\b' + re.escape(keyword) + r'\b', text_lower):
+                    print(f"📌 Keyword match: '{keyword}' -> {topic}")
+                    return topic
+
     for topic, keywords in TOPIC_KEYWORDS.items():
+        if topic in priority_topics: continue # Already checked
         for keyword in keywords:
-            if keyword in text_lower:
+            if re.search(r'\b' + re.escape(keyword) + r'\b', text_lower):
                 print(f"📌 Keyword match: '{keyword}' -> {topic}")
                 return topic
     

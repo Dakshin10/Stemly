@@ -49,30 +49,57 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     try {
       final auth = context.read<FirebaseAuthService>();
       final token = await auth.getIdToken();
+      final headers = {
+        "Content-Type": "application/json",
+        if (token != null) "Authorization": "Bearer $token",
+      };
 
-      final url = Uri.parse("$serverIp/visualiser/generate");
+      http.Response response;
 
-      final response = await http.post(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          if (token != null) "Authorization": "Bearer $token",
-        },
-        body: jsonEncode({
-          "topic": widget.history.topic,
-          "variables": widget.history.variables,
-        }),
-      );
+      // START CHANGE: Check for existing history ID
+      final historyId = widget.history.visualiserHistoryId;
+      if (historyId != null && historyId.isNotEmpty) {
+          final url = Uri.parse("$serverIp/visualiser/$historyId");
+          response = await http.get(url, headers: headers);
+      } else {
+          // Fallback to generate
+          final url = Uri.parse("$serverIp/visualiser/generate");
+          response = await http.post(
+            url,
+            headers: headers,
+            body: jsonEncode({
+              "topic": widget.history.topic,
+              "variables": widget.history.variables,
+            }),
+          );
+      }
+      // END CHANGE
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final templateJson = data["template"];
+        
+        // Inject history_id if present
+        if (data.containsKey("history_id")) {
+             templateJson["history_id"] = data["history_id"];
+        }
 
         final template = VisualTemplate.fromJson(templateJson);
         visualiserTemplate = template;
-
         visualiserWidget = VisualiserFactory.create(template);
+        
+        // Save ID if we didn't have it before
+        if ((widget.history.visualiserHistoryId == null || widget.history.visualiserHistoryId!.isEmpty) && 
+            template.historyId != null) {
+            widget.history.visualiserHistoryId = template.historyId;
+            HistoryStore.update();
+        }
+
+      } else {
+          print("Failed to load visualiser: ${response.statusCode}");
       }
+
+
     } catch (e) {
       print("History visualiser error: $e");
     }
@@ -174,65 +201,167 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
 
   // ---------------- VISUAL TAB ----------------
   Widget _visualiserTab(ScanHistory h, Color deepBlue) {
+    if (loading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: deepBlue),
+            const SizedBox(height: 16),
+            Text("Loading Visualisation...", 
+              style: TextStyle(color: deepBlue, fontWeight: FontWeight.w600, fontSize: 16)),
+          ],
+        ),
+      );
+    }
+
+    // Checking if widget is available
+    final widgetAvailable = visualiserWidget != null;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Animation container
+          
+          // 1. VISUALISER CARD
+         if (widgetAvailable)
           Container(
-            height: 320,
+            height: 340,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(18),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
-                  blurRadius: 12,
+                  color: deepBlue.withOpacity(0.08),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Stack(
+                children: [
+                  Positioned.fill(child: visualiserWidget!),
+                ],
+              ),
+            ),
+          )
+        else
+          Container(
+            height: 200,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey.shade400),
+                const SizedBox(height: 12),
+                Text("No visualisation available", style: TextStyle(color: Colors.grey.shade500)),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 32),
+
+          // 2. SCANNED IMAGE CARD
+          Text(
+            "Original Scan",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: deepBlue,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+             decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : visualiserWidget ?? _noVisualiser(deepBlue),
+              borderRadius: BorderRadius.circular(24),
+              child: Image.file(
+                File(h.imagePath),
+                height: 260,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (ctx, _, __) => Container(
+                   height: 200,
+                   color: Colors.grey.shade200,
+                   child: const Center(child: Text("Image file not found")),
+                ),
+              ),
             ),
           ),
 
-          const SizedBox(height: 30),
+          const SizedBox(height: 32),
 
-          // The scanned image preview
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Image.file(
-              File(h.imagePath),
-              height: 260,
-              width: double.infinity,
-              fit: BoxFit.cover,
+          // 3. DETAILS
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                 _detailRow("Topic", h.topic, deepBlue, Icons.topic_rounded),
+                 const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1)),
+                 _detailRow("Variables", h.variables.join(", "), deepBlue, Icons.functions_rounded),
+                 const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1)),
+                 _detailRow("Date", 
+                    "${h.timestamp.day}/${h.timestamp.month}/${h.timestamp.year}  ${h.timestamp.hour}:${h.timestamp.minute.toString().padLeft(2, '0')}", 
+                    deepBlue, Icons.calendar_today_rounded),
+              ],
             ),
           ),
-
-          const SizedBox(height: 25),
-
-          _title("Topic", deepBlue),
-          _value(h.topic, deepBlue),
-          const SizedBox(height: 18),
-
-          _title("Variables", deepBlue),
-          _value(h.variables.join(", "), deepBlue),
-          const SizedBox(height: 18),
-
-          _title("Scanned At", deepBlue),
-          _value(
-            "${h.timestamp.day}/${h.timestamp.month}/${h.timestamp.year}  "
-            "${h.timestamp.hour}:${h.timestamp.minute.toString().padLeft(2, '0')}",
-            deepBlue,
-          ),
+          
+          const SizedBox(height: 40),
         ],
       ),
+    );
+  }
+
+  Widget _detailRow(String label, String value, Color color, IconData icon) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: color.withOpacity(0.7)),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 4),
+              Text(value, style: TextStyle(fontSize: 16, color: color, fontWeight: FontWeight.w600, height: 1.3)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

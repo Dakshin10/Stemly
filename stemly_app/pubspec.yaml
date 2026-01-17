@@ -166,6 +166,7 @@ dependencies:
   fl_chart: ^1.1.1
   function_tree: ^0.9.1
   path_provider: ^2.1.1
+  webview_flutter: ^4.13.0
 
 
 dev_dependencies:

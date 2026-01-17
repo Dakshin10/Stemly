@@ -12,7 +12,11 @@ TOPIC_TO_TEMPLATE = {
     "free_fall": "free_fall.json",
     "shm": "shm.json",
     "simple harmonic motion": "shm.json",
-    "harmonic": "shm.json"
+    "harmonic": "shm.json",
+    "optics": "optics.json",
+    "optic": "optics.json",
+    "lens": "optics.json",
+    "mirror": "optics.json"
 }
 
 def _load_template(filename: str) -> Dict[str, Any]:

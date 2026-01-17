@@ -313,6 +313,7 @@ class _MainScreenState extends State<MainScreen> {
                variables: variables,
                notesJson: notesData,
                imagePath: imagePath ?? "",
+               historyItem: HistoryStore.history[0], // Pass the newly created item
              ),
            ),
          );
