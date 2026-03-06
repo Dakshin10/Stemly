@@ -1,40 +1,107 @@
-# Ignore environment files
+# ==============================================================================
+# Stemly .gitignore
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Environment & Secrets
+# ------------------------------------------------------------------------------
 .env
 *.env
 .env.*
+!.env.example
+*serviceAccountKey*.json
+*service-account*.json
+*firebase-adminsdk*.json
+backend/firebase_service_account.json
 
-# Ignore Python cache
+# ------------------------------------------------------------------------------
+# Python
+# ------------------------------------------------------------------------------
 __pycache__/
-*.pyc
-
-# Ignore virtual environments
+*.py[cod]
+*$py.class
+*.so
+.venv/
 venv/
 env/
 backend/.venv/
 
-# Ignore local history backups
-.history/
+# Pytest / Coverage
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.cover
 
-# Ignore static scans (optional)
-static/scans/
-backend/static/scans/
+# mypy
+.mypy_cache/
 
-# Firebase / service account credentials (do NOT commit real keys)
-backend/firebase_service_account.json
-*service-account*.json
-*firebase-adminsdk*.json
+# Distribution
+*.egg-info/
+dist/
+build/
 
-# Flutter / Dart build artifacts
+# ------------------------------------------------------------------------------
+# Flutter / Dart
+# ------------------------------------------------------------------------------
 stemly_app/build/
 stemly_app/.dart_tool/
-stemly_app/.firebase/
-stemly_app/ios/Pods/
-stemly_app/macos/Pods/
+stemly_app/.flutter-plugins
+stemly_app/.flutter-plugins-dependencies
+stemly_app/.packages
+
+# Platform-specific generated files
 stemly_app/android/.gradle/
+stemly_app/android/build/
 stemly_app/android/app/google-services.json
+stemly_app/ios/Pods/
 stemly_app/ios/Runner/GoogleService-Info.plist
+stemly_app/ios/.symlinks/
+stemly_app/macos/Pods/
+stemly_app/macos/Flutter/ephemeral/
+stemly_app/linux/flutter/ephemeral/
+stemly_app/windows/flutter/ephemeral/
+stemly_app/.firebase/
 
-__pycache__/
-*.pyc
-backend/serviceAccountKey.json
+# Flutter test coverage
+stemly_app/coverage/
 
+# ------------------------------------------------------------------------------
+# IDE / Editor
+# ------------------------------------------------------------------------------
+.vscode/
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+*.backup
+
+# ------------------------------------------------------------------------------
+# OS files
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ------------------------------------------------------------------------------
+# Docker
+# ------------------------------------------------------------------------------
+docker-compose.override.yml
+
+# ------------------------------------------------------------------------------
+# Misc
+# ------------------------------------------------------------------------------
+.history/
+static/scans/
+backend/static/scans/
+*.log
+.secrets.baseline
+backend/services/flutter_application_1/
+test_output.txt
+test_image.png
