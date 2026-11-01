@@ -196,12 +196,12 @@ We welcome contributions from everyone — especially students and first-time op
 
 Stemly was built by **Team Mugiwara Coders** — CS students from Amrita Vishwa Vidyapeetham, Coimbatore.
 
-| Name | Role | GitHub |
-| :--- | :--- | :--- |
-| P Dakshin Raj | Frontend & Flutter Lead | @Dakshin10 |
-| SH Nihil Mukkesh | Backend & AI Lead | @SH-Nihil-Mukkesh-25 |
-| SHRE RAAM P J | Content & Ideation | @SHRE-RAAM-P-J |
-| Vibin Ragav S | Testing | @VibinR-code |
+| Name |  GitHub |
+| :--- |  :--- |
+| P Dakshin Raj  | @Dakshin10 |
+| SH Nihil Mukkesh | @SH-Nihil-Mukkesh-25 |
+| SHRE RAAM P J  | @SHRE-RAAM-P-J |
+| Vibin Ragav S  | @VibinR-code |
 
 ### Contributors
 
