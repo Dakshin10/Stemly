@@ -30,9 +30,7 @@ def _load_service_account() -> credentials.Certificate:
             raise ValueError("Invalid JSON provided in FIREBASE_CREDENTIALS_JSON") from exc
         return credentials.Certificate(service_account_dict)
 
-    raise EnvironmentError(
-        "Firebase credentials missing. Set FIREBASE_CREDENTIALS_FILE or FIREBASE_CREDENTIALS_JSON."
-    )
+    raise EnvironmentError("Firebase credentials missing. Set FIREBASE_CREDENTIALS_FILE or FIREBASE_CREDENTIALS_JSON.")
 
 
 def _initialize_app() -> firebase_admin.App:
@@ -63,4 +61,3 @@ def verify_firebase_token(id_token: str) -> Dict[str, Optional[str]]:
         "name": decoded.get("name") or decoded.get("displayName"),
         "picture": decoded.get("picture"),
     }
-

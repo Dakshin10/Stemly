@@ -1,3 +1,4 @@
+import logging
 import os
 
 import certifi
@@ -5,19 +6,24 @@ from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.server_api import ServerApi
 
+logger = logging.getLogger("stemly.database")
+
 load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_ALLOW_INVALID_CERTS = os.getenv("MONGO_ALLOW_INVALID_CERTS", "false").lower() == "true"
 
+from typing import Any, Optional
+
+client: Optional[AsyncIOMotorClient] = None
+db: Any = None
+
 if not MONGO_URI:
-    print("⚠ MONGO_URI not set in .env - database disabled")
-    client = None
-    db = None
+    logger.info("MONGO_URI not configured in .env - database persistence disabled")
 else:
     try:
         if MONGO_ALLOW_INVALID_CERTS:
-            print("⚠ MongoDB running with invalid TLS certs allowed (development only).")
+            logger.warning("MongoDB running with invalid TLS certs allowed (development only).")
         client = AsyncIOMotorClient(
             MONGO_URI,
             tlsCAFile=certifi.where(),
@@ -29,6 +35,21 @@ else:
         )
         db = client["stemly_db"]
     except Exception as e:
-        print(f"❌ Critical error initializing MongoDB: {e}")
+        logger.error("Critical error initializing MongoDB: %s", e)
         client = None
         db = None
+
+
+async def check_db_connection() -> tuple[bool, str]:
+    """
+    Checks MongoDB connectivity for readiness probes.
+    """
+    if not MONGO_URI:
+        return True, "disabled (running without MongoDB)"
+    if client is None:
+        return False, "MongoDB client not initialized"
+    try:
+        await client.admin.command("ping")
+        return True, "connected"
+    except Exception as e:
+        return False, f"ping error: {str(e)}"

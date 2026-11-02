@@ -1,0 +1,16 @@
+"""
+Pytest configuration for Stemly backend tests.
+"""
+
+import os
+
+# Ensure tests run with TESTING=true and mock keys
+os.environ["TESTING"] = "true"
+os.environ["GROQ_VISION_API_KEY"] = "mock_vision_api_key_12345"
+os.environ["GROQ_TEXT_API_KEY"] = "mock_text_api_key_67890"
+
+from config import settings
+
+settings.TESTING = True
+settings.GROQ_VISION_API_KEY = "mock_vision_api_key_12345"
+settings.GROQ_TEXT_API_KEY = "mock_text_api_key_67890"

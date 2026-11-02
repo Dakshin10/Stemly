@@ -1,0 +1,15 @@
+{
+  "template_id": "equation_plotter",
+  "title": "Function Equation Plotter",
+  "animation_type": "math_plot",
+  "description": "Dynamic Cartesian plot of 2D mathematical functions f(x)",
+  "parameters": {
+    "min_x": { "value": -10.0, "min": -100.0, "max": 0.0, "unit": "", "label": "Min X" },
+    "max_x": { "value": 10.0, "min": 0.0, "max": 100.0, "unit": "", "label": "Max X" },
+    "min_y": { "value": -10.0, "min": -100.0, "max": 0.0, "unit": "", "label": "Min Y" },
+    "max_y": { "value": 10.0, "min": 0.0, "max": 100.0, "unit": "", "label": "Max Y" }
+  },
+  "metadata": {
+    "equation": "x^2"
+  }
+}

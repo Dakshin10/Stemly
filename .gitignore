@@ -100,6 +100,8 @@ docker-compose.override.yml
 .history/
 static/scans/
 backend/static/scans/
+backend/static/uploads/*
+!backend/static/uploads/.gitkeep
 *.log
 .secrets.baseline
 backend/services/flutter_application_1/

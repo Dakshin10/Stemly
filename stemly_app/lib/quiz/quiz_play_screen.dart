@@ -16,7 +16,6 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
 
   // Colors
   static const Color primaryBlue = Color(0xFF4A6FA5);
-  static const Color accentPurple = Color(0xFF6B5B95);
   static const Color successGreen = Color(0xFF2ECC71);
   static const Color bgLight = Color(0xFFF8F9FA);
 
@@ -115,7 +114,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -132,7 +131,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 8,
-                      backgroundColor: Colors.white.withOpacity(0.3),
+                      backgroundColor: Colors.white.withValues(alpha: 0.3),
                       valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   ),
@@ -157,7 +156,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: primaryBlue.withOpacity(0.1),
+                            color: primaryBlue.withValues(alpha: 0.1),
                             blurRadius: 20,
                             offset: const Offset(0, 10),
                           ),
@@ -171,7 +170,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: primaryBlue.withOpacity(0.1),
+                                  color: primaryBlue.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
@@ -224,7 +223,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                               boxShadow: isSelected
                                   ? [
                                       BoxShadow(
-                                        color: primaryBlue.withOpacity(0.3),
+                                        color: primaryBlue.withValues(alpha: 0.3),
                                         blurRadius: 12,
                                         offset: const Offset(0, 4),
                                       ),
@@ -237,7 +236,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                                   width: 36,
                                   height: 36,
                                   decoration: BoxDecoration(
-                                    color: isSelected ? Colors.white : primaryBlue.withOpacity(0.1),
+                                    color: isSelected ? Colors.white : primaryBlue.withValues(alpha: 0.1),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Center(
@@ -282,7 +281,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, -5),
                   ),

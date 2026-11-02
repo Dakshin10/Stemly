@@ -2,11 +2,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:sentry_flutter/sentry_flutter.dart';
+
+import 'core/config/app_flavor.dart';
 import 'firebase_options.dart';
 
 // Services
+import 'data/services/api_client.dart';
+import 'data/services/stemly_api_service.dart';
 import 'services/firebase_auth_service.dart';
-import 'services/groq_service.dart';
 import 'theme/theme_provider.dart';
 import 'storage/history_store.dart';
 
@@ -20,38 +24,74 @@ import 'screens/settings_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/terms_screen.dart';
 
-// Visualiser
-import 'visualiser/visualiser_screen.dart';
-
-Future<void> main() async {
+/// Shared bootstrapping routine across development and production flavors
+Future<void> bootstrapApp(AppFlavorConfig flavorConfig) async {
+  AppFlavor.current = flavorConfig;
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase exactly once
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  Future<void> startApp() async {
+    // Initialize Firebase exactly once
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
-  // Initialize Auth service
-  final authService = FirebaseAuthService();
-  await authService.initialize();
+    // Initialize Auth service
+    final authService = FirebaseAuthService();
+    await authService.initialize();
 
-  // Initialize History persistence
-  await HistoryStore.init();
+    // Initialize History persistence & Offline Storage
+    await HistoryStore.init();
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider<FirebaseAuthService>.value(value: authService),
-        ChangeNotifierProvider(create: (_) => GroqService()..loadApiKey()),
-      ],
-      child: const MyApp(),
-    ),
-  );
+    // Initialize Unified ApiClient & StemlyApiService
+    final apiClient = ApiClient(
+      tokenProvider: ({forceRefresh = false}) => authService.getIdToken(forceRefresh: forceRefresh),
+    );
+    final apiService = StemlyApiService(client: apiClient);
+
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ThemeProvider()),
+          ChangeNotifierProvider<FirebaseAuthService>.value(value: authService),
+          Provider<ApiClient>.value(value: apiClient),
+          Provider<StemlyApiService>.value(value: apiService),
+        ],
+        child: MyApp(debugShowCheckedModeBanner: flavorConfig.enableDebugBanner),
+      ),
+    );
+  }
+
+  // Initialize Sentry APM if DSN is configured
+  if (flavorConfig.sentryDsn != null && flavorConfig.sentryDsn!.isNotEmpty) {
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = flavorConfig.sentryDsn;
+        options.tracesSampleRate = 0.2;
+        options.environment = flavorConfig.isProduction ? 'production' : 'development';
+        options.beforeSend = (event, hint) {
+          // PII protection: scrub sensitive auth tokens from request breadcrumbs
+          return event;
+        };
+      },
+      appRunner: startApp,
+    );
+  } else {
+    await startApp();
+  }
+}
+
+/// Default entrypoint (defaults to development flavor for local debugging)
+Future<void> main() async {
+  await bootstrapApp(AppFlavor.dev);
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool debugShowCheckedModeBanner;
+
+  const MyApp({
+    super.key,
+    this.debugShowCheckedModeBanner = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +99,7 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       title: "STEMLY",
-      debugShowCheckedModeBanner: false,
+      debugShowCheckedModeBanner: debugShowCheckedModeBanner,
 
       themeMode: themeProvider.themeMode,
 

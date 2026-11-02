@@ -1,4 +1,7 @@
+import logging
 from pathlib import Path
+
+logger = logging.getLogger("stemly.file_utils")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 STATIC_SCANS_DIR = (PROJECT_ROOT / "static" / "uploads").resolve()
@@ -22,10 +25,12 @@ def resolve_scan_path(image_path: str) -> Path:
     try:
         path.relative_to(STATIC_SCANS_DIR)
     except ValueError:
-        print(f"DEBUG: Path mismatch!")
-        print(f"  Input arg:      {image_path}")
-        print(f"  Input resolved: {path}")
-        print(f"  Expected root:  {STATIC_SCANS_DIR}")
+        logger.debug(
+            "Scan path validation mismatch: arg=%s, resolved=%s, expected_root=%s",
+            image_path,
+            path,
+            STATIC_SCANS_DIR,
+        )
         raise ValueError("image_path must reference a saved scan asset.")
 
     if not path.is_file():

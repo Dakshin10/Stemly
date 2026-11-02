@@ -1,0 +1,8 @@
+# Android Release Keystore Signing Configuration Example
+# Copy this file to `android/key.properties` and fill in your secure credentials.
+# NEVER commit `key.properties` or keystore `.jks`/`.keystore` files to version control.
+
+storePassword=YOUR_SECURE_STORE_PASSWORD
+keyPassword=YOUR_SECURE_KEY_PASSWORD
+keyAlias=stemly-upload-key
+storeFile=../stemly-upload-keystore.jks

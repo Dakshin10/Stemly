@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 from .db import db
@@ -19,7 +19,7 @@ async def record_user_login(user_info: Dict[str, Optional[str]]):
     if not uid:
         raise ValueError("Firebase user info missing 'uid'.")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     doc = {
         "_id": uid,
@@ -54,3 +54,17 @@ async def get_user(uid: str):
     if not uid or users_collection is None:
         return None
     return await users_collection.find_one({"_id": uid})
+
+
+async def delete_user_profile(uid: str) -> int:
+    """
+    Deletes the user profile record from MongoDB (Delete-My-Data).
+    """
+    if not uid or users_collection is None:
+        return 0
+    try:
+        result = await users_collection.delete_one({"_id": uid})
+        return result.deleted_count
+    except Exception as exc:
+        print(f"Error deleting user {uid}: {exc}")
+        return 0

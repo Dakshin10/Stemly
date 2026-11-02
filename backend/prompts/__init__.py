@@ -1,0 +1,19 @@
+"""
+Central registry of versioned prompts for Stemly backend services.
+"""
+
+from .notes_prompts import NOTES_FOLLOWUP_PROMPT_V1, NOTES_GENERATION_PROMPT_V1
+from .quiz_prompts import QUIZ_GENERATION_PROMPT_V1
+from .tutor_prompts import TUTOR_CHAT_PROMPT_V1
+from .vision_prompts import VISION_TOPIC_DETECTION_PROMPT_V1
+from .visualiser_prompts import PARAM_UPDATE_PROMPT_V1, VISUALISER_CHAT_PROMPT_V1
+
+__all__ = [
+    "VISION_TOPIC_DETECTION_PROMPT_V1",
+    "NOTES_GENERATION_PROMPT_V1",
+    "NOTES_FOLLOWUP_PROMPT_V1",
+    "QUIZ_GENERATION_PROMPT_V1",
+    "PARAM_UPDATE_PROMPT_V1",
+    "VISUALISER_CHAT_PROMPT_V1",
+    "TUTOR_CHAT_PROMPT_V1",
+]

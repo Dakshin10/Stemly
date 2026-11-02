@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json.schemastore.org/monitoring-dashboard.json",
+  "dashboard": {
+    "displayName": "Stemly Production APM & AI Health Dashboard",
+    "description": "Real-time monitoring and alerting for backend errors, latency, Groq rate limits, fallbacks, and user quotas.",
+    "widgets": [
+      {
+        "title": "HTTP Error Rate (5xx vs Total)",
+        "type": "timeseries",
+        "query": "sum(rate(stemly_http_requests_total{status=~'5..'}[5m])) / sum(rate(stemly_http_requests_total[5m])) * 100",
+        "unit": "percent",
+        "thresholds": [
+          {"value": 1.0, "color": "yellow"},
+          {"value": 2.0, "color": "red"}
+        ]
+      },
+      {
+        "title": "API Request Latency (p50, p95, p99)",
+        "type": "timeseries",
+        "query": "histogram_quantile(0.95, sum(rate(stemly_http_request_duration_ms_bucket[5m])) by (le))",
+        "unit": "milliseconds",
+        "thresholds": [
+          {"value": 2000, "color": "yellow"},
+          {"value": 3500, "color": "red"}
+        ]
+      },
+      {
+        "title": "Groq LLM 429 Rate Limit Events",
+        "type": "timeseries",
+        "query": "sum(rate(stemly_metric_groq_429_rate_total[1m])) by (model)",
+        "unit": "events_per_second",
+        "thresholds": [
+          {"value": 0.08, "color": "red"}
+        ]
+      },
+      {
+        "title": "Fallback / Degraded Response Rate (%)",
+        "type": "timeseries",
+        "query": "sum(rate(stemly_metric_fallback_rate_total[5m])) / sum(rate(stemly_llm_requests_total[5m])) * 100",
+        "unit": "percent",
+        "thresholds": [
+          {"value": 5.0, "color": "yellow"},
+          {"value": 10.0, "color": "red"}
+        ]
+      },
+      {
+        "title": "Daily Per-User LLM Quota Consumption",
+        "type": "histogram",
+        "query": "stemly_metric_daily_llm_usage_total",
+        "unit": "invocations_per_user"
+      }
+    ]
+  },
+  "alerts": [
+    {
+      "name": "HighHTTPErrorRate",
+      "severity": "CRITICAL",
+      "condition": "5xx error rate > 2.0% for 5 minutes",
+      "channels": ["pagerduty", "slack-alerts"],
+      "documentation": "Check Cloud Run logs for unhandled exceptions or database connectivity timeouts."
+    },
+    {
+      "name": "HighLatencyP95",
+      "severity": "WARNING",
+      "condition": "p95 request duration > 3500ms for 5 minutes",
+      "channels": ["slack-alerts"],
+      "documentation": "Inspect Groq LLM latency or downstream network latency spikes."
+    },
+    {
+      "name": "GroqDownstreamRateLimited",
+      "severity": "WARNING",
+      "condition": "Groq 429 response rate > 5 per minute",
+      "channels": ["slack-alerts"],
+      "documentation": "Groq tier quota reached or burst limit saturated. Check GROQ_VISION_API_KEY / GROQ_TEXT_API_KEY tier."
+    },
+    {
+      "name": "HighFallbackRate",
+      "severity": "HIGH",
+      "condition": "Degraded fallback responses > 10% of total generation requests",
+      "channels": ["slack-alerts", "pagerduty"],
+      "documentation": "Primary Groq model is degraded or offline. Emergency regex fallback is active."
+    },
+    {
+      "name": "CostAnomalyDailyQuotaSpike",
+      "severity": "WARNING",
+      "condition": "Aggregate daily LLM token consumption > 150% of 7-day trailing average",
+      "channels": ["slack-alerts"],
+      "documentation": "Verify if single user UID is cycling requests or if abuse prevention is needed."
+    }
+  ]
+}

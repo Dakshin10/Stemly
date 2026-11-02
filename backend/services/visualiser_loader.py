@@ -1,6 +1,6 @@
-import os
 import json
-from typing import Dict, Any, Optional
+import os
+from typing import Any, Dict, Optional
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "..", "templates", "visualiser")
 
@@ -16,13 +16,42 @@ TOPIC_TO_TEMPLATE = {
     "optics": "optics.json",
     "optic": "optics.json",
     "lens": "optics.json",
-    "mirror": "optics.json"
+    "mirror": "optics.json",
+    "kinematics": "kinematics.json",
+    "kinematics_1d": "kinematics.json",
+    "motion in 1d": "kinematics.json",
+    "atom": "atom.json",
+    "atom_bohr": "atom.json",
+    "bohr atom": "atom.json",
+    "chemistry": "atom.json",
+    "graph": "graphs.json",
+    "graph_quadratic": "graphs.json",
+    "quadratic": "graphs.json",
+    "equation": "equation_plotter.json",
+    "equation_plotter": "equation_plotter.json",
+    "plot": "equation_plotter.json",
 }
 
-def _load_template(filename: str) -> Dict[str, Any]:
+# In-memory template cache to eliminate blocking disk I/O in async request handlers
+_TEMPLATE_CACHE: Dict[str, Dict[str, Any]] = {}
+
+
+def _load_template_cached(filename: str) -> Optional[Dict[str, Any]]:
+    if filename in _TEMPLATE_CACHE:
+        return dict(_TEMPLATE_CACHE[filename])
+
     path = os.path.join(TEMPLATES_DIR, filename)
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    if not os.path.exists(path):
+        return None
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            _TEMPLATE_CACHE[filename] = data
+            return dict(data)
+    except Exception:
+        return None
+
 
 async def get_template_by_topic(topic: str) -> Optional[Dict[str, Any]]:
     if not topic:
@@ -30,15 +59,11 @@ async def get_template_by_topic(topic: str) -> Optional[Dict[str, Any]]:
 
     key = topic.strip().lower()
     filename = TOPIC_TO_TEMPLATE.get(key)
-
     if not filename:
         return None
 
-    try:
-        return _load_template(filename)
-    except FileNotFoundError:
-        return None
+    return _load_template_cached(filename)
 
-def fill_template_defaults(template: Dict[str, Any], variables=None):
-    out = dict(template)
-    return out
+
+def fill_template_defaults(template: Dict[str, Any], variables=None) -> Dict[str, Any]:
+    return dict(template)

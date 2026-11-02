@@ -66,7 +66,7 @@ class VisualiserFactory {
     }
 
     if (id.contains("optics") || id.contains("lens")) {
-      return OpticsWidget(f: getVal("f"), u: getVal("u"), h_o: getVal("h_o"));
+      return OpticsWidget(f: getVal("f"), u: getVal("u"), ho: getVal("h_o"));
     }
 
     // Dynamic Equation Plotter

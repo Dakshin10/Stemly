@@ -24,7 +24,7 @@ class ParameterSlider extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('$label: ${value.toStringAsFixed(2)} ${unit}'),
+        Text('$label: ${value.toStringAsFixed(2)} $unit'),
         Slider(
           value: value.clamp(min, max),
           min: min,

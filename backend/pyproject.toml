@@ -1,0 +1,34 @@
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+exclude = [
+    ".git",
+    ".pytest_cache",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "E402",  # module level import not at top of file
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["core", "services", "models", "routers", "database", "prompts", "utils", "config", "auth"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+follow_imports = "silent"
+warn_unused_ignores = true
+check_untyped_defs = false
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+testpaths = ["tests"]
+pythonpath = ["."]

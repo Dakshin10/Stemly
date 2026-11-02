@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../models/scan_history.dart';
 import '../storage/history_store.dart';
 import '../screens/history_detail_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
+import '../presentation/widgets/state_views.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -144,19 +146,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   // ---------------- EMPTY STATE ----------------
   Widget _emptyState(ThemeData theme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Text(
-          "No scan history yet.\nScan something to get started!",
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 18,
-            height: 1.4,
-            color: theme.colorScheme.onBackground.withOpacity(0.65),
-          ),
-        ),
-      ),
+    return EmptyStateView(
+      icon: Icons.history_edu_rounded,
+      title: "No Scan History Yet",
+      message: "Snap a photo of a physics equation or diagram to start learning with simulations and notes.",
+      buttonText: "Scan Now",
+      onAction: () => Navigator.pushReplacementNamed(context, '/'),
     );
   }
 
@@ -171,7 +166,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   // ---------------- HISTORY CARD ----------------
-  Widget _historyCard(h, Color deepBlue, ThemeData theme) {
+  Widget _historyCard(ScanHistory h, Color deepBlue, ThemeData theme) {
     final cs = theme.colorScheme;
 
     return AnimatedContainer(
@@ -184,7 +179,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: cs.shadow.withOpacity(0.12),
+            color: cs.shadow.withValues(alpha: 0.12),
             blurRadius: 12,
             offset: const Offset(0, 5),
           ),
@@ -239,7 +234,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     height: 1.2,
-                    color: cs.onSurface.withOpacity(0.7),
+                    color: cs.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
               ],

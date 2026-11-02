@@ -23,7 +23,7 @@ services:
       retries: 5
 
   # ---------------------------------------------------------------------------
-  # FastAPI backend
+  # FastAPI backend (Development Mode with hot reload)
   # ---------------------------------------------------------------------------
   backend:
     build:
@@ -33,16 +33,19 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+      - "8080:8080"
     env_file:
       - ./backend/.env
     environment:
-      # Override MONGO_URI to point to the container
+      HOST: 0.0.0.0
+      PORT: 8000
+      ENVIRONMENT: development
       MONGO_URI: mongodb://stemly:stemly_dev@mongodb:27017/stemly?authSource=admin
     volumes:
-      # Mount source code for hot reload
+      # Mount source code for live hot-reloading in dev
       - ./backend:/app
-      # Prevent overwriting container's venv
       - /app/.venv
+      - static-scans:/app/static/scans
     depends_on:
       mongodb:
         condition: service_healthy
@@ -50,3 +53,4 @@ services:
 
 volumes:
   mongo-data:
+  static-scans:

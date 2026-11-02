@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 import '../services/firebase_auth_service.dart';
@@ -140,13 +139,13 @@ class _SplashScreenState extends State<SplashScreen>
                                 shape: BoxShape.circle,
                                 gradient: RadialGradient(
                                   colors: [
-                                    Colors.white.withOpacity(0.2),
+                                    Colors.white.withValues(alpha: 0.2),
                                     Colors.transparent,
                                   ],
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.cyanAccent.withOpacity(0.5),
+                                    color: Colors.cyanAccent.withValues(alpha: 0.5),
                                     blurRadius: 40,
                                     spreadRadius: 5,
                                   ),
@@ -158,9 +157,9 @@ class _SplashScreenState extends State<SplashScreen>
                                   height: 130,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: Colors.white.withOpacity(0.15),
+                                    color: Colors.white.withValues(alpha: 0.15),
                                     border: Border.all(
-                                      color: Colors.white.withOpacity(0.4),
+                                      color: Colors.white.withValues(alpha: 0.4),
                                       width: 2,
                                     ),
                                   ),
@@ -194,7 +193,7 @@ class _SplashScreenState extends State<SplashScreen>
                         letterSpacing: 2,
                         shadows: [
                           Shadow(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black.withValues(alpha: 0.3),
                             offset: const Offset(0, 4),
                             blurRadius: 8,
                           ),
@@ -239,7 +238,7 @@ class _SplashScreenState extends State<SplashScreen>
                         "Your Smart Visual Learning Companion",
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -264,7 +263,7 @@ class _SplashScreenState extends State<SplashScreen>
                   child: CircularProgressIndicator(
                     strokeWidth: 3,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.white.withOpacity(0.7),
+                      Colors.white.withValues(alpha: 0.7),
                     ),
                   ),
                 ),

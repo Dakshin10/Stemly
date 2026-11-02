@@ -5,11 +5,12 @@ import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/config/app_config.dart';
 
 class FirebaseConfigurationException implements Exception {
   final String message;
@@ -20,17 +21,12 @@ class FirebaseConfigurationException implements Exception {
 
 const String _tokenStorageKey = "stemly_id_token";
 const String _profileStorageKey = "stemly_user_profile";
-const String _apiBaseUrl = String.fromEnvironment(
-  'STEMLY_API_BASE_URL',
-  defaultValue: 'http://10.0.2.2:8080',
-);
+String get _apiBaseUrl => AppConfig.baseUrl;
 
 class FirebaseAuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   
-  // TODO: [NEW ACCOUNT SETUP] Replace with your Web Client ID from Firebase Console
-  // Go to: Authentication -> Sign-in method -> Google -> Web SDK configuration
-  // It looks like: "123456789-abcdef...apps.googleusercontent.com"
+  // Google OAuth client ID for desktop/web authentication
   static const String _googleClientId = "75140432972-ua4tbeh27rbejd55q03htq91dt2ig1bd.apps.googleusercontent.com";
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
@@ -205,26 +201,17 @@ class FirebaseAuthService extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------------
-  // 🔵 TOKEN MANAGEMENT  (UPDATED HERE)
+  // 🔵 TOKEN MANAGEMENT
   // ---------------------------------------------------------------------------
   Future<String?> getIdToken({bool forceRefresh = false}) async {
     if (_user != null) {
       final token = await _user!.getIdToken(forceRefresh);
-
-      // 🔥 Print token for Swagger testing
-      print("🔥 FIREBASE TOKEN: $token");
-
       _cachedIdToken = token;
       await _secureStorage.write(key: _tokenStorageKey, value: token);
       return token;
     }
 
     _cachedIdToken ??= await _secureStorage.read(key: _tokenStorageKey);
-
-    if (_cachedIdToken != null) {
-      print("🔥 FIREBASE TOKEN (cached): $_cachedIdToken");
-    }
-
     return _cachedIdToken;
   }
 
@@ -242,10 +229,6 @@ class FirebaseAuthService extends ChangeNotifier {
     if (user == null) return;
 
     final token = await user.getIdToken();
-
-    // 🔥 Print token for debugging
-    print("🔥 FIREBASE TOKEN (cacheAuth): $token");
-
     _cachedIdToken = token;
 
     await _secureStorage.write(key: _tokenStorageKey, value: token);

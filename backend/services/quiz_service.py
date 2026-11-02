@@ -1,8 +1,7 @@
-from models.quiz import QuizTopic, QuizQuestion, QuizSubmission, QuizResult
+from models.quiz import QuizQuestion, QuizResult, QuizSubmission, QuizTopic
 
 
 class QuizService:
-
     def __init__(self):
         # Example static dataset for now
         self.topics = [
@@ -16,26 +15,17 @@ class QuizService:
                 topic_id=1,
                 question="A 10 kg object accelerates at 2 m/s². What is the force?",
                 options=["5 N", "10 N", "15 N", "20 N"],
-                correct_index=3
+                correct_index=3,
             ),
             QuizQuestion(
                 id=102,
                 topic_id=1,
                 question="Which law states that every action has an equal and opposite reaction?",
-                options=[
-                    "Newton’s 1st Law",
-                    "Newton’s 2nd Law",
-                    "Newton’s 3rd Law",
-                    "Law of gravitation"
-                ],
-                correct_index=2
+                options=["Newton’s 1st Law", "Newton’s 2nd Law", "Newton’s 3rd Law", "Law of gravitation"],
+                correct_index=2,
             ),
             QuizQuestion(
-                id=201,
-                topic_id=2,
-                question="Solve: 3x + 5 = 20",
-                options=["3", "5", "10", "7"],
-                correct_index=1
+                id=201, topic_id=2, question="Solve: 3x + 5 = 20", options=["3", "5", "10", "7"], correct_index=1
             ),
         ]
 
@@ -58,8 +48,4 @@ class QuizService:
                 score += 1
                 correct_ids.append(ans.question_id)
 
-        return QuizResult(
-            score=score,
-            total=len(submission.answers),
-            correct_questions=correct_ids
-        )
+        return QuizResult(score=score, total=len(submission.answers), correct_questions=correct_ids)

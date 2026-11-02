@@ -1,5 +1,4 @@
 // lib/visualiser/models/visualiser_models.dart
-import 'dart:convert';
 
 class TemplateParameter {
   String name;

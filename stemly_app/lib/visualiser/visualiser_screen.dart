@@ -6,12 +6,7 @@ import 'visualiser_controller.dart';
 import 'visualiser_models.dart';
 import 'parameter_slider.dart';
 
-// Import CustomPainter widgets
-import 'projectile_motion.dart';
-import 'free_fall_component.dart';
-import 'shm_component.dart';
-import 'kinematics_component.dart';
-import 'optics_component.dart';
+import 'visualiser_factory.dart';
 
 class VisualiserScreen extends StatefulWidget {
   final String topic;
@@ -47,46 +42,9 @@ class _VisualiserScreenState extends State<VisualiserScreen> {
     final template = controller.template;
     if (template == null) return;
 
-    final p = template.parameters;
-    double getVal(String key) => p[key]?.value ?? 0.0;
-    
-    Widget? newWidget;
-    final id = template.templateId.toLowerCase();
-
-    if (id.contains('projectile')) {
-      newWidget = ProjectileMotionWidget(
-        U: getVal('U'),
-        theta: getVal('theta'),
-        g: getVal('g'),
-      );
-    } else if (id.contains('free') || id.contains('fall')) {
-      newWidget = FreeFallWidget(
-        h: getVal('h'),
-        g: getVal('g'),
-      );
-    } else if (id.contains('shm')) {
-      newWidget = SHMWidget(
-        A: getVal('A'),
-        m: getVal('m'),
-        k: getVal('k'),
-      );
-    } else if (id.contains('kinematics')) {
-      newWidget = KinematicsWidget(
-        u: getVal('u'),
-        a: getVal('a'),
-        tMax: getVal('t_max'),
-      );
-    } else if (id.contains('optics')) {
-      newWidget = OpticsWidget(
-        f: getVal('f'),
-        u: getVal('u'),
-        h_o: getVal('h_o'),
-      );
-    }
-
     if (mounted) {
       setState(() {
-        visualiserWidget = newWidget;
+        visualiserWidget = VisualiserFactory.create(template);
       });
     }
   }
@@ -186,32 +144,36 @@ class _VisualiserScreenState extends State<VisualiserScreen> {
 
   Future<void> _showAiDialog(BuildContext context) async {
     final promptController = TextEditingController();
-    final res = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Ask AI (Natural Language)'),
-        content: TextField(
-          controller: promptController,
-          decoration: const InputDecoration(
-            hintText: "e.g., 'Make it go higher' or 'Increase gravity'",
+    try {
+      final res = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Ask AI (Natural Language)'),
+          content: TextField(
+            controller: promptController,
+            decoration: const InputDecoration(
+              hintText: "e.g., 'Make it go higher' or 'Increase gravity'",
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, promptController.text),
+              child: const Text('Apply'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, null),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, promptController.text),
-            child: const Text('Apply'),
-          ),
-        ],
-      ),
-    );
+      );
 
-    if (res != null && res.trim().isNotEmpty) {
-      await controller.applyAiUpdate(res, userId: widget.userId);
-      _updateWidgetFromTemplate();
+      if (res != null && res.trim().isNotEmpty) {
+        await controller.applyAiUpdate(res, userId: widget.userId);
+        _updateWidgetFromTemplate();
+      }
+    } finally {
+      promptController.dispose();
     }
   }
 }

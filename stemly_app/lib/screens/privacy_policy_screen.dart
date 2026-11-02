@@ -27,7 +27,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
-                color: cs.shadow.withOpacity(0.12),
+                color: cs.shadow.withValues(alpha: 0.12),
                 blurRadius: 14,
                 offset: const Offset(0, 6),
               ),
@@ -55,7 +55,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   "protects, and stores your information.",
                   style: TextStyle(
                     fontSize: 16,
-                    color: cs.onSurface.withOpacity(0.75),
+                    color: cs.onSurface.withValues(alpha: 0.75),
                     height: 1.5,
                   ),
                 ),
@@ -138,7 +138,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 15,
               height: 1.55,
-              color: cs.onSurface.withOpacity(0.85),
+              color: cs.onSurface.withValues(alpha: 0.85),
             ),
           ),
         ],

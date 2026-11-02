@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, Request, Header
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends, Header, Request
+from pydantic import BaseModel, Field
+
 from auth.auth_middleware import require_firebase_user
-from config import OLLAMA_BASE_URL, LOCAL_MODEL
-from pydantic import Field
-import json
-import re
-import requests
+from core.parameter_sanitizer import sanitize_simulation_parameters
+from core.rate_limiter import LIMIT_CHAT, limiter
+from core.usage_limiter import check_and_increment_daily_usage
+from services.llm import tutor_chat
 
 router = APIRouter(
     prefix="/chat",
@@ -14,133 +15,49 @@ router = APIRouter(
     dependencies=[Depends(require_firebase_user)],
 )
 
+
 class ChatRequest(BaseModel):
-    user_prompt: str
-    topic: str
-    variables: list
-    image_path: Optional[str] = None
+    user_prompt: str = Field(..., min_length=1, max_length=2000, description="User question or instruction")
+    topic: str = Field(..., min_length=1, max_length=150, description="STEM topic")
+    variables: List[str] = Field(default_factory=list, max_length=50, description="Variable symbols")
+    image_path: Optional[str] = Field(default=None, max_length=500)
     current_params: Optional[Dict[str, Any]] = None
-    template_id: Optional[str] = None
-    # ocr_text? If needed later.
+    template_id: Optional[str] = Field(default=None, max_length=100)
 
 
 class ChatResponse(BaseModel):
-    response: str = Field(description="Natural language response to the user")
-    parameter_updates: Optional[Dict[str, Any]] = Field(
-        description="Dictionary of parameter updates, if any", default=None
+    response: str = Field(description="AI explanation or tutor response")
+    parameter_updates: Dict[str, Any] = Field(
+        default_factory=dict, description="Sanitized simulation parameter updates"
     )
-    update_type: str = Field(
-        description="Type of response: 'explanation', 'parameter_change', or 'both'"
-    )
+    update_type: str = Field(default="none", description="Simulation control type")
+    degraded: bool = Field(default=False)
 
 
-def clean_json_output(text: str):
-    """Remove markdown code blocks from JSON output."""
-    text = text.strip()
-    text = re.sub(r"```json", "", text)
-    text = re.sub(r"```", "", text)
-    text = text.strip()
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        return None
-
-
-async def handle_unified_chat(
-    user_prompt: str,
-    topic: str,
-    variables: list,
-    api_key: str,
-    image_path: Optional[str] = None,
-    current_params: Optional[Dict[str, Any]] = None,
-    template_id: Optional[str] = None,
-) -> ChatResponse:
-    
-    # Construct Context
-    context_parts = [
-        f"Topic: {topic}",
-        f"Variables involved: {', '.join(variables)}",
-    ]
-    if template_id:
-        context_parts.append(f"Current simulation: {template_id}")
-    if current_params:
-        context_parts.append(f"Current parameters: {current_params}")
-    
-    context = "\n".join(context_parts)
-
-    system_prompt = """
-    You are an expert Physics Tutor and Simulation Controller.
-    
-    Context:
-    {context}
-    
-    User's message: "{user_prompt}"
-    
-    Your tasks:
-    1. If they want to change parameters, update them in "parameter_updates"
-    2. If they ask a question, provide a clear answer in "response"
-    3. Set "update_type" to: "explanation", "parameter_change", or "both"
-    
-    STRICT JSON Output:
-    {
-      "response": "Sure, here is the answer...",
-      "parameter_updates": {"velocity": 10},
-      "update_type": "both"
-    }
-    """
-    
-    full_prompt = system_prompt.replace("{context}", context).replace("{user_prompt}", user_prompt)
-    
-    payload = {
-        "model": LOCAL_MODEL,
-        "prompt": full_prompt,
-        "stream": False,
-        "format": "json"
-    }
-    
-    try:
-        r = requests.post(f"{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=120)
-        r.raise_for_status()
-        data = r.json()
-        raw = data.get("response", "")
-        
-        parsed = clean_json_output(raw)
-        if parsed:
-            return ChatResponse(**parsed)
-        else:
-            return ChatResponse(
-                response="I'm sorry, I couldn't process that.",
-                update_type="explanation"
-            )
-
-    except Exception as e:
-        print(f"❌ Chat Error: {e}")
-        return ChatResponse(
-            response="Error communicating with AI Assistant.",
-            update_type="explanation"
-        )
-
-
-@router.post("/ask")
+@router.post("/ask", response_model=ChatResponse)
+@limiter.limit(LIMIT_CHAT)
 async def chat_ask(
-    req: ChatRequest, 
     request: Request,
-    x_ai_api_key: str = Header(None, alias="X-AI-API-Key")
+    req: ChatRequest,
+    x_ai_api_key: str = Header(None, alias="X-AI-API-Key"),
 ):
-    user_id = request.state.user["uid"]
-    print(f"💬 Chat request from {user_id}: {req.user_prompt}")
-    
-    if x_ai_api_key:
-        print(f"DEBUG: Using custom AI API Key: {x_ai_api_key[:5]}...")
-
-    response = await handle_unified_chat(
-        user_prompt=req.user_prompt,
+    await check_and_increment_daily_usage(user_id=request.state.user["uid"])
+    result = await tutor_chat(
+        message=req.user_prompt,
         topic=req.topic,
         variables=req.variables,
-        api_key=x_ai_api_key,
-        image_path=req.image_path,
         current_params=req.current_params,
         template_id=req.template_id,
     )
 
-    return response.dict()
+    # Server-side clamp any parameter updates for simulation stability
+    sanitized_updates = {}
+    if result.parameter_updates:
+        sanitized_updates = sanitize_simulation_parameters(result.parameter_updates)
+
+    return ChatResponse(
+        response=result.response,
+        parameter_updates=sanitized_updates,
+        update_type=result.update_type,
+        degraded=result.degraded,
+    )

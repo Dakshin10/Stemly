@@ -1,53 +1,29 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../data/storage/offline_storage.dart';
 import '../models/scan_history.dart';
 
+/// Legacy facade wrapping OfflineStorage for backward compatibility.
 class HistoryStore {
-  static List<ScanHistory> _history = [];
-  static const String _key = 'stemly_history_v1';
+  HistoryStore._();
 
   static Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonString = prefs.getString(_key);
-    
-    if (jsonString != null) {
-      try {
-        final List<dynamic> decoded = jsonDecode(jsonString);
-        _history = decoded
-            .map((e) => ScanHistory.fromJson(e as Map<String, dynamic>))
-            .toList();
-      } catch (e) {
-        // Handle corrupt data by clearing or ignoring
-        print("Error loading history: $e");
-      }
-    }
-  }
-
-  static Future<void> _save() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonString = jsonEncode(_history.map((e) => e.toJson()).toList());
-    await prefs.setString(_key, jsonString);
+    await OfflineStorage.init();
   }
 
   static Future<void> add(ScanHistory scan) async {
-    _history.insert(0, scan);
-    await _save();
+    await OfflineStorage.addHistory(scan);
   }
 
   static Future<void> remove(ScanHistory scan) async {
-    _history.remove(scan);
-    await _save();
+    await OfflineStorage.removeHistory(scan);
   }
-  
-  // For updates like adding quiz results or starring
+
   static Future<void> update() async {
-    await _save();
+    await OfflineStorage.updateHistory();
   }
 
   static void setHistory(List<ScanHistory> list) {
-    _history = list;
-    _save();
+    OfflineStorage.setHistory(list);
   }
 
-  static List<ScanHistory> get history => _history;
+  static List<ScanHistory> get history => OfflineStorage.history;
 }

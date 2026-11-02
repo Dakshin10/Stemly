@@ -52,6 +52,7 @@ dependencies:
   function_tree: ^0.9.1
   path_provider: ^2.1.1
   webview_flutter: ^4.13.0
+  sentry_flutter: ^10.3.0
 
 
 dev_dependencies:

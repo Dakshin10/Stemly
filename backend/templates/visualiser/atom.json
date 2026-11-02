@@ -1,0 +1,10 @@
+{
+  "template_id": "atom_bohr",
+  "title": "Bohr Atom Model",
+  "animation_type": "chemistry",
+  "description": "Atomic shell structure with protons, neutrons, and orbital electron shells",
+  "parameters": {
+    "protons": { "value": 6.0, "min": 1.0, "max": 118.0, "unit": "", "label": "Protons (Z)" },
+    "neutrons": { "value": 6.0, "min": 0.0, "max": 150.0, "unit": "", "label": "Neutrons (N)" }
+  }
+}

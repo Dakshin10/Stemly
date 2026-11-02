@@ -13,6 +13,61 @@ class GoogleSignInButton extends StatefulWidget {
 class _GoogleSignInButtonState extends State<GoogleSignInButton> {
   bool _loading = false;
 
+  Future<void> _handleSignIn() async {
+    setState(() => _loading = true);
+    final authService = context.read<FirebaseAuthService>();
+    try {
+      await authService.signInWithGoogle();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Signed in with Google")),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      final errorMessage = error.toString();
+      String userMessage;
+      
+      if (errorMessage.contains('ApiException: 10') || 
+          errorMessage.contains('DEVELOPER_ERROR') ||
+          errorMessage.contains('Firebase configuration')) {
+        userMessage = "Firebase not configured. See FIREBASE_SETUP.md";
+      } else {
+        userMessage = "Login failed: ${errorMessage.length > 100 
+          ? '${errorMessage.substring(0, 100)}...' 
+          : errorMessage}";
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(userMessage),
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: "Details",
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  title: const Text("Login Error"),
+                  content: SingleChildScrollView(
+                    child: Text(errorMessage),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text("OK"),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -26,62 +81,7 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
         side: BorderSide(color: colorScheme.primaryContainer),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      onPressed: _loading
-          ? null
-          : () async {
-              setState(() => _loading = true);
-              final authService = context.read<FirebaseAuthService>();
-              try {
-                await authService.signInWithGoogle();
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Signed in with Google")),
-                );
-              } catch (error) {
-                if (!mounted) return;
-                final errorMessage = error.toString();
-                String userMessage;
-                
-                if (errorMessage.contains('ApiException: 10') || 
-                    errorMessage.contains('DEVELOPER_ERROR') ||
-                    errorMessage.contains('Firebase configuration')) {
-                  userMessage = "Firebase not configured. See FIREBASE_SETUP.md";
-                } else {
-                  userMessage = "Login failed: ${errorMessage.length > 100 
-                    ? errorMessage.substring(0, 100) + '...' 
-                    : errorMessage}";
-                }
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(userMessage),
-                    duration: const Duration(seconds: 5),
-                    action: SnackBarAction(
-                      label: "Details",
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text("Login Error"),
-                            content: SingleChildScrollView(
-                              child: Text(errorMessage),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text("OK"),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                );
-              } finally {
-                if (mounted) setState(() => _loading = false);
-              }
-            },
+      onPressed: _loading ? null : _handleSignIn,
       icon: _loading
           ? const SizedBox(
               width: 18,

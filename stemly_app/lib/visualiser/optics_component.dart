@@ -1,27 +1,30 @@
 // lib/visualiser/optics_component.dart
 import 'dart:math';
-
 import 'package:flutter/material.dart';
 
 class OpticsWidget extends StatelessWidget {
   final double f;
   final double u;
-  final double h_o;
+  final double ho;
 
   const OpticsWidget({
     super.key,
     required this.f,
     required this.u,
-    required this.h_o,
+    required this.ho,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: double.infinity,
-      child: CustomPaint(
-        painter: OpticsPainter(f: f, u: u, h_o: h_o),
+    return RepaintBoundary(
+      child: SizedBox.expand(
+        child: CustomPaint(
+          painter: OpticsPainter(
+            f: max(1.0, f),
+            u: max(1.0, u),
+            ho: max(0.5, ho),
+          ),
+        ),
       ),
     );
   }
@@ -30,186 +33,342 @@ class OpticsWidget extends StatelessWidget {
 class OpticsPainter extends CustomPainter {
   final double f;
   final double u;
-  final double h_o;
+  final double ho;
+
+  // Cached Paint objects to avoid allocations during rebuilds
+  static final Paint _bgPaint = Paint()..color = const Color(0xFFFAFAFA);
+  static final Paint _axisPaint = Paint()
+    ..color = const Color(0x8A000000)
+    ..strokeWidth = 1.5;
+  static final Paint _lensFillPaint = Paint()
+    ..color = const Color(0x332196F3)
+    ..style = PaintingStyle.fill;
+  static final Paint _lensBorderPaint = Paint()
+    ..color = const Color(0xFF2196F3)
+    ..strokeWidth = 2.0
+    ..style = PaintingStyle.stroke;
+  static final Paint _pointPaint = Paint()..color = const Color(0xFF212121);
+  static final Paint _rayPaint = Paint()
+    ..color = const Color(0xFFFB8C00)
+    ..strokeWidth = 1.5;
+  static final Paint _virtualRayPaint = Paint()
+    ..color = const Color(0x99FB8C00)
+    ..strokeWidth = 1.2
+    ..style = PaintingStyle.stroke;
+  static final Paint _objArrowPaint = Paint()
+    ..color = const Color(0xFF1976D2)
+    ..strokeWidth = 3.0;
+  static final Paint _imgArrowPaint = Paint()
+    ..color = const Color(0xFFD32F2F)
+    ..strokeWidth = 3.0;
+  static final Paint _panelBgPaint = Paint()
+    ..color = const Color(0xE6FFFFFF)
+    ..style = PaintingStyle.fill;
+  static final Paint _panelBorderPaint = Paint()
+    ..color = const Color(0x1F000000)
+    ..style = PaintingStyle.stroke;
+
+  static final TextPainter _cachedTextPainter = TextPainter(
+    textDirection: TextDirection.ltr,
+  );
 
   OpticsPainter({
     required this.f,
     required this.u,
-    required this.h_o,
+    required this.ho,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Lens formula: 1/v - 1/(-u) = 1/f  => 1/v + 1/u = 1/f => 1/v = 1/f - 1/u
-    // u is object distance (usually negative in sign convention, but here input as positive distance)
-    // Let's use standard sign convention: Light travels left to right.
-    // Lens at origin (0,0).
-    // Object at -u.
-    // f is positive for convex.
-    
-    final objDist = u;
-    final focalLen = f;
-    
-    // 1/v = 1/f - 1/u
-    // If u < f, v is negative (virtual image)
-    // If u = f, v is infinity
-    // If u > f, v is positive (real image)
-    
-    double v = 0;
-    if ((objDist - focalLen).abs() < 0.1) {
-      v = 10000; // Infinity
-    } else {
-      v = 1 / (1/focalLen - 1/objDist);
-    }
-    
-    // Magnification m = v/u
-    final m = v / objDist;
-    final h_i = m * h_o; // Image height (negative means inverted)
+    // Thin lens formula: 1/f = 1/v - 1/(-u) => 1/v = 1/f - 1/u
+    // u: object distance (positive magnitude, placed at -u)
+    // f: focal length (positive for convex lens)
+    final denom = 1.0 / f - 1.0 / u;
+    final isAtFocus = denom.abs() < 1e-4;
 
-    // Scaling
-    // We need to fit -u, +v, and lens in screen.
-    // Total width needed approx u + v (if v>0) or max(u, |v|)
-    final totalWidth = objDist + v.abs() + 20;
-    final scale = (size.width * 0.8) / max(totalWidth, 50.0);
-    
-    final centerX = size.width / 2; // Lens center
-    // Adjust center if v is very large? Let's keep lens at center for simplicity.
-    
-    final centerY = size.height / 2;
+    final double v;
+    final double m;
+    final double hi;
+    final bool isVirtual;
+
+    if (isAtFocus) {
+      v = double.infinity;
+      m = double.infinity;
+      hi = double.infinity;
+      isVirtual = false;
+    } else {
+      v = 1.0 / denom;
+      // Magnification m = v / (-u) in sign convention, or |m| = |v| / u
+      // Image height hi = (v / u) * ho (inverted if v > 0)
+      m = v / u;
+      hi = m * ho;
+      isVirtual = v < 0;
+    }
+
+    // Viewport Scaling: scale to fit object, focal points, and visible portion of image
+    // Never let v = infinity collapse the viewport scale!
+    final effectiveImageDistance = isAtFocus ? 2.5 * f : min(v.abs(), 3.5 * f);
+    final totalSpan = max(u + 2.0 * f, effectiveImageDistance + 2.0 * f);
+    final scale = (size.width * 0.42) / max(totalSpan, 30.0);
+
+    final centerX = size.width / 2.0;
+    final centerY = size.height / 2.0;
 
     // Background
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()..color = Colors.grey.shade50,
-    );
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), _bgPaint);
 
     // Principal Axis
     canvas.drawLine(
       Offset(0, centerY),
       Offset(size.width, centerY),
-      Paint()..color = Colors.black54,
+      _axisPaint,
     );
 
-    // Lens (Convex)
-    _drawLens(canvas, centerX, centerY, 100);
+    // Convex Lens
+    _drawLens(canvas, centerX, centerY, min(140.0, size.height * 0.65));
 
-    // Focus Points
-    _drawPoint(canvas, centerX - f * scale, centerY, 'F1');
-    _drawPoint(canvas, centerX + f * scale, centerY, 'F2');
+    // Focal Points F1 (-f) and F2 (+f)
+    _drawPoint(canvas, centerX - f * scale, centerY, 'F₁');
+    _drawPoint(canvas, centerX + f * scale, centerY, 'F₂');
+    _drawPoint(canvas, centerX - 2.0 * f * scale, centerY, '2F₁');
+    _drawPoint(canvas, centerX + 2.0 * f * scale, centerY, '2F₂');
 
-    // Object
-    final objX = centerX - objDist * scale;
-    _drawArrow(canvas, objX, centerY, -h_o * scale * 3, Colors.blue, 'Object'); // *3 for visibility
+    // Object Arrow at (-u)
+    final objX = centerX - u * scale;
+    final scaledHo = ho * scale * 1.8;
+    _drawArrow(canvas, objX, centerY, -scaledHo, const Color(0xFF1976D2), 'Object');
 
-    // Image
-    if (v.abs() < 1000) {
+    // Rays and Image
+    if (isAtFocus) {
+      // Parallel rays to infinity
+      _drawParallelRays(canvas, objX, centerY - scaledHo, centerX, centerY);
+    } else {
       final imgX = centerX + v * scale;
-      // h_i is negative for inverted real image.
-      // Arrow drawing: positive height goes UP.
-      // So we pass -h_i because h_i sign tells us orientation relative to axis?
-      // Wait, m = v/u. If v>0 (real), m<0 (inverted). 
-      // Actually m = v/u for lens? No, m = v/u.
-      // If object is upright (+h_o), image height h_i = m * h_o.
-      // If m is negative, h_i is negative (inverted).
-      // My drawArrow takes length. If length < 0, it points up? No, let's standardize.
-      
-      _drawArrow(canvas, imgX, centerY, -h_i * scale * 3, Colors.red, 'Image');
+      final scaledHi = hi.abs() * scale * 1.8;
 
-      // Rays
-      _drawRays(canvas, objX, centerY - h_o * scale * 3, imgX, centerY - h_i * scale * 3, centerX, centerY);
+      if (!isVirtual) {
+        // Real, inverted image (v > 0)
+        _drawArrow(canvas, imgX, centerY, scaledHi, const Color(0xFFD32F2F), 'Image');
+        _drawRealRays(
+          canvas,
+          objX,
+          centerY - scaledHo,
+          imgX,
+          centerY + scaledHi,
+          centerX,
+          centerY,
+          centerX + f * scale,
+        );
+      } else {
+        // Virtual, upright image (v < 0, same side as object)
+        _drawArrow(canvas, imgX, centerY, -scaledHi, const Color(0xFFE53935), 'Virtual Image');
+        _drawVirtualRays(
+          canvas,
+          objX,
+          centerY - scaledHo,
+          imgX,
+          centerY - scaledHi,
+          centerX,
+          centerY,
+          centerX + f * scale,
+        );
+      }
     }
 
-    // Info
-    _drawInfoPanel(canvas, v, m);
+    // Info telemetry panel
+    _drawInfoPanel(canvas, v, m, isAtFocus, isVirtual);
   }
 
   void _drawLens(Canvas canvas, double x, double y, double height) {
-    final paint = Paint()
-      ..color = Colors.blue.withOpacity(0.3)
-      ..style = PaintingStyle.fill;
-    
     final path = Path();
-    path.moveTo(x, y - height/2);
-    path.quadraticBezierTo(x + 20, y, x, y + height/2);
-    path.quadraticBezierTo(x - 20, y, x, y - height/2);
-    canvas.drawPath(path, paint);
-    canvas.drawPath(path, Paint()..style = PaintingStyle.stroke..color = Colors.blue);
+    path.moveTo(x, y - height / 2.0);
+    path.quadraticBezierTo(x + 18, y, x, y + height / 2.0);
+    path.quadraticBezierTo(x - 18, y, x, y - height / 2.0);
+
+    canvas.drawPath(path, _lensFillPaint);
+    canvas.drawPath(path, _lensBorderPaint);
+
+    // Lens optical center line
+    canvas.drawLine(
+      Offset(x, y - height / 2.0),
+      Offset(x, y + height / 2.0),
+      _axisPaint,
+    );
   }
 
-  void _drawArrow(Canvas canvas, double x, double y, double height, Color color, String label) {
-    // Height positive means UP? 
-    // Usually y increases downwards.
-    // So y - height means "up" if height is positive.
-    
-    final paint = Paint()..color = color..strokeWidth = 3;
-    final tipY = y + height; // If height is -50, tip is at y-50 (UP)
-    
+  void _drawArrow(
+    Canvas canvas,
+    double x,
+    double y,
+    double deltaY,
+    Color color,
+    String label,
+  ) {
+    final tipY = y + deltaY;
+    final paint = (color == const Color(0xFF1976D2)) ? _objArrowPaint : _imgArrowPaint;
+
     canvas.drawLine(Offset(x, y), Offset(x, tipY), paint);
-    
+
     // Arrowhead
-    final dir = height.sign; // -1 for UP
-    // If UP, tip is at y-50. Arrowhead should point UP.
-    
+    final dir = deltaY.isNegative ? -1.0 : 1.0;
     final path = Path()
       ..moveTo(x, tipY)
-      ..lineTo(x - 5, tipY - 10 * dir)
-      ..lineTo(x + 5, tipY - 10 * dir)
+      ..lineTo(x - 5, tipY - 8 * dir)
+      ..lineTo(x + 5, tipY - 8 * dir)
       ..close();
+
     canvas.drawPath(path, Paint()..color = color);
-    
-    _drawText(canvas, label, x - 10, y + 10, color: color, bold: true);
+
+    _drawText(
+      canvas,
+      label,
+      x - 16,
+      dir < 0 ? tipY - 16 : tipY + 4,
+      color: color,
+      bold: true,
+      size: 10,
+    );
   }
 
   void _drawPoint(Canvas canvas, double x, double y, String label) {
-    canvas.drawCircle(Offset(x, y), 3, Paint()..color = Colors.black);
-    _drawText(canvas, label, x - 5, y + 5, size: 10);
+    canvas.drawCircle(Offset(x, y), 3, _pointPaint);
+    _drawText(canvas, label, x - 6, y + 6, size: 9, bold: true);
   }
 
-  void _drawRays(Canvas canvas, double ox, double oy, double ix, double iy, double cx, double cy) {
-    final paint = Paint()..color = Colors.orange..strokeWidth = 1;
-    
-    // Ray 1: Parallel to axis, then through F2
-    canvas.drawLine(Offset(ox, oy), Offset(cx, oy), paint);
-    canvas.drawLine(Offset(cx, oy), Offset(ix, iy), paint);
-    
-    // Ray 2: Through Optical Center (undeviated)
-    canvas.drawLine(Offset(ox, oy), Offset(ix, iy), paint);
+  void _drawRealRays(
+    Canvas canvas,
+    double ox,
+    double oy,
+    double ix,
+    double iy,
+    double cx,
+    double cy,
+    double f2x,
+  ) {
+    // Ray 1: Parallel to axis from object tip to lens, then through F2 to image tip
+    canvas.drawLine(Offset(ox, oy), Offset(cx, oy), _rayPaint);
+    canvas.drawLine(Offset(cx, oy), Offset(ix, iy), _rayPaint);
+
+    // Ray 2: Through optical center (cx, cy) directly to image tip
+    canvas.drawLine(Offset(ox, oy), Offset(ix, iy), _rayPaint);
   }
 
-  void _drawInfoPanel(Canvas canvas, double v, double m) {
-    final rect = Rect.fromLTWH(10, 10, 200, 100);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, Radius.circular(8)),
-      Paint()..color = Colors.white.withOpacity(0.9),
+  void _drawVirtualRays(
+    Canvas canvas,
+    double ox,
+    double oy,
+    double ix,
+    double iy,
+    double cx,
+    double cy,
+    double f2x,
+  ) {
+    // Ray 1: Parallel to axis to lens, then refracts through F2 into right half plane
+    canvas.drawLine(Offset(ox, oy), Offset(cx, oy), _rayPaint);
+    final ray1Slope = (cy - oy) / (f2x - cx);
+    final extendX = cx + 250.0;
+    final extendY = oy + ray1Slope * (extendX - cx);
+    canvas.drawLine(Offset(cx, oy), Offset(extendX, extendY), _rayPaint);
+
+    // Dashed backwards projection to virtual image tip
+    _drawDashedLine(canvas, Offset(cx, oy), Offset(ix, iy));
+
+    // Ray 2: Optical center ray through (cx, cy)
+    final ray2Slope = (cy - oy) / (cx - ox);
+    canvas.drawLine(Offset(ox, oy), Offset(extendX, cy + ray2Slope * (extendX - cx)), _rayPaint);
+    _drawDashedLine(canvas, Offset(cx, cy), Offset(ix, iy));
+  }
+
+  void _drawParallelRays(
+    Canvas canvas,
+    double ox,
+    double oy,
+    double cx,
+    double cy,
+  ) {
+    // Ray 1: Parallel to axis to lens, refracts through F2
+    canvas.drawLine(Offset(ox, oy), Offset(cx, oy), _rayPaint);
+    canvas.drawLine(Offset(cx, oy), Offset(cx + 250.0, cy + (cy - oy)), _rayPaint);
+
+    // Ray 2: Directly through optical center
+    canvas.drawLine(Offset(ox, oy), Offset(cx + 250.0, cy + (cy - oy)), _rayPaint);
+
+    _drawText(
+      canvas,
+      "Rays emerge parallel (Image at ∞)",
+      cx + 40,
+      cy - 40,
+      size: 11,
+      color: const Color(0xFFE65100),
+      bold: true,
     );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, Radius.circular(8)),
-      Paint()..style = PaintingStyle.stroke..color = Colors.black12,
-    );
-
-    _drawText(canvas, 'Convex Lens', 20, 20, size: 14, bold: true, color: Colors.blue);
-    _drawText(canvas, 'Focal Length: ${f.toStringAsFixed(1)} cm', 20, 45);
-    _drawText(canvas, 'Image Dist: ${v.toStringAsFixed(1)} cm', 20, 65);
-    _drawText(canvas, 'Magnification: ${m.toStringAsFixed(2)}x', 20, 85);
   }
 
-  void _drawText(Canvas canvas, String text, double x, double y,
-      {double size = 12, bool bold = false, Color color = Colors.black87}) {
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(
-          color: color,
-          fontSize: size,
-          fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-        ),
+  void _drawDashedLine(Canvas canvas, Offset p1, Offset p2) {
+    final dist = (p2 - p1).distance;
+    final count = max(1, (dist / 8.0).floor());
+    final dx = (p2.dx - p1.dx) / count;
+    final dy = (p2.dy - p1.dy) / count;
+
+    for (int i = 0; i < count; i += 2) {
+      canvas.drawLine(
+        Offset(p1.dx + dx * i, p1.dy + dy * i),
+        Offset(p1.dx + dx * (i + 1), p1.dy + dy * (i + 1)),
+        _virtualRayPaint,
+      );
+    }
+  }
+
+  void _drawInfoPanel(
+    Canvas canvas,
+    double v,
+    double m,
+    bool isAtFocus,
+    bool isVirtual,
+  ) {
+    final rect = Rect.fromLTWH(12, 12, 210, 105);
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(8));
+    canvas.drawRRect(rrect, _panelBgPaint);
+    canvas.drawRRect(rrect, _panelBorderPaint);
+
+    _drawText(canvas, 'Convex Lens Optics', 22, 20, size: 13, bold: true, color: const Color(0xFF1565C0));
+    _drawText(canvas, 'Focal Length: ${f.toStringAsFixed(1)} cm', 22, 40, size: 11);
+    _drawText(canvas, 'Object Dist (u): ${u.toStringAsFixed(1)} cm', 22, 58, size: 11);
+
+    if (isAtFocus) {
+      _drawText(canvas, 'Image Dist: ∞ (At Infinity)', 22, 76, size: 11, bold: true, color: const Color(0xFFE65100));
+      _drawText(canvas, 'Nature: Parallel Beams', 22, 94, size: 10, color: Colors.grey.shade700);
+    } else {
+      final imgDistStr = '${v.abs().toStringAsFixed(1)} cm (${isVirtual ? "Virtual" : "Real"})';
+      _drawText(canvas, 'Image Dist: $imgDistStr', 22, 76, size: 11);
+      final nature = isVirtual ? "Virtual, Upright" : "Real, Inverted";
+      _drawText(canvas, 'Mag: ${m.abs().toStringAsFixed(2)}x ($nature)', 22, 94, size: 10, color: Colors.grey.shade700);
+    }
+  }
+
+  void _drawText(
+    Canvas canvas,
+    String text,
+    double x,
+    double y, {
+    double size = 11,
+    bool bold = false,
+    Color color = Colors.black87,
+  }) {
+    _cachedTextPainter.text = TextSpan(
+      text: text,
+      style: TextStyle(
+        color: color,
+        fontSize: size,
+        fontWeight: bold ? FontWeight.bold : FontWeight.normal,
       ),
-      textDirection: TextDirection.ltr,
     );
-    textPainter.layout();
-    textPainter.paint(canvas, Offset(x, y));
+    _cachedTextPainter.layout();
+    _cachedTextPainter.paint(canvas, Offset(x, y));
   }
 
   @override
-  bool shouldRepaint(OpticsPainter oldDelegate) => true;
+  bool shouldRepaint(OpticsPainter oldDelegate) {
+    return oldDelegate.f != f || oldDelegate.u != u || oldDelegate.ho != ho;
+  }
 }

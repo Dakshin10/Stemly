@@ -60,14 +60,14 @@ class QuizResultScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [scoreColor.withOpacity(0.8), scoreColor],
+                    colors: [scoreColor.withValues(alpha: 0.8), scoreColor],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: scoreColor.withOpacity(0.3),
+                      color: scoreColor.withValues(alpha: 0.3),
                       blurRadius: 15,
                       offset: const Offset(0, 8),
                     ),
@@ -88,7 +88,7 @@ class QuizResultScreen extends StatelessWidget {
                       "$percentage% Score",
                       style: TextStyle(
                         fontSize: 18,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -136,12 +136,12 @@ class QuizResultScreen extends StatelessWidget {
                       color: isDark ? cs.surfaceContainerHighest : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isCorrect ? Colors.green.withOpacity(0.3) : Colors.red.withOpacity(0.3),
+                        color: isCorrect ? Colors.green.withValues(alpha: 0.3) : Colors.red.withValues(alpha: 0.3),
                         width: 2,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 10,
                         ),
                       ],
@@ -154,8 +154,8 @@ class QuizResultScreen extends StatelessWidget {
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
                             color: isCorrect 
-                                ? Colors.green.withOpacity(0.1) 
-                                : Colors.red.withOpacity(0.1),
+                                ? Colors.green.withValues(alpha: 0.1) 
+                                : Colors.red.withValues(alpha: 0.1),
                             borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                           ),
                           child: Row(
@@ -266,7 +266,7 @@ class QuizResultScreen extends StatelessWidget {
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.withOpacity(0.08),
+                                    color: Colors.blue.withValues(alpha: 0.08),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Row(

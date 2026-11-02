@@ -1,26 +1,22 @@
-from pydantic import BaseModel
-from typing import List, Dict, Optional
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
+
+from services.llm.text import NotesResponse
 
 
 class NotesGenerateRequest(BaseModel):
-    topic: str
-    variables: List[str]
-    image_path: Optional[str] = None
-    ocr_text: Optional[str] = None
+    topic: str = Field(..., min_length=1, max_length=150, description="STEM topic name")
+    variables: List[str] = Field(default_factory=list, max_length=50, description="List of variable symbols")
+    image_path: Optional[str] = Field(default=None, max_length=500)
+    ocr_text: Optional[str] = Field(default=None, max_length=5000)
 
 
 class NotesFollowUpRequest(BaseModel):
-    topic: str
-    previous_notes: Dict
-    user_prompt: str
+    topic: str = Field(..., min_length=1, max_length=150)
+    previous_notes: Dict[str, Any] = Field(default_factory=dict)
+    user_prompt: str = Field(..., min_length=1, max_length=2000, description="Follow-up question")
 
 
-class NotesResponse(BaseModel):
-    explanation: str
-    variable_breakdown: Dict[str, str]
-    formulas: List[str]
-    example: str
-    mistakes: List[str]
-    practice_questions: List[str]
-    summary: List[str]
-    resources: List[str]
+class NotesEnvelopeResponse(BaseModel):
+    notes: NotesResponse

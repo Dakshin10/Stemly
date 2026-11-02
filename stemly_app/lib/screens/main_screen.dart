@@ -1,23 +1,21 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:http_parser/http_parser.dart';
-import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
 
-import '../services/firebase_auth_service.dart';
-import '../services/groq_service.dart';
-import '../widgets/bottom_nav_bar.dart';
-import '../storage/history_store.dart';
+import '../core/errors/api_exceptions.dart';
+import '../data/services/stemly_api_service.dart';
+import '../data/storage/offline_storage.dart';
 import '../models/scan_history.dart';
-import 'scan_result_screen.dart'; 
+import '../storage/history_store.dart';
+import '../widgets/bottom_nav_bar.dart';
+import 'scan_result_screen.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({Key? key}) : super(key: key); 
+  const MainScreen({super.key});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -25,339 +23,190 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   final ImagePicker _picker = ImagePicker();
-  // CONFIGURATION
-  // Set to true for production (APK/Web deployment), false for local dev
-  // Set to true for production (APK/Web deployment), false for local dev
-  static const bool _isProduction = false; 
-
-  // PRODUCTION URL (Update this after Vercel deployment)
-  static const String _prodUrl = "https://stemly-backend.vercel.app";
-  // DEV URL
-  // DEV URL (Use 10.0.2.2 for Android Emulator to reach localhost)
-  static const String _devUrl = "http://10.0.2.2:8080";
-
-  final String serverIp = _isProduction ? _prodUrl : _devUrl; 
-  
-  // OCR Recognizer
-  final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+  final TextRecognizer _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
 
   bool _isProcessing = false;
   bool _isLoadingDialogShown = false;
-  
-  String _detectedTopic = "Unknown";
-  List<String> _detectedVariables = [];
 
   @override
   void dispose() {
-    textRecognizer.close();
+    _textRecognizer.close();
     super.dispose();
   }
 
   // ==========================================================
-  // CAMERA PICK -> OCR -> UPLOAD
+  // IMAGE CAPTURE / PICKER
   // ==========================================================
-  Future<void> _openCamera() async {
+  Future<void> _pickImage(ImageSource source) async {
     if (_isProcessing || !mounted) return;
-    
+
     try {
       setState(() => _isProcessing = true);
-      
+
       final XFile? photo = await _picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 100,
+        source: source,
+        imageQuality: 95,
       );
-      
+
       if (photo == null || !mounted) {
         setState(() => _isProcessing = false);
         return;
       }
 
-      if (mounted) {
-        _showLoading();
-        // 1. Perform OCR extraction
-        final extractedText = await _performOCR(photo.path);
-        
-        // Check if OCR failed or returned very little text
-        // Check if OCR failed or returned very little text
-        // WE ALLOW THIS NOW (Vision Fallback)
-        if (extractedText.trim().length < 5) {
-             debugPrint("OCR text empty/short. Proceeding with Vision AI.");
-        }
-        
-        // 2. Upload Image + Text
-        await _uploadScan(File(photo.path), extractedText);
-      }
+      _showLoading();
+
+      // 1. Perform Local OCR (ML Kit)
+      final extractedText = await _performOCR(photo.path);
+
+      // 2. Upload and generate via StemlyApiService
+      await _uploadScan(File(photo.path), extractedText);
     } catch (e) {
       if (mounted) {
         _hideLoading();
         setState(() => _isProcessing = false);
-        debugPrint("Camera error: $e");
-        _showError("Camera error: $e");
+        _showError("Failed to select image: $e");
       }
     }
   }
 
-  // Show warning when OCR finds no text
-  Future<bool> _showOcrWarning() async {
-    return await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: const [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-            SizedBox(width: 10),
-            Text("No Text Detected"),
-          ],
-        ),
-        content: const Text(
-          "The image doesn't seem to contain readable text. "
-          "For best results, scan an image with clear text like equations, diagrams with labels, or textbook pages.\n\n"
-          "Do you want to continue anyway?",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Try Again"),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text("Continue"),
-          ),
-        ],
-      ),
-    ) ?? false;
-  }
-
-  // ==========================================================
-  // LOCAL OCR (ML KIT)
-  // ==========================================================
   Future<String> _performOCR(String path) async {
     try {
       final inputImage = InputImage.fromFilePath(path);
-      final recognizedText = await textRecognizer.processImage(inputImage);
+      final recognizedText = await _textRecognizer.processImage(inputImage);
       return recognizedText.text;
     } catch (e) {
-      debugPrint("OCR Failed: $e");
-      return ""; // Fallback to empty text
+      debugPrint("OCR extraction failed (will rely on vision model): $e");
+      return "";
     }
   }
 
   // ==========================================================
-  // UPLOAD (IMAGE + TEXT)
+  // UPLOAD AND ANALYSIS PIPELINE
   // ==========================================================
   Future<void> _uploadScan(File image, String ocrText) async {
-    if (!mounted) return;
+    final apiService = Provider.of<StemlyApiService>(context, listen: false);
 
-    final authService = Provider.of<FirebaseAuthService>(context, listen: false);
-    // Note: We keep groqService for now if needed for other things, but architecture is changing.
-    final groqService = Provider.of<GroqService>(context, listen: false);
-
-    final token = await authService.currentUser?.getIdToken();
-
-    if (token == null) {
-      _hideLoading();
-      _showError("Authentication error. Please login again.");
-      setState(() => _isProcessing = false);
-      return;
-    }
-
-    // Prepare Request
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('$serverIp/scan/upload'),
-    );
-
-    request.headers['Authorization'] = 'Bearer $token';
-    if (groqService.apiKey != null) {
-      request.headers['X-AI-API-Key'] = groqService.apiKey!;
-    }
-
-    // Add Image
-    final mimeType = image.path.toLowerCase().endsWith(".png")
-          ? MediaType("image", "png")
-          : MediaType("image", "jpeg");
-
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'file',
-        image.path,
-        contentType: mimeType,
-      ),
-    );
-
-    // Add OCR Text
-    request.fields['ocr_text'] = ocrText;
-
-    debugPrint("📤 Uploading scan with text length: ${ocrText.length}");
-    
     try {
-      var response = await request.send()
-          .timeout(const Duration(seconds: 180), onTimeout: () {
-        throw TimeoutException("Upload timeout after 180 seconds");
-      });
-      var responseBody = await response.stream.bytesToString();
+      final imageBytes = await image.readAsBytes();
+      final filename = image.path.split(Platform.pathSeparator).last;
 
-      if (response.statusCode == 200) {
-        var data = jsonDecode(responseBody);
-        var topic = data['topic'] ?? "Unknown";
-        List<dynamic> rawVars = data['variables'] ?? [];
-        List<String> variables = rawVars.map((e) => e.toString()).toList();
-        
-        if (mounted) {
-          setState(() {
-            _detectedTopic = topic;
-            _detectedVariables = variables;
-          });
-        }
-        
-        // Auto-fetch notes
-        // Save Image Permanently
-        String savedPath = image.path;
-        try {
-           final appDir = await getApplicationDocumentsDirectory();
-           final scansDir = Directory('${appDir.path}/scans');
-           if (!await scansDir.exists()) await scansDir.create(recursive: true);
-           final fileName = 'scan_${DateTime.now().millisecondsSinceEpoch}${image.path.endsWith('.png') ? '.png' : '.jpg'}';
-           final localPath = '${scansDir.path}/$fileName';
-           await File(image.path).copy(localPath);
-           savedPath = localPath;
-        } catch (e) {
-           debugPrint("⚠️ Failed to save local image: $e");
-        }
+      // 1. Upload scan to backend
+      final scanData = await apiService.uploadScan(
+        imageBytes: imageBytes,
+        filename: filename,
+      );
 
-        // Auto-fetch notes
-        // We pass 'savedPath' (LOCAL PERMANENT) so the UI can display it
-        await _fetchNotes(topic, variables, savedPath, token, ocrText, groqService.apiKey);
+      final topic = scanData['topic']?.toString() ?? "Physics Problem";
+      final rawVars = scanData['variables'] as List<dynamic>? ?? [];
+      final variables = rawVars.map((e) => e.toString()).toList();
+      final historyId = scanData['history_id']?.toString();
+      final bool isDegraded = scanData['degraded'] == true;
 
-      } else {
-        if (mounted) {
-          _hideLoading();
-          setState(() => _isProcessing = false);
-          String errorMsg = "Upload Failed: ${response.statusCode}";
-          try {
-            final errData = jsonDecode(responseBody);
-            if (errData['detail'] != null) {
-              errorMsg = errData['detail'].toString();
-            }
-          } catch (_) {
-            // If body isn't JSON, just append it if not too long
-            if (responseBody.length < 200) errorMsg += " : $responseBody";
-          }
-          
-          _showError(errorMsg);
-        }
+      // 2. Save image locally for offline display
+      String savedLocalPath = image.path;
+      try {
+        final appDir = await getApplicationDocumentsDirectory();
+        final scansDir = Directory('${appDir.path}/scans');
+        if (!await scansDir.exists()) await scansDir.create(recursive: true);
+        final localFile = File('${scansDir.path}/scan_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        await image.copy(localFile.path);
+        savedLocalPath = localFile.path;
+      } catch (e) {
+        debugPrint("Warning saving local image: $e");
       }
-    } catch (e) {
-      debugPrint("❌ Error: $e");
+
+      // 3. Generate structured notes
+      final notesResponse = await apiService.generateNotes(
+        topic: topic,
+        variables: variables,
+        imagePath: savedLocalPath,
+        historyId: historyId,
+        ocrText: ocrText,
+      );
+
+      final notesData = (notesResponse['notes'] as Map<String, dynamic>?) ?? {};
+      final bool notesDegraded = notesResponse['degraded'] == true || isDegraded;
+
+      // 4. Save to Offline Storage & History
+      final historyItem = ScanHistory(
+        imagePath: savedLocalPath,
+        topic: topic,
+        variables: variables,
+        notesJson: notesData,
+        timestamp: DateTime.now(),
+        visualiserHistoryId: historyId,
+      );
+
+      await HistoryStore.add(historyItem);
+      await OfflineStorage.saveLastNotes(
+        topic: topic,
+        notes: notesData,
+        variables: variables,
+      );
+
       if (mounted) {
         _hideLoading();
         setState(() => _isProcessing = false);
-        _showError("Connection Error: ${e.toString().split(':')[0]}");
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ScanResultScreen(
+              topic: topic,
+              variables: variables,
+              notesJson: notesData,
+              imagePath: savedLocalPath,
+              historyItem: historyItem,
+              isDegraded: notesDegraded,
+            ),
+          ),
+        );
       }
-    }
-  }
-
-  // ==========================================================
-  // FETCH NOTES -> NAVIGATE
-  // ==========================================================
-  Future<void> _fetchNotes(
-    String topic,
-    List<String> variables,
-    String? imagePath,
-    String token,
-    String ocrText,
-    String? apiKey,
-  ) async {
-    try {
-      final url = Uri.parse("$serverIp/notes/generate");
-      
-      // We pass OCR text here too if needed, but for now stick to protocol
-      final res = await http.post(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-          if (apiKey != null) "X-AI-API-Key": apiKey,
-        },
-        body: jsonEncode({
-          "topic": topic,
-          "variables": variables,
-          "image_path": imagePath,
-          "ocr_text": ocrText, // Sending this if backend needs it for notes
-        }),
-      ).timeout(const Duration(seconds: 180));
-
-      if (res.statusCode == 200) {
-        final parsed = jsonDecode(res.body);
-        final notesData = parsed["notes"] ?? {};
-
-        // Save History with LOCAL image path for display
-        HistoryStore.add(ScanHistory(
-          imagePath: imagePath ?? "", // This should be the local path
-          topic: topic,
-          variables: variables,
-          notesJson: notesData,
-          timestamp: DateTime.now(),
-        ));
-
-        if (mounted) {
-          _hideLoading();
-          setState(() => _isProcessing = false);
-          
-          Navigator.push(
-           context,
-           MaterialPageRoute(
-             builder: (_) => ScanResultScreen(
-               topic: topic,
-               variables: variables,
-               notesJson: notesData,
-               imagePath: imagePath ?? "",
-               historyItem: HistoryStore.history[0], // Pass the newly created item
-             ),
-           ),
-         );
-        }
-      } else {
-        if (mounted) { 
-           _hideLoading();
-           setState(() => _isProcessing = false);
-           _showError("Failed to fetch notes: ${res.statusCode}");
-        }
+    } on ApiException catch (e) {
+      if (mounted) {
+        _hideLoading();
+        setState(() => _isProcessing = false);
+        _showError(e.friendlyMessage);
       }
     } catch (e) {
       if (mounted) {
         _hideLoading();
         setState(() => _isProcessing = false);
-        _showError("Connection error fetching notes");
+        _showError("Unable to analyze worksheet. Please try again.");
       }
     }
   }
 
   // ==========================================================
-  // HELPERS
+  // LOADING & ERROR MODALS
   // ==========================================================
   void _showLoading() {
-    if (_isLoadingDialogShown || !mounted) return;
     _isLoadingDialogShown = true;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
-        child: Material(
-          color: Colors.transparent,
-          child: SizedBox(
-            width: 120,
-            height: 120,
-            child: Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(18)),
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(25),
-                child: CircularProgressIndicator(strokeWidth: 4),
-              ),
+      builder: (_) => PopScope(
+        canPop: false,
+        child: Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(strokeWidth: 3),
+                SizedBox(height: 20),
+                Text(
+                  "Analyzing STEM Problem...",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  "Extracting equations and synthesizing simulations",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
             ),
           ),
         ),
@@ -377,13 +226,14 @@ class _MainScreenState extends State<MainScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red,
+        backgroundColor: Colors.red.shade700,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
   // ==========================================================
-  // UI
+  // UI PRESENTATION
   // ==========================================================
   @override
   Widget build(BuildContext context) {
@@ -395,7 +245,6 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: theme.cardColor,
-        foregroundColor: cs.onSurface,
         elevation: 0.4,
         title: Text(
           "STEMLY",
@@ -407,7 +256,6 @@ class _MainScreenState extends State<MainScreen> {
         ),
         centerTitle: true,
       ),
-
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Padding(
@@ -415,25 +263,76 @@ class _MainScreenState extends State<MainScreen> {
           child: Column(
             children: [
               const SizedBox(height: 24),
-
               Text(
                 "Scan → Visualize → Learn",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 17,
-                  color: cs.onBackground.withOpacity(0.7),
+                  color: cs.onSurface.withValues(alpha: 0.7),
                   height: 1.3,
                 ),
               ),
+              const SizedBox(height: 36),
 
-              const SizedBox(height: 40),
+              // Main Scan Card
               Hero(tag: "scanBtn", child: _scanBox(theme, cs)),
+
+              const SizedBox(height: 28),
+
+              // Quick Action Buttons (Gallery upload + Offline cached notes)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Semantics(
+                    button: true,
+                    label: "Choose worksheet image from gallery",
+                    child: OutlinedButton.icon(
+                      onPressed: _isProcessing ? null : () => _pickImage(ImageSource.gallery),
+                      icon: const Icon(Icons.photo_library_outlined, size: 20),
+                      label: const Text("Gallery"),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  if (OfflineStorage.lastNotes != null) ...[
+                    const SizedBox(width: 14),
+                    Semantics(
+                      button: true,
+                      label: "Open last cached notes offline",
+                      child: FilledButton.tonalIcon(
+                        onPressed: () {
+                          final cached = OfflineStorage.lastNotes!;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ScanResultScreen(
+                                topic: cached["topic"]?.toString() ?? "Offline Notes",
+                                variables: List<String>.from(cached["variables"] ?? []),
+                                notesJson: Map<String, dynamic>.from(cached["notes"] ?? {}),
+                                imagePath: "",
+                                isDegraded: true,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.bookmark_outline, size: 20),
+                        label: const Text("Last Notes"),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
               const SizedBox(height: 40),
             ],
           ),
         ),
       ),
-
       bottomNavigationBar: const BottomNavBar(currentIndex: 0),
     );
   }
@@ -441,57 +340,69 @@ class _MainScreenState extends State<MainScreen> {
   Widget _scanBox(ThemeData theme, ColorScheme cs) {
     return Center(
       child: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.65,
+        width: MediaQuery.of(context).size.width * 0.68,
         child: AspectRatio(
           aspectRatio: 1,
           child: AbsorbPointer(
             absorbing: _isProcessing,
-            child: InkWell(
-              onTap: _isProcessing ? null : _openCamera,
-              borderRadius: BorderRadius.circular(22),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: cs.primaryContainer,
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: [
-                    BoxShadow(
-                      color: cs.shadow.withOpacity(0.15),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircleAvatar(
-                      radius: 45,
-                      backgroundColor: cs.primary,
-                      child: _isProcessing
-                          ? const SizedBox(
-                              width: 40,
-                              height: 40,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 3,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : Icon(
-                              Icons.camera_alt,
-                              color: cs.onPrimary,
-                              size: 62,
-                            ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      _isProcessing ? "Processing..." : "Scan to Learn",
-                      style: TextStyle(
-                        fontSize: 20,
-                        color: cs.primary,
-                        fontWeight: FontWeight.w700,
+            child: Semantics(
+              button: true,
+              label: "Scan STEM problem with camera",
+              child: InkWell(
+                onTap: _isProcessing ? null : () => _pickImage(ImageSource.camera),
+                borderRadius: BorderRadius.circular(24),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: cs.shadow.withValues(alpha: 0.12),
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
                       ),
-                    )
-                  ],
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircleAvatar(
+                        radius: 46,
+                        backgroundColor: cs.primary,
+                        child: _isProcessing
+                            ? const SizedBox(
+                                width: 38,
+                                height: 38,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 3,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : Icon(
+                                Icons.camera_alt_rounded,
+                                color: cs.onPrimary,
+                                size: 54,
+                              ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        _isProcessing ? "Analyzing..." : "Scan to Learn",
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: cs.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        "Equations, diagrams, graphs",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

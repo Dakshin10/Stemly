@@ -7,22 +7,24 @@ class GenericDiagramWidget extends StatelessWidget {
   const GenericDiagramWidget({
     super.key,
     required this.primitives,
-    this.baseColor = Colors.blue,
+    this.baseColor = const Color(0xFF1976D2),
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 300,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: CustomPaint(
-        painter: DiagramPainter(primitives, baseColor),
-        child: Container(),
+    return RepaintBoundary(
+      child: Container(
+        width: double.infinity,
+        height: 300,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: CustomPaint(
+          painter: DiagramPainter(primitives, baseColor),
+          child: const SizedBox.expand(),
+        ),
       ),
     );
   }
@@ -32,72 +34,68 @@ class DiagramPainter extends CustomPainter {
   final List<Map<String, dynamic>> primitives;
   final Color baseColor;
 
+  // Cached Paint objects to avoid allocations in paint()
+  static final Paint _strokePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.0;
+  static final Paint _fillPaint = Paint()..style = PaintingStyle.fill;
+  static final TextPainter _cachedTextPainter = TextPainter(
+    textDirection: TextDirection.ltr,
+  );
+
   DiagramPainter(this.primitives, this.baseColor);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = baseColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+    _strokePaint.color = baseColor;
+    _fillPaint.color = baseColor.withValues(alpha: 0.2);
 
-    final fillPaint = Paint()
-      ..color = baseColor.withOpacity(0.2)
-      ..style = PaintingStyle.fill;
+    final double scaleX = size.width / 100.0;
+    final double scaleY = size.height / 100.0;
 
-    // Coordinate conversion: Assume standard 100x100 grid from API, scale to size
-    // OR just use relative percentages. 
-    // Let's assume input is 0-100 coordinates.
-    double scaleX = size.width / 100;
-    double scaleY = size.height / 100;
+    for (final p in primitives) {
+      final String type = p["type"]?.toString() ?? "unknown";
 
-    for (var p in primitives) {
-      String type = p["type"] ?? "unknown";
-      
       if (type == "rect") {
-        double x = (p["x"] as num).toDouble() * scaleX;
-        double y = (p["y"] as num).toDouble() * scaleY;
-        double w = (p["w"] as num).toDouble() * scaleX;
-        double h = (p["h"] as num).toDouble() * scaleY;
-        
-        Rect rect = Rect.fromLTWH(x, y, w, h);
-        canvas.drawRect(rect, fillPaint);
-        canvas.drawRect(rect, paint);
-      } 
-      else if (type == "circle") {
-        double x = (p["x"] as num).toDouble() * scaleX;
-        double y = (p["y"] as num).toDouble() * scaleY;
-        double r = (p["r"] as num).toDouble() * scaleX;
+        final double x = (p["x"] as num? ?? 0).toDouble() * scaleX;
+        final double y = (p["y"] as num? ?? 0).toDouble() * scaleY;
+        final double w = (p["w"] as num? ?? 10).toDouble() * scaleX;
+        final double h = (p["h"] as num? ?? 10).toDouble() * scaleY;
 
-        canvas.drawCircle(Offset(x, y), r, fillPaint);
-        canvas.drawCircle(Offset(x, y), r, paint);
-      }
-      else if (type == "line") {
-        double x1 = (p["x1"] as num).toDouble() * scaleX;
-        double y1 = (p["y1"] as num).toDouble() * scaleY;
-        double x2 = (p["x2"] as num).toDouble() * scaleX;
-        double y2 = (p["y2"] as num).toDouble() * scaleY;
-        
-        canvas.drawLine(Offset(x1, y1), Offset(x2, y2), paint);
-        
-        // Arrow head logic? simple lines for now.
-      }
-      else if (type == "text") {
-        double x = (p["x"] as num).toDouble() * scaleX;
-        double y = (p["y"] as num).toDouble() * scaleY;
-        String text = p["text"] ?? "";
-        
-        TextSpan span = TextSpan(
-          text: text, 
-          style: TextStyle(color: baseColor, fontSize: 14, fontWeight: FontWeight.bold)
+        final rect = Rect.fromLTWH(x, y, w, h);
+        canvas.drawRect(rect, _fillPaint);
+        canvas.drawRect(rect, _strokePaint);
+      } else if (type == "circle") {
+        final double x = (p["x"] as num? ?? 0).toDouble() * scaleX;
+        final double y = (p["y"] as num? ?? 0).toDouble() * scaleY;
+        final double r = (p["r"] as num? ?? 5).toDouble() * scaleX;
+
+        canvas.drawCircle(Offset(x, y), r, _fillPaint);
+        canvas.drawCircle(Offset(x, y), r, _strokePaint);
+      } else if (type == "line") {
+        final double x1 = (p["x1"] as num? ?? 0).toDouble() * scaleX;
+        final double y1 = (p["y1"] as num? ?? 0).toDouble() * scaleY;
+        final double x2 = (p["x2"] as num? ?? 10).toDouble() * scaleX;
+        final double y2 = (p["y2"] as num? ?? 10).toDouble() * scaleY;
+
+        canvas.drawLine(Offset(x1, y1), Offset(x2, y2), _strokePaint);
+      } else if (type == "text") {
+        final double x = (p["x"] as num? ?? 0).toDouble() * scaleX;
+        final double y = (p["y"] as num? ?? 0).toDouble() * scaleY;
+        final String text = p["text"]?.toString() ?? "";
+
+        _cachedTextPainter.text = TextSpan(
+          text: text,
+          style: TextStyle(color: baseColor, fontSize: 13, fontWeight: FontWeight.bold),
         );
-        TextPainter tp = TextPainter(text: span, textDirection: TextDirection.ltr);
-        tp.layout();
-        tp.paint(canvas, Offset(x, y));
+        _cachedTextPainter.layout();
+        _cachedTextPainter.paint(canvas, Offset(x, y));
       }
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant DiagramPainter oldDelegate) {
+    return oldDelegate.baseColor != baseColor || oldDelegate.primitives != primitives;
+  }
 }

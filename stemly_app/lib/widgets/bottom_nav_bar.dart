@@ -31,13 +31,13 @@ class BottomNavBar extends StatelessWidget {
 
     // 🌫️ GLASS COLORS THAT MATCH BOTH THEMES
     final Color glassColor = isDark
-        ? Colors.blue.withOpacity(0.15)  // dark mode → dark blue glass
-        : Colors.white.withOpacity(0.15); // light mode → white clean glass
+        ? Colors.blue.withValues(alpha: 0.15)  // dark mode → dark blue glass
+        : Colors.white.withValues(alpha: 0.15); // light mode → white clean glass
 
     // 🌟 SHADOW BASED ON THEME
     final Color shadowColor = isDark
-        ? Colors.black.withOpacity(0.45)
-        : blue.withOpacity(0.30);
+        ? Colors.black.withValues(alpha: 0.45)
+        : blue.withValues(alpha: 0.30);
 
     // TEXT + ICON COLORS ADAPT CLEANLY
     final Color inactiveColor = isDark ? Colors.white70 : Colors.black87;
@@ -98,7 +98,7 @@ class BottomNavBar extends StatelessWidget {
 
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          color: selected ? blue.withOpacity(0.25) : Colors.transparent,
+          color: selected ? blue.withValues(alpha: 0.25) : Colors.transparent,
         ),
 
         child: Column(

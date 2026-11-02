@@ -1,33 +1,35 @@
-# OpenAI-compatible API (Grok / xAI)
-openai
-langchain-openai
-
-# FastAPI framework & ASGI server
+# FastAPI framework & ASGI/WSGI servers
 fastapi
 uvicorn[standard]
+gunicorn
 
-# Google Gemini API (Vision + Text) - Optional: can be removed if fully transitioned
+# Pydantic & Settings
+pydantic
+pydantic-settings
 
+# Rate Limiting & Observability
+slowapi
+python-json-logger
+sentry-sdk[fastapi]
 
-# Environment variables loader
-python-dotenv
+# Groq LLM & HTTP Client
+httpx
+groq
 
-# Image handling (FastAPI-compatible uploads)
+# Image Processing
+pillow
 python-multipart
 
-# Data validation / models (used by FastAPI)
-pydantic
+# Environment variables
+python-dotenv
 
-# LangChain core + Google Gemini integration
-langchain
-
-
-# MongoDB async driver
+# MongoDB Async Driver
 motor
 pymongo
 
-# Firebase ID token verification
+# Firebase ID Token Verification
 firebase-admin
 
-# Optional: helpful utilities
+# Testing & Utilities
+certifi
 requests

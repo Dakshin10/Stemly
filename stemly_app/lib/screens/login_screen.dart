@@ -88,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen>
             top: 120,
             left: -40,
             size: 220,
-            color: Colors.cyanAccent.withOpacity(0.25),
+            color: Colors.cyanAccent.withValues(alpha: 0.25),
             controller: _controller,
             reverse: false,
           ),
@@ -96,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen>
             bottom: 80,
             right: -30,
             size: 180,
-            color: Colors.deepPurpleAccent.withOpacity(0.25),
+            color: Colors.deepPurpleAccent.withValues(alpha: 0.25),
             controller: _controller,
             reverse: true,
           ),
@@ -137,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen>
                     child: Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(color: Colors.white24, width: 1),
                       ),
@@ -213,7 +213,7 @@ class _LoginBenefit extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
+              color: Colors.white.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: Colors.cyanAccent, size: 18),
@@ -299,7 +299,7 @@ class _AnimatedGlow extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 colors: [
-                  Colors.white.withOpacity(0.06 * controller.value),
+                  Colors.white.withValues(alpha: 0.06 * controller.value),
                   Colors.transparent,
                 ],
               ),

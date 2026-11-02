@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Header
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from auth.auth_middleware import require_firebase_user
-from config import FALLBACK_GROQ_API_KEY
+from core.rate_limiter import LIMIT_GENERATION, limiter
+from core.usage_limiter import check_and_increment_daily_usage
 from database.notes_model import save_notes_entry
-from models.notes_models import NotesFollowUpRequest, NotesGenerateRequest
-from services.ai_notes import follow_up_notes, generate_notes
+from models.notes_models import NotesEnvelopeResponse, NotesFollowUpRequest, NotesGenerateRequest
+from services.llm import follow_up_notes, generate_notes
 from utils.file_utils import resolve_scan_path, scan_path_to_relative
 
 router = APIRouter(
@@ -14,19 +15,15 @@ router = APIRouter(
 )
 
 
-# -----------------------------------------
-# 1. Generate Full Notes
-# -----------------------------------------
-
-@router.post("/generate")
+@router.post("/generate", response_model=NotesEnvelopeResponse)
+@limiter.limit(LIMIT_GENERATION)
 async def generate_notes_route(
-    req: NotesGenerateRequest, 
     request: Request,
+    req: NotesGenerateRequest,
     x_ai_api_key: str = Header(None, alias="X-AI-API-Key"),
-    x_groq_api_key: str = Header(None, alias="x-groq-api-key")
 ):
-    # Use X-AI-API-Key first (Flutter), then legacy header, then env fallback
-    api_key_to_use = x_ai_api_key or x_groq_api_key or FALLBACK_GROQ_API_KEY
+    user_id = request.state.user["uid"]
+    await check_and_increment_daily_usage(user_id=user_id)
 
     local_path = None
     relative_path = None
@@ -35,50 +32,41 @@ async def generate_notes_route(
             local_path = resolve_scan_path(req.image_path)
             relative_path = scan_path_to_relative(local_path)
         except ValueError:
-            pass # Be lenient for invalid paths
-            local_path = None
-            relative_path = None
-
-    user_id = request.state.user["uid"]
+            pass
 
     try:
-        image_arg = relative_path or req.image_path
-        # Pass api_key (dummy) and ocr_text
-        notes = await generate_notes(req.topic, req.variables, image_arg, ocr_text=req.ocr_text, api_key=api_key_to_use)
+        notes = await generate_notes(
+            topic=req.topic,
+            variables=req.variables,
+            ocr_text=req.ocr_text,
+        )
+
         # Non-blocking DB save (fail-safe)
         try:
             await save_notes_entry(
                 user_id=user_id,
                 topic=req.topic,
-                notes_payload=notes.dict(),
+                notes_payload=notes.model_dump(),
                 image_path=relative_path or req.image_path,
             )
-        except Exception as db_err:
-             print(f"⚠ Non-critical DB Error (Notes Save Failed): {db_err}")
+        except Exception:
+            pass
 
-        # Wrap response to match Flutter's expected format
-        return {"notes": notes.dict()}
+        # Return format matching Flutter client expectations
+        return NotesEnvelopeResponse(notes=notes)
 
-    except Exception as e:
-        print("❌ Error in /notes/generate:", e)
+    except Exception:
         raise HTTPException(status_code=500, detail="Failed to generate notes.")
 
 
-
-# -----------------------------------------
-# 2. Follow-up Question
-# -----------------------------------------
-
-@router.post("/ask")
+@router.post("/ask", response_model=NotesEnvelopeResponse)
+@limiter.limit(LIMIT_GENERATION)
 async def follow_up_notes_route(
-    req: NotesFollowUpRequest, 
     request: Request,
+    req: NotesFollowUpRequest,
     x_ai_api_key: str = Header(None, alias="X-AI-API-Key"),
-    x_groq_api_key: str = Header(None, alias="x-groq-api-key")
 ):
-    # Use X-AI-API-Key first (Flutter), then legacy header, then env fallback
-    api_key_to_use = x_ai_api_key or x_groq_api_key or FALLBACK_GROQ_API_KEY
-
+    await check_and_increment_daily_usage(user_id=request.state.user["uid"])
     try:
         image_reference = None
         if isinstance(req.previous_notes, dict):
@@ -88,23 +76,24 @@ async def follow_up_notes_route(
                     image_reference = scan_path_to_relative(resolve_scan_path(raw_path))
                 except ValueError:
                     image_reference = None
-        
-        # Pass api_key to follow-up service
-        notes = await follow_up_notes(req.topic, req.previous_notes, req.user_prompt, api_key=api_key_to_use)
-        # Non-blocking DB save (fail-safe)
+
+        notes = await follow_up_notes(
+            topic=req.topic,
+            previous_notes=req.previous_notes,
+            user_prompt=req.user_prompt,
+        )
+
         try:
             await save_notes_entry(
                 user_id=request.state.user["uid"],
                 topic=req.topic,
-                notes_payload=notes.dict(),
+                notes_payload=notes.model_dump(),
                 image_path=image_reference,
             )
-        except Exception as db_err:
-             print(f"⚠ Non-critical DB Error (Follow-up Save Failed): {db_err}")
+        except Exception:
+            pass
 
-        # Wrap response to match Flutter's expected format
-        return {"notes": notes.dict()}
+        return NotesEnvelopeResponse(notes=notes)
 
-    except Exception as e:
-        print("❌ Error in /notes/ask:", e)
+    except Exception:
         raise HTTPException(status_code=500, detail="Failed to process follow-up question.")

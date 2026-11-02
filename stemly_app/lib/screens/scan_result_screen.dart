@@ -3,24 +3,24 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
-import '../services/firebase_auth_service.dart';
-import '../services/groq_service.dart';
-
-// NEW: Import Quiz Screen
-import '../quiz/quiz_play_screen.dart';
-
-// Existing imports
-import '../visualiser/visualiser_models.dart';
-import '../visualiser/visualiser_factory.dart';
+import '../core/config/app_config.dart';
 import '../models/scan_history.dart';
+import '../presentation/widgets/degraded_banner.dart';
+import '../presentation/widgets/shimmer_skeleton.dart';
+import '../presentation/widgets/state_views.dart';
+import '../quiz/quiz_play_screen.dart';
+import '../services/firebase_auth_service.dart';
 import '../storage/history_store.dart';
+import '../visualiser/visualiser_factory.dart';
+import '../visualiser/visualiser_models.dart';
 
 class ScanResultScreen extends StatefulWidget {
   final String topic;
   final List<String> variables;
   final Map<String, dynamic> notesJson;
   final String imagePath;
-  final ScanHistory? historyItem; // NEW
+  final ScanHistory? historyItem;
+  final bool isDegraded;
 
   const ScanResultScreen({
     super.key,
@@ -29,6 +29,7 @@ class ScanResultScreen extends StatefulWidget {
     required this.notesJson,
     required this.imagePath,
     this.historyItem,
+    this.isDegraded = false,
   });
 
   @override
@@ -49,17 +50,18 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   bool _isSendingChat = false;
   final ScrollController _chatScrollController = ScrollController();
 
-  final String serverIp = "http://10.0.2.2:8080";
+  String get serverIp => AppConfig.baseUrl;
 
+  @override
+  void dispose() {
+    _chatController.dispose();
+    _chatScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
-
-    debugPrint("SCAN RESULT START");
-    debugPrint("Topic: ${widget.topic}");
-    debugPrint("Variables: ${widget.variables}");
-    debugPrint("Notes Keys: ${widget.notesJson.keys}");
 
     for (var key in widget.notesJson.keys) {
       expanded[key] = false;
@@ -164,51 +166,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   }
 
   // ==========================================================
-  // HELPER: Persist Updates to Backend (Silent)
-  // ==========================================================
-  Future<void> _persistUpdates(Map<String, dynamic> params) async {
-      try {
-        final auth = context.read<FirebaseAuthService>();
-        final token = await auth.getIdToken();
-        if (token == null) return;
-        
-        final historyId = visualiserTemplate?.historyId;
-        final templateId = visualiserTemplate?.templateId;
-        
-        if (historyId == null || templateId == null) return;
-
-        await http.post(
-          Uri.parse("$serverIp/visualiser/update"),
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer $token",
-          },
-          body: jsonEncode({
-            "template_id": templateId,
-            "parameters": params,
-            "history_id": historyId,
-            // empty prompt signals "just save"
-          }),
-        );
-      } catch (e) {
-        debugPrint("Silent persist failed: $e");
-      }
-  }
-
-  // ==========================================================
   // CREATE VISUALISER WIDGET
   // ==========================================================
   Map<String, String> _simulationStats = {};
-
-  Widget _createVisualiser(VisualTemplate template) {
-    return VisualiserFactory.create(template, onSimulationUpdate: (stats) {
-      if (stats.toString() != _simulationStats.toString()) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) setState(() => _simulationStats = stats);
-        });
-      }
-    });
-  }
 
   // ==========================================================
   // VISUALISER TAB UI
@@ -233,6 +193,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         body: jsonEncode({"prompt": "${widget.topic} ${widget.variables.join(' ')}"}),
       );
 
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() => generatedImageUrl = data["image_url"]);
@@ -245,147 +207,6 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       debugPrint("Image gen error: $e");
     } finally {
       if (mounted) setState(() => generatingImage = false);
-    }
-  }
-
-  // ==========================================================
-  // AI CHAT FUNCTION
-  // ==========================================================
-  Future<void> _sendChatMessage() async {
-    final message = _chatController.text.trim();
-    if (message.isEmpty) return;
-
-    // Add user message
-    setState(() {
-      _chatMessages.add({"text": message, "isUser": true});
-      _chatController.clear();
-      _isSendingChat = true;
-    });
-
-    // Scroll to bottom
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_chatScrollController.hasClients) {
-        _chatScrollController.animateTo(
-          _chatScrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-
-    try {
-      final auth = context.read<FirebaseAuthService>();
-      final token = await auth.getIdToken();
-
-      if (token == null) {
-        setState(() {
-          _chatMessages.add({"text": "Authentication required.", "isUser": false});
-          _isSendingChat = false;
-        });
-        return;
-      }
-
-      // Prepare parameters for API
-      Map<String, dynamic> params = {};
-      if (visualiserTemplate != null) {
-        for (var entry in visualiserTemplate!.parameters.entries) {
-          params[entry.key] = entry.value.value;
-        }
-      }
-      
-      // Get AI API Key
-      final groqService = context.read<GroqService>();
-      final aiApiKey = groqService.apiKey;
-
-      final response = await http.post(
-        Uri.parse("$serverIp/visualiser/chat"),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-          if (aiApiKey != null) "X-AI-API-Key": aiApiKey,
-        },
-        body: jsonEncode({
-          "message": message,
-          "topic": widget.topic,
-          "parameters": params,
-          "history": _chatMessages.map((m) => {"text": m["text"], "isUser": m["isUser"]}).toList(),
-        }),
-      ).timeout(const Duration(seconds: 60));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        
-        if (data["type"] == "update" && data["changes"] != null) {
-          // AI wants to update visualization
-          final changes = data["changes"] as Map<String, dynamic>;
-          String updateMsg = "Updated: ";
-          bool needsRebuild = false;
-
-          changes.forEach((key, value) {
-            // Check for Metadata updates (Equation / Primitives)
-            if (key == "equation" || key == "primitives") {
-              if (visualiserTemplate != null) {
-                visualiserTemplate!.metadata[key] = value;
-                updateMsg += "$key updated, ";
-                needsRebuild = true;
-              }
-            }
-            // Check for Parameter updates
-            else if (visualiserTemplate != null && visualiserTemplate!.parameters.containsKey(key)) {
-              final param = visualiserTemplate!.parameters[key]!;
-              
-              // Safe parse value
-              double newValue = 0.0;
-              if (value is num) newValue = value.toDouble();
-              else if (value is String) newValue = double.tryParse(value) ?? 0.0;
-
-              // Clamp to constraints
-              newValue = newValue.clamp(param.min, param.max);
-              
-              // Apply update
-              param.value = newValue;
-              updateMsg += "$key = ${newValue.toStringAsFixed(1)}, ";
-              needsRebuild = true;
-            }
-          });
-
-          if (needsRebuild) {
-             visualiserWidget = _createVisualiser(visualiserTemplate!);
-             // Save changes to DB
-             _persistUpdates(visualiserTemplate!.parameters.map((k, v) => MapEntry(k, v.value)));
-          }
-
-          setState(() {
-            _chatMessages.add({"text": updateMsg.trimRight().replaceAll(RegExp(r', $'), ''), "isUser": false});
-          });
-        } else {
-          // AI explanation
-          setState(() {
-            _chatMessages.add({"text": data["message"] ?? "No response.", "isUser": false});
-          });
-        }
-      } else {
-        setState(() {
-          _chatMessages.add({"text": "Error: ${response.statusCode}", "isUser": false});
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _chatMessages.add({"text": "Connection error. Try again.", "isUser": false});
-      });
-    } finally {
-      if (mounted) setState(() => _isSendingChat = false);
-      
-      // Scroll to bottom after response
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_chatScrollController.hasClients) {
-          _chatScrollController.animateTo(
-            _chatScrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
     }
   }
 
@@ -529,7 +350,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               ],
 
               if (!generatingImage && generatedImageUrl == null) ...[
-                 Icon(Icons.image_search_rounded, size: 60, color: deepBlue.withOpacity(0.5)),
+                 Icon(Icons.image_search_rounded, size: 60, color: deepBlue.withValues(alpha: 0.5)),
                  const SizedBox(height: 16),
                  Text(
                   "No interactive simulation available.",
@@ -581,7 +402,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: deepBlue.withOpacity(0.08),
+                  color: deepBlue.withValues(alpha: 0.08),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -623,7 +444,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
@@ -638,7 +459,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: deepBlue.withOpacity(0.1),
+                        color: deepBlue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(Icons.tune_rounded, size: 20, color: deepBlue),
@@ -666,9 +487,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.08),
+                          color: Colors.orange.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.orange.withOpacity(0.2)),
+                          border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -683,7 +504,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                     }).toList(),
                   ),
                   const SizedBox(height: 24),
-                  Divider(height: 1, color: Colors.grey.withOpacity(0.1)),
+                  Divider(height: 1, color: Colors.grey.withValues(alpha: 0.1)),
                   const SizedBox(height: 20),
                 ],
 
@@ -702,18 +523,18 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
-                                color: deepBlue.withOpacity(0.8),
+                                color: deepBlue.withValues(alpha: 0.8),
                               ),
                             ),
                             const Spacer(),
                             Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: deepBlue.withOpacity(0.06),
+                                  color: deepBlue.withValues(alpha: 0.06),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
-                                  v is double ? v.toStringAsFixed(2) : v.toString(),
+                                  v.toStringAsFixed(2),
                                   style: TextStyle(
                                     fontFamily: 'monospace',
                                     fontWeight: FontWeight.bold,
@@ -725,7 +546,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                           ],
                         ),
                       );
-                  }).toList()
+                  })
                 else 
                    const Padding(
                      padding: EdgeInsets.symmetric(vertical: 10),
@@ -762,7 +583,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           leading: Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: deepBlue.withOpacity(0.1),
+              color: deepBlue.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(Icons.auto_awesome, color: deepBlue, size: 22),
@@ -777,7 +598,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           ),
           subtitle: Text(
             "Ask to change parameters or explain concepts",
-            style: TextStyle(color: deepBlue.withOpacity(0.5), fontSize: 13),
+            style: TextStyle(color: deepBlue.withValues(alpha: 0.5), fontSize: 13),
           ),
           children: [
             Container(
@@ -827,7 +648,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                                       bottomRight: Radius.circular(isUser ? 4 : 16),
                                     ),
                                     boxShadow: isUser ? [] : [
-                                      BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 2))
+                                      BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 2))
                                     ],
                                   ),
                                   child: Text(
@@ -937,27 +758,44 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   // ==========================================================
   Widget _notes(Color cardColor, Color deepBlue) {
     if (widget.notesJson.containsKey("error")) {
-      return Center(
-        child: Text("Error loading notes", style: TextStyle(color: deepBlue)),
+      return ErrorStateView(
+        title: "Notes Generation Failed",
+        message: widget.notesJson["error"]?.toString() ?? "Could not generate notes for this problem.",
       );
     }
+
+    if (widget.notesJson.isEmpty) {
+      return const EmptyStateView(
+        icon: Icons.notes_rounded,
+        title: "No Notes Available",
+        message: "Notes could not be synthesized for this topic.",
+      );
+    }
+
+    final bool isDegraded = widget.isDegraded || (widget.notesJson["degraded"] == true);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-        children: widget.notesJson.entries.map((entry) {
-          final key = entry.key;
-          expanded.putIfAbsent(key, () => false);
+        children: [
+          if (isDegraded) ...[
+            const DegradedModeBanner(),
+            const SizedBox(height: 8),
+          ],
+          ...widget.notesJson.entries.where((e) => e.key != 'degraded').map((entry) {
+            final key = entry.key;
+            expanded.putIfAbsent(key, () => false);
 
-          return _expandableCard(
-            title: _formatKey(key),
-            expanded: expanded[key]!,
-            onTap: () => setState(() => expanded[key] = !expanded[key]!),
-            child: _buildContent(entry.value, deepBlue),
-            cardColor: Theme.of(context).cardColor,
-            deepBlue: deepBlue,
-          );
-        }).toList(),
+            return _expandableCard(
+              title: _formatKey(key),
+              expanded: expanded[key]!,
+              onTap: () => setState(() => expanded[key] = !expanded[key]!),
+              child: _buildContent(entry.value, deepBlue),
+              cardColor: Theme.of(context).cardColor,
+              deepBlue: deepBlue,
+            );
+          }),
+        ],
       ),
     );
   }
@@ -983,7 +821,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: deepBlue.withOpacity(0.3),
+                      color: deepBlue.withValues(alpha: 0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -1005,7 +843,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                     Text(
                       "Test your knowledge on ${widget.topic}",
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 14,
                       ),
                     ),
@@ -1024,7 +862,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 15,
                       offset: const Offset(0, 5),
                     ),
@@ -1038,7 +876,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: deepBlue.withOpacity(0.1),
+                            color: deepBlue.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(Icons.tune, color: deepBlue, size: 24),
@@ -1084,9 +922,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                     SliderTheme(
                       data: SliderTheme.of(context).copyWith(
                         activeTrackColor: deepBlue,
-                        inactiveTrackColor: deepBlue.withOpacity(0.2),
+                        inactiveTrackColor: deepBlue.withValues(alpha: 0.2),
                         thumbColor: deepBlue,
-                        overlayColor: deepBlue.withOpacity(0.2),
+                        overlayColor: deepBlue.withValues(alpha: 0.2),
                         trackHeight: 6,
                         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
                       ),
@@ -1133,7 +971,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     elevation: 4,
-                    shadowColor: deepBlue.withOpacity(0.4),
+                    shadowColor: deepBlue.withValues(alpha: 0.4),
                   ),
                 ),
               ),
@@ -1163,7 +1001,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: isIncluded ? color.withOpacity(0.15) : Colors.grey.shade200,
+        color: isIncluded ? color.withValues(alpha: 0.15) : Colors.grey.shade200,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: isIncluded ? color : Colors.grey.shade300),
       ),
@@ -1186,53 +1024,52 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   }
 
   // ==========================================================
-  // START QUIZ (API CALL with retry and error handling)
+  // START QUIZ (API CALL with QuizSkeleton and typed errors)
   // ==========================================================
   Future<void> _startQuiz(int count) async {
-    final auth = context.read<FirebaseAuthService>();
-    final token = await auth.getIdToken();
+    if (!mounted) return;
 
-    if (token == null) {
-      _showQuizError("Authentication required. Please sign in again.");
-      return;
-    }
-
-    // Show loading dialog
-    showDialog(
+    // Show Quiz Skeleton in bottom sheet while generating
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text("Generating ${widget.topic} Quiz...", textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            const Text("This may take a moment", style: TextStyle(fontSize: 12, color: Colors.grey)),
-          ],
-        ),
+      isDismissible: false,
+      enableDrag: false,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.75,
+        child: const QuizSkeleton(),
       ),
     );
 
     try {
+      final auth = context.read<FirebaseAuthService>();
+      final token = await auth.getIdToken();
+
+      if (token == null) {
+        if (mounted) Navigator.of(context, rootNavigator: true).pop();
+        _showQuizError("Authentication required. Please sign in again.");
+        return;
+      }
+
       final response = await http.get(
         Uri.parse("$serverIp/quiz/generate?topic=${widget.topic}&count=$count"),
         headers: {"Authorization": "Bearer $token"},
-      ).timeout(const Duration(seconds: 120));
+      ).timeout(const Duration(seconds: 45));
 
-      // Close loading dialog
+      // Close loading skeleton
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
 
       if (response.statusCode == 429) {
-        // Rate limited - show friendly message
-        _showQuizError("AI is busy. Please wait a moment and try again.");
+        _showQuizError("Daily AI generation limit reached or server busy. Please try again later.");
         return;
       }
 
       if (response.statusCode != 200) {
-        _showQuizError("Failed to generate quiz. Error: ${response.statusCode}");
+        _showQuizError("Failed to generate quiz. Server returned status: ${response.statusCode}");
         return;
       }
 
@@ -1252,9 +1089,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         );
       }
     } catch (e) {
-      // Close loading dialog if still open
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
-      _showQuizError("Connection error: ${e.toString().split(':').first}");
+      _showQuizError("Unable to connect to server. Please check your connection.");
     }
   }
 

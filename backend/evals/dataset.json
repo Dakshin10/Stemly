@@ -1,0 +1,107 @@
+[
+  {
+    "id": "stem_eval_01",
+    "domain": "Physics",
+    "problem_text": "A projectile is launched from ground level with an initial velocity of 25 m/s at an angle of 35 degrees above the horizontal. Calculate the maximum height and the total horizontal range assuming g = 9.8 m/s^2 and no air resistance.",
+    "expected_topic": "Projectile Motion",
+    "expected_variables": ["v0", "theta", "g", "range"]
+  },
+  {
+    "id": "stem_eval_02",
+    "domain": "Physics",
+    "problem_text": "An object of height 4.0 cm is placed 15.0 cm in front of a thin converging convex lens having a focal length of 10.0 cm. Determine the location, magnification, and nature of the image formed using the thin lens equation.",
+    "expected_topic": "Optics",
+    "expected_variables": ["f", "do", "di", "m"]
+  },
+  {
+    "id": "stem_eval_03",
+    "domain": "Physics",
+    "problem_text": "A sports car initially at rest accelerates uniformly along a straight track at 3.5 m/s^2 for 8.0 seconds. Find the final velocity reached and the total displacement covered during this interval.",
+    "expected_topic": "Kinematics",
+    "expected_variables": ["v", "u", "a", "t", "s"]
+  },
+  {
+    "id": "stem_eval_04",
+    "domain": "Physics",
+    "problem_text": "A 0.5 kg block is attached to an ideal horizontal spring with spring constant k = 200 N/m on a frictionless surface. If displaced 0.05 m from equilibrium and released, calculate the angular frequency, period, and maximum speed.",
+    "expected_topic": "Waves",
+    "expected_variables": ["m", "k", "omega", "T", "A"]
+  },
+  {
+    "id": "stem_eval_05",
+    "domain": "Physics",
+    "problem_text": "In a series DC circuit, a 12V battery is connected across two resistors of values 4 ohms and 8 ohms. Find the equivalent resistance, total circuit current, and power dissipated across each resistor.",
+    "expected_topic": "Electricity",
+    "expected_variables": ["V", "I", "R", "P"]
+  },
+  {
+    "id": "stem_eval_06",
+    "domain": "Physics",
+    "problem_text": "A long straight solenoid with 500 turns per meter carries a steady current of 2.4 amperes. Compute the magnetic flux density B along the central axis inside the core assuming vacuum permeability mu_0.",
+    "expected_topic": "Magnetism",
+    "expected_variables": ["B", "I", "n", "mu_0"]
+  },
+  {
+    "id": "stem_eval_07",
+    "domain": "Physics",
+    "problem_text": "An ideal gas initially occupies 2.0 liters at 300 K under a pressure of 100 kPa. If heated reversibly at constant pressure to 450 K, find the final volume and the work done by the gas according to Charles's law.",
+    "expected_topic": "Thermodynamics",
+    "expected_variables": ["P", "V", "T", "W"]
+  },
+  {
+    "id": "stem_eval_08",
+    "domain": "Physics",
+    "problem_text": "A steel ball is dropped from the top of an 80-meter high cliff with initial velocity 0 m/s. Neglecting air drag and taking g = 9.8 m/s^2, find the time taken to hit the base and impact velocity.",
+    "expected_topic": "Kinematics",
+    "expected_variables": ["h", "t", "v", "g"]
+  },
+  {
+    "id": "stem_eval_09",
+    "domain": "Mathematics",
+    "problem_text": "Find the derivative of the function f(x) = 3x^3 - 5x^2 + 2x - 7 with respect to x, and locate any critical points where f'(x) equals 0.",
+    "expected_topic": "Calculus",
+    "expected_variables": ["x", "f'(x)", "dy/dx"]
+  },
+  {
+    "id": "stem_eval_10",
+    "domain": "Mathematics",
+    "problem_text": "Solve the quadratic equation 2x^2 + 7x - 15 = 0 using the quadratic formula, stating both real roots and verifying the discriminant value.",
+    "expected_topic": "Algebra",
+    "expected_variables": ["x", "a", "b", "c"]
+  },
+  {
+    "id": "stem_eval_11",
+    "domain": "Physics",
+    "problem_text": "A 1200 kg vehicle traveling at 20 m/s collides with and sticks to a stationary 800 kg truck. Determine the final velocity of the coupled system immediately following the inelastic collision using conservation of linear momentum.",
+    "expected_topic": "Mechanics",
+    "expected_variables": ["m1", "m2", "v1", "vf", "p"]
+  },
+  {
+    "id": "stem_eval_12",
+    "domain": "Chemistry",
+    "problem_text": "Calculate the pH and hydroxide ion concentration [OH-] of an aqueous solution containing 0.025 M hydrochloric acid (HCl) at 25 degrees Celsius, given that HCl dissociates completely.",
+    "expected_topic": "Chemistry",
+    "expected_variables": ["pH", "[H+]", "[OH-]", "M"]
+  },
+  {
+    "id": "stem_eval_13",
+    "domain": "Biology",
+    "problem_text": "Explain the role of chlorophyll pigments and the electron transport chain inside the thylakoid membrane during the light-dependent reactions of oxygenic photosynthesis.",
+    "expected_topic": "Biology",
+    "expected_variables": ["ATP", "NADPH", "chlorophyll", "H2O"]
+  },
+  {
+    "id": "stem_eval_14",
+    "domain": "Physics",
+    "problem_text": "Two light rays of wavelength 589 nm pass through two narrow slits separated by d = 0.2 mm, producing an interference pattern on a screen located L = 1.5 m away. Calculate the fringe spacing between consecutive bright fringes.",
+    "expected_topic": "Waves",
+    "expected_variables": ["lambda", "d", "L", "y"]
+  },
+  {
+    "id": "stem_eval_15",
+    "domain": "Physics",
+    "problem_text": "A 10 kg crate is pulled across a rough horizontal floor with a kinetic friction coefficient of mu_k = 0.25 by an applied force of 50 N. Determine the net acceleration.",
+    "expected_topic": "Mechanics",
+    "expected_variables": ["m", "F", "f_k", "mu_k", "a"]
+  }
+]

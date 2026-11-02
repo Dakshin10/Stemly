@@ -12,38 +12,43 @@ repos:
       - id: check-json
         exclude: firebase_options\.dart$
       - id: check-added-large-files
-        args: [--maxkb=1000]
+        args: [--maxkb=2000]
       - id: check-merge-conflict
       - id: detect-private-key
 
   # --------------------------------------------------------------------------
-  # Python — formatting
+  # Python — Ruff (Linting & Formatting)
   # --------------------------------------------------------------------------
-  - repo: https://github.com/psf/black
-    rev: 24.4.2
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.9
     hooks:
-      - id: black
+      - id: ruff
+        args: [--fix]
         files: ^backend/
-        language_version: python3
+      - id: ruff-format
+        files: ^backend/
 
   # --------------------------------------------------------------------------
-  # Python — linting
+  # Python — Mypy (Static Type Checking)
   # --------------------------------------------------------------------------
-  - repo: https://github.com/PyCQA/flake8
-    rev: 7.0.0
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.15.0
     hooks:
-      - id: flake8
+      - id: mypy
         files: ^backend/
-        args:
-          - --max-line-length=120
-          - --select=E9,F63,F7,F82
+        args: [--config-file=backend/pyproject.toml, --explicit-package-bases]
+        additional_dependencies:
+          - pydantic>=2.7.0
+          - pydantic-settings>=2.2.0
+          - fastapi>=0.110.0
+          - httpx>=0.27.0
+          - types-requests
+          - types-Pillow
 
   # --------------------------------------------------------------------------
-  # Secrets detection
+  # Secrets Scanner — Gitleaks
   # --------------------------------------------------------------------------
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.5.0
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.0
     hooks:
-      - id: detect-secrets
-        args: [--baseline, .secrets.baseline]
-        exclude: \.env\.example$|pubspec\.lock$
+      - id: gitleaks

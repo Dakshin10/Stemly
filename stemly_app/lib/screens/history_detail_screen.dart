@@ -5,14 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
+import '../core/config/app_config.dart';
 import '../models/scan_history.dart';
-import '../storage/history_store.dart';
-import '../services/firebase_auth_service.dart';
-import '../widgets/bottom_nav_bar.dart';
+import '../presentation/widgets/degraded_banner.dart';
+import '../presentation/widgets/shimmer_skeleton.dart';
+import '../presentation/widgets/state_views.dart';
 import '../quiz/quiz_play_screen.dart';
 import '../quiz/quiz_result_screen.dart';
+import '../services/firebase_auth_service.dart';
+import '../storage/history_store.dart';
 import '../visualiser/visualiser_factory.dart';
 import '../visualiser/visualiser_models.dart';
+import '../widgets/bottom_nav_bar.dart';
 
 class HistoryDetailScreen extends StatefulWidget {
   final ScanHistory history;
@@ -30,7 +34,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   Widget? visualiserWidget;
   bool loading = true;
 
-  final serverIp = 'http://10.0.2.2:8080';
+  String get serverIp => AppConfig.baseUrl;
 
   @override
   void initState() {
@@ -96,12 +100,12 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         }
 
       } else {
-          print("Failed to load visualiser: ${response.statusCode}");
+          debugPrint("Failed to load visualiser: ${response.statusCode}");
       }
 
 
     } catch (e) {
-      print("History visualiser error: $e");
+      debugPrint("History visualiser error: $e");
     }
 
     setState(() => loading = false);
@@ -160,7 +164,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
               child: Container(
                 decoration: BoxDecoration(
-                  color: deepBlue.withOpacity(0.12),
+                  color: deepBlue.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: TabBar(
@@ -235,7 +239,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: deepBlue.withOpacity(0.08),
+                  color: deepBlue.withValues(alpha: 0.08),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -286,7 +290,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withValues(alpha: 0.06),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
@@ -299,7 +303,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                 height: 260,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (ctx, _, __) => Container(
+                errorBuilder: (ctx, _, _) => Container(
                    height: 200,
                    color: Colors.grey.shade200,
                    child: const Center(child: Text("Image file not found")),
@@ -319,7 +323,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -349,7 +353,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: color.withOpacity(0.7)),
+        Icon(icon, size: 20, color: color.withValues(alpha: 0.7)),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
@@ -365,31 +369,45 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
-  Widget _noVisualiser(Color deepBlue) {
-    return Center(
-      child: Text(
-        "No visualisation available",
-        style: TextStyle(color: deepBlue, fontSize: 16),
-      ),
-    );
-  }
-
   // ---------------- NOTES TAB ----------------
   Widget _notesTab(ScanHistory h, Color cardColor, Color deepBlue) {
+    if (h.notesJson.containsKey("error")) {
+      return ErrorStateView(
+        title: "Notes Error",
+        message: h.notesJson["error"]?.toString() ?? "Could not load saved notes.",
+      );
+    }
+
+    if (h.notesJson.isEmpty) {
+      return const EmptyStateView(
+        icon: Icons.notes_rounded,
+        title: "No Notes Available",
+        message: "No notes saved for this history item.",
+      );
+    }
+
+    final bool isDegraded = h.notesJson["degraded"] == true;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(18),
       child: Column(
-        children: h.notesJson.entries.map((entry) {
-          final key = entry.key;
-          return _expandableCard(
-            title: _formatKey(key),
-            expanded: expanded[key]!,
-            onTap: () => setState(() => expanded[key] = !expanded[key]!),
-            child: _contentBuilder(entry.value, deepBlue),
-            deepBlue: deepBlue,
-            cardColor: cardColor,
-          );
-        }).toList(),
+        children: [
+          if (isDegraded) ...[
+            const DegradedModeBanner(),
+            const SizedBox(height: 10),
+          ],
+          ...h.notesJson.entries.where((e) => e.key != 'degraded').map((entry) {
+            final key = entry.key;
+            return _expandableCard(
+              title: _formatKey(key),
+              expanded: expanded[key]!,
+              onTap: () => setState(() => expanded[key] = !expanded[key]!),
+              child: _contentBuilder(entry.value, deepBlue),
+              deepBlue: deepBlue,
+              cardColor: cardColor,
+            );
+          }),
+        ],
       ),
     );
   }
@@ -410,7 +428,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
+            color: Colors.black.withValues(alpha: 0.10),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -487,18 +505,6 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     return const Text("Unsupported format");
   }
 
-  Widget _title(String t, Color c) => Text(
-        t,
-        style: TextStyle(
-          fontSize: 22,
-          color: c,
-          fontWeight: FontWeight.bold,
-        ),
-      );
-
-  Widget _value(String t, Color c) =>
-      Text(t, style: TextStyle(fontSize: 17, color: c));
-
   String _formatKey(String raw) {
     if (raw.isEmpty) return "";
     return raw
@@ -527,7 +533,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: deepBlue.withOpacity(0.3),
+                      color: deepBlue.withValues(alpha: 0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -549,7 +555,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                     Text(
                       "Test your knowledge on ${widget.history.topic}",
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 14,
                       ),
                     ),
@@ -568,7 +574,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 15,
                       offset: const Offset(0, 5),
                     ),
@@ -582,7 +588,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: deepBlue.withOpacity(0.1),
+                            color: deepBlue.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(Icons.tune, color: deepBlue, size: 24),
@@ -628,9 +634,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                     SliderTheme(
                       data: SliderTheme.of(context).copyWith(
                         activeTrackColor: deepBlue,
-                        inactiveTrackColor: deepBlue.withOpacity(0.2),
+                        inactiveTrackColor: deepBlue.withValues(alpha: 0.2),
                         thumbColor: deepBlue,
-                        overlayColor: deepBlue.withOpacity(0.2),
+                        overlayColor: deepBlue.withValues(alpha: 0.2),
                         trackHeight: 6,
                         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
                       ),
@@ -677,7 +683,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     elevation: 4,
-                    shadowColor: deepBlue.withOpacity(0.4),
+                    shadowColor: deepBlue.withValues(alpha: 0.4),
                   ),
                 ),
               ),
@@ -756,7 +762,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                          border: Border.all(color: Colors.grey.shade200),
                          boxShadow: [
                            BoxShadow(
-                             color: Colors.black.withOpacity(0.04),
+                             color: Colors.black.withValues(alpha: 0.04),
                              blurRadius: 8,
                              offset: const Offset(0, 2),
                            ),
@@ -769,7 +775,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                               width: 50,
                               height: 50,
                               decoration: BoxDecoration(
-                                color: color.withOpacity(0.1),
+                                color: color.withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: Center(
@@ -802,7 +808,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                       ),
                     ),
                    );
-                }).toList(),
+                }),
               ],
             ],
           ),
@@ -815,7 +821,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: isIncluded ? color.withOpacity(0.15) : Colors.grey.shade200,
+        color: isIncluded ? color.withValues(alpha: 0.15) : Colors.grey.shade200,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: isIncluded ? color : Colors.grey.shade300),
       ),
@@ -844,27 +850,26 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     final auth = context.read<FirebaseAuthService>();
     final token = await auth.getIdToken();
 
+    if (!mounted) return;
+
     if (token == null) {
       _showQuizError("Authentication required. Please sign in again.");
       return;
     }
 
-    // Show loading dialog
-    showDialog(
+    // Show Quiz Skeleton in bottom sheet while generating
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text("Generating ${widget.history.topic} Quiz...", textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            const Text("This may take a moment", style: TextStyle(fontSize: 12, color: Colors.grey)),
-          ],
-        ),
+      isDismissible: false,
+      enableDrag: false,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.75,
+        child: const QuizSkeleton(),
       ),
     );
 

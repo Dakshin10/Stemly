@@ -1,0 +1,11 @@
+{
+  "template_id": "graph_quadratic",
+  "title": "Quadratic Function Graph",
+  "animation_type": "math_plot",
+  "description": "Plot of quadratic polynomial y = ax² + bx + c",
+  "parameters": {
+    "a": { "value": 1.0, "min": -10.0, "max": 10.0, "unit": "", "label": "Coefficient a" },
+    "b": { "value": 0.0, "min": -20.0, "max": 20.0, "unit": "", "label": "Coefficient b" },
+    "c": { "value": 0.0, "min": -50.0, "max": 50.0, "unit": "", "label": "Constant c" }
+  }
+}

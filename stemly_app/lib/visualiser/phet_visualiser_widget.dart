@@ -5,6 +5,14 @@ class PhetVisualiserWidget extends StatefulWidget {
   final String url;
   final String title;
 
+  static bool isAllowedUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return false;
+    return uri.isScheme('https') &&
+        (uri.host == 'phet.colorado.edu' || uri.host.endsWith('.phet.colorado.edu')) &&
+        uri.path.startsWith('/sims/html/');
+  }
+
   const PhetVisualiserWidget({
     super.key, 
     required this.url,
@@ -16,46 +24,82 @@ class PhetVisualiserWidget extends StatefulWidget {
 }
 
 class _PhetVisualiserWidgetState extends State<PhetVisualiserWidget> {
-  late final WebViewController _controller;
+  WebViewController? _controller;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onProgress: (int progress) {
-            // Update loading bar.
-          },
-          onPageStarted: (String url) {},
-          onPageFinished: (String url) {
-             if (mounted) setState(() => _isLoading = false);
-          },
-          onWebResourceError: (WebResourceError error) {},
-          onNavigationRequest: (NavigationRequest request) {
-            return NavigationDecision.navigate;
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse(widget.url));
+    final isAllowed = PhetVisualiserWidget.isAllowedUrl(widget.url);
+    if (isAllowed) {
+      _controller = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(const Color(0x00000000))
+        ..setNavigationDelegate(
+          NavigationDelegate(
+            onProgress: (int progress) {},
+            onPageStarted: (String url) {},
+            onPageFinished: (String url) {
+              if (mounted) setState(() => _isLoading = false);
+            },
+            onWebResourceError: (WebResourceError error) {
+              if (mounted) setState(() => _isLoading = false);
+            },
+            onNavigationRequest: (NavigationRequest request) {
+              final uri = Uri.tryParse(request.url);
+              if (uri != null &&
+                  uri.isScheme('https') &&
+                  (uri.host == 'phet.colorado.edu' || uri.host.endsWith('.phet.colorado.edu'))) {
+                return NavigationDecision.navigate;
+              }
+              return NavigationDecision.prevent;
+            },
+          ),
+        )
+        ..loadRequest(Uri.parse(widget.url));
+    } else {
+      _isLoading = false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        WebViewWidget(controller: _controller),
-        if (_isLoading)
-          Center(
-             child: CircularProgressIndicator(color: Theme.of(context).primaryColor),
+    if (!PhetVisualiserWidget.isAllowedUrl(widget.url)) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.security, size: 48, color: Colors.amber),
+              const SizedBox(height: 12),
+              const Text(
+                "Restricted External Content",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "Only simulations hosted on phet.colorado.edu are allowed.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              ),
+            ],
           ),
-        
-        // Interaction overlay info (optional)
-        // Since PhET captures touches, we might want a way to inform user
-      ],
+        ),
+      );
+    }
+
+    return RepaintBoundary(
+      child: Stack(
+        children: [
+          if (_controller != null)
+            WebViewWidget(controller: _controller!),
+          if (_isLoading)
+            Center(
+              child: CircularProgressIndicator(color: Theme.of(context).primaryColor),
+            ),
+        ],
+      ),
     );
   }
 }
