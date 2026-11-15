@@ -1,3 +1,42 @@
+[project]
+name = "stemly-backend"
+version = "1.0.0"
+description = "FastAPI Backend for Stemly educational mobile application"
+readme = "readme.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "gunicorn",
+    "pydantic",
+    "pydantic-settings",
+    "slowapi",
+    "python-json-logger",
+    "sentry-sdk[fastapi]",
+    "httpx",
+    "groq",
+    "pillow",
+    "python-multipart",
+    "python-dotenv",
+    "motor",
+    "pymongo",
+    "firebase-admin",
+    "certifi",
+    "requests",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-asyncio>=0.21",
+    "respx>=0.21.0",
+    "httpx>=0.24",
+    "black>=23.0",
+    "flake8>=6.0",
+    "mypy>=1.0",
+]
+
 [tool.ruff]
 line-length = 120
 target-version = "py310"

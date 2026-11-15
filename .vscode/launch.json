@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Stemly (Dev)",
+      "request": "launch",
+      "type": "dart",
+      "program": "stemly_app/lib/main_dev.dart",
+      "args": [
+        "--flavor",
+        "dev",
+        "--android-skip-build-dependency-validation"
+      ]
+    },
+    {
+      "name": "Stemly (Default)",
+      "request": "launch",
+      "type": "dart",
+      "program": "stemly_app/lib/main.dart",
+      "args": [
+        "--android-skip-build-dependency-validation"
+      ]
+    }
+  ]
+}
+

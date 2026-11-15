@@ -15,7 +15,7 @@
 backend/firebase_service_account.json
 
 # ------------------------------------------------------------------------------
-# Python
+# Python & uv
 # ------------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
@@ -25,6 +25,9 @@ __pycache__/
 venv/
 env/
 backend/.venv/
+.uv/
+.uv-cache/
+.ruff_cache/
 
 # Pytest / Coverage
 .pytest_cache/
@@ -69,7 +72,7 @@ stemly_app/coverage/
 # ------------------------------------------------------------------------------
 # IDE / Editor
 # ------------------------------------------------------------------------------
-.vscode/
+.vscode/*
 !.vscode/settings.json
 !.vscode/launch.json
 .idea/
@@ -95,7 +98,7 @@ $RECYCLE.BIN/
 docker-compose.override.yml
 
 # ------------------------------------------------------------------------------
-# Misc
+# Misc & Test Scratch
 # ------------------------------------------------------------------------------
 .history/
 static/scans/
@@ -107,3 +110,6 @@ backend/static/uploads/*
 backend/services/flutter_application_1/
 test_output.txt
 test_image.png
+tests/*.png
+tests/*.jpg
+tests/*.jpeg

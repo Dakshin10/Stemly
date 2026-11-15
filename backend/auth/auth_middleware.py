@@ -56,6 +56,24 @@ async def require_firebase_user(
         firebase_user = await run_in_threadpool(verify_firebase_token, id_token)
     except Exception as exc:
         logger.warning("Token verification failed: %s", exc)
+        if is_dev_bypass:
+            try:
+                import jwt
+                decoded = jwt.decode(id_token, options={"verify_signature": False})
+                dev_user = {
+                    "uid": decoded.get("user_id") or decoded.get("sub") or "dev-user-123",
+                    "email": decoded.get("email", "dev@stemly.app"),
+                    "name": decoded.get("name", "Stemly User"),
+                    "picture": decoded.get("picture"),
+                }
+                logger.info("Dev bypass decoded token claims for user: %s", dev_user.get("email"))
+                request.state.user = dev_user
+                request.state.user_id = dev_user["uid"]
+                request.state.id_token = id_token
+                return dev_user
+            except Exception as decode_err:
+                logger.warning("Dev bypass JWT decode failed: %s", decode_err)
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired authentication token.",

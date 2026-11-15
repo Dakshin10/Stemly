@@ -54,17 +54,19 @@ android {
 
     defaultConfig {
         applicationId = "com.example.stemly_app"
-        minSdk = flutter.minSdkVersion
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        ndk {
+            abiFilters.addAll(listOf("arm64-v8a", "x86_64", "armeabi-v7a"))
+        }
     }
 
     flavorDimensions += "default"
     productFlavors {
         create("dev") {
             dimension = "default"
-            applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
         }
         create("prod") {
@@ -82,4 +84,20 @@ android {
 
 flutter {
     source = "../.."
+}
+
+tasks.matching { it.name == "assembleDebug" }.configureEach {
+    doLast {
+        val apkDir = layout.buildDirectory.dir("outputs/flutter-apk").get().asFile
+        val devApk = File(apkDir, "app-dev-debug.apk")
+        val defaultApk = File(apkDir, "app-debug.apk")
+        if (devApk.exists()) {
+            devApk.copyTo(defaultApk, overwrite = true)
+        }
+        val devSha = File(apkDir, "app-dev-debug.apk.sha1")
+        val defaultSha = File(apkDir, "app-debug.apk.sha1")
+        if (devSha.exists()) {
+            devSha.copyTo(defaultSha, overwrite = true)
+        }
+    }
 }

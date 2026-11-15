@@ -69,25 +69,16 @@ flutter run
 ### Backend (FastAPI)
 
 ```bash
-cd stemly/backend
+cd backend
 
-# Create and activate virtual environment
-python -m venv .venv
-
-# On Windows
-.venv\Scripts\activate
-# On macOS/Linux
-source .venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
+# Sync dependencies and create .venv automatically with uv
+uv sync --extra dev
 
 # Set up environment variables
-# Copy .env.example to .env and fill in your API keys
 cp .env.example .env
 
 # Run the development server
-uvicorn main:app --reload
+uv run uvicorn main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 ### Verify Your Setup

@@ -6,6 +6,7 @@ import os
 
 # Ensure tests run with TESTING=true and mock keys
 os.environ["TESTING"] = "true"
+os.environ["MONGO_URI"] = ""
 os.environ["GROQ_VISION_API_KEY"] = "mock_vision_api_key_12345"
 os.environ["GROQ_TEXT_API_KEY"] = "mock_text_api_key_67890"
 

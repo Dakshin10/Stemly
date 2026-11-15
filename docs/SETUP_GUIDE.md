@@ -72,6 +72,9 @@ choco install flutter
 # Git
 winget install Git.Git
 
+# uv (fast Python package installer)
+winget install astral-sh.uv
+
 # Android Studio (for Android emulator)
 winget install Google.AndroidStudio
 ```
@@ -80,13 +83,10 @@ winget install Google.AndroidStudio
 
 ```powershell
 cd backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+uv sync --extra dev
 copy .env.example .env
 # Edit .env with your API keys
-uvicorn main:app --reload
+uv run uvicorn main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 **Flutter app**:
@@ -120,19 +120,18 @@ brew install --cask android-studio
 
 # CocoaPods (for iOS)
 sudo gem install cocoapods
+# uv (fast Python package installer)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 **Backend**:
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+uv sync --extra dev
 cp .env.example .env
 # Edit .env with your API keys
-uvicorn main:app --reload
+uv run uvicorn main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 **Flutter app**:
@@ -164,19 +163,18 @@ sudo snap install android-studio --classic
 
 # Additional dependencies for Flutter Linux desktop
 sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev
+# uv (fast Python package installer)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 **Backend**:
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+uv sync --extra dev
 cp .env.example .env
 # Edit .env with your API keys
-uvicorn main:app --reload
+uv run uvicorn main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 **Flutter app**:

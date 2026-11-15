@@ -15,10 +15,10 @@ FastAPI backend powering Stemly's AI-driven STEM learning features.
 | Tool | Version | Installation |
 |------|---------|-------------|
 | Python | 3.10+ | [python.org](https://www.python.org/downloads/) |
-| pip | latest | Included with Python |
+| uv | latest | [astral.sh/uv](https://docs.astral.sh/uv/) |
 | MongoDB | 6.0+ or Atlas | [mongodb.com](https://www.mongodb.com/try/download/community) |
 | Firebase project | — | [Firebase Console](https://console.firebase.google.com/) |
-| Gemini API key | — | [AI Studio](https://aistudio.google.com/apikey) |
+| Groq API key | — | [Groq Console](https://console.groq.com/keys) |
 
 ## Installation
 
@@ -26,20 +26,17 @@ FastAPI backend powering Stemly's AI-driven STEM learning features.
 # From the repository root
 cd backend
 
-# Create virtual environment
-python -m venv .venv
+# Sync dependencies and create .venv automatically with uv
+uv sync --extra dev
 
-# Activate it
-# Windows
-.venv\Scripts\activate
+# Run the server (no manual venv activation required)
+uv run uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+
+# Alternatively, activate the virtual environment directly:
+# Windows (PowerShell)
+.venv\Scripts\Activate.ps1
 # macOS / Linux
 source .venv/bin/activate
-
-# Install runtime dependencies
-pip install -r requirements.txt
-
-# Install development tools (linting, testing, formatting)
-pip install -r requirements-dev.txt
 ```
 
 ## Configuration

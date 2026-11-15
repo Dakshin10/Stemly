@@ -10,35 +10,31 @@ SERVICE_ACCOUNT_FILE_ENV = "FIREBASE_CREDENTIALS_FILE"
 SERVICE_ACCOUNT_JSON_ENV = "FIREBASE_CREDENTIALS_JSON"
 
 
-def _load_service_account() -> credentials.Certificate:
-    """
-    Load Firebase service account credentials either from a file path or from a
-    raw JSON string stored in environment variables.
-    """
-    file_path = os.getenv(SERVICE_ACCOUNT_FILE_ENV)
-    json_blob = os.getenv(SERVICE_ACCOUNT_JSON_ENV)
-
-    if file_path:
-        if not os.path.isfile(file_path):
-            raise FileNotFoundError(f"Firebase service account file not found: {file_path}")
-        return credentials.Certificate(file_path)
-
-    if json_blob:
-        try:
-            service_account_dict: Dict[str, Any] = json.loads(json_blob)
-        except json.JSONDecodeError as exc:
-            raise ValueError("Invalid JSON provided in FIREBASE_CREDENTIALS_JSON") from exc
-        return credentials.Certificate(service_account_dict)
-
-    raise EnvironmentError("Firebase credentials missing. Set FIREBASE_CREDENTIALS_FILE or FIREBASE_CREDENTIALS_JSON.")
-
-
 def _initialize_app() -> firebase_admin.App:
     if firebase_admin._apps:
         return firebase_admin.get_app()
 
-    cred = _load_service_account()
-    return firebase_admin.initialize_app(cred)
+    file_path = os.getenv(SERVICE_ACCOUNT_FILE_ENV)
+    json_blob = os.getenv(SERVICE_ACCOUNT_JSON_ENV)
+
+    if file_path and os.path.isfile(file_path):
+        try:
+            cred = credentials.Certificate(file_path)
+            return firebase_admin.initialize_app(cred)
+        except Exception as e:
+            print(f"⚠️ Error loading Firebase service account from {file_path}: {e}")
+
+    if json_blob:
+        try:
+            service_account_dict: Dict[str, Any] = json.loads(json_blob)
+            cred = credentials.Certificate(service_account_dict)
+            return firebase_admin.initialize_app(cred)
+        except Exception as e:
+            print(f"⚠️ Error loading Firebase service account from JSON: {e}")
+
+    # Fallback to project-only initialization (verifies ID tokens via Google public certs)
+    project_id = os.getenv("FIREBASE_PROJECT_ID", "stemly-929a6")
+    return firebase_admin.initialize_app(options={"projectId": project_id})
 
 
 def verify_firebase_token(id_token: str) -> Dict[str, Optional[str]]:

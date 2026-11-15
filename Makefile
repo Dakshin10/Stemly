@@ -16,9 +16,7 @@ help: ## Show this help message
 setup: setup-backend setup-flutter ## Install all dependencies
 
 setup-backend: ## Install backend dependencies
-	cd backend && python -m venv .venv
-	cd backend && pip install -r requirements.txt
-	cd backend && pip install -r requirements-dev.txt
+	cd backend && uv sync --extra dev
 	@test -f backend/.env || (cp backend/.env.example backend/.env && echo "Created backend/.env — fill in your values")
 
 setup-flutter: ## Install Flutter dependencies
@@ -31,7 +29,7 @@ setup-flutter: ## Install Flutter dependencies
 test: test-backend test-flutter ## Run all tests
 
 test-backend: ## Run backend tests with coverage
-	cd backend && python -m pytest -v --cov=. --cov-report=term-missing
+	cd backend && uv run pytest -v --cov=. --cov-report=term-missing
 
 test-flutter: ## Run Flutter tests
 	cd stemly_app && flutter test
@@ -43,8 +41,8 @@ test-flutter: ## Run Flutter tests
 lint: lint-backend lint-flutter ## Run all linters
 
 lint-backend: ## Lint backend (black + flake8)
-	cd backend && python -m black --check .
-	cd backend && python -m flake8 . --max-line-length=120 --count --statistics
+	cd backend && uv run black --check .
+	cd backend && uv run flake8 . --max-line-length=120 --count --statistics
 
 lint-flutter: ## Lint Flutter (analyze + format check)
 	cd stemly_app && flutter analyze --no-fatal-infos
@@ -57,7 +55,7 @@ lint-flutter: ## Lint Flutter (analyze + format check)
 format: format-backend format-flutter ## Auto-format all code
 
 format-backend: ## Format backend with black
-	cd backend && python -m black .
+	cd backend && uv run black .
 
 format-flutter: ## Format Flutter with dart format
 	cd stemly_app && dart format .
@@ -67,7 +65,7 @@ format-flutter: ## Format Flutter with dart format
 # -----------------------------------------------------------------------------
 
 dev-backend: ## Start backend with auto-reload
-	cd backend && python -m uvicorn main:app --reload
+	cd backend && uv run uvicorn main:app --host 0.0.0.0 --port 8080 --reload
 
 dev-flutter: ## Run Flutter app in debug mode
 	cd stemly_app && flutter run

@@ -17,8 +17,9 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white" alt="Flutter 3.x">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/uv-Astral-DE5FE9?logo=astral&logoColor=white" alt="uv">
   <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
-  <img src="https://img.shields.io/badge/Gemini_AI-4285F4?logo=google&logoColor=white" alt="Gemini AI">
+  <img src="https://img.shields.io/badge/Groq_AI-F55036?logo=groq&logoColor=white" alt="Groq AI">
   <img src="https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&logoColor=black" alt="Firebase">
   <img src="https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&logoColor=white" alt="MongoDB">
 </p>
@@ -100,7 +101,7 @@ graph TD
     User[Flutter App] -->|REST API| API[FastAPI Backend]
     API -->|Auth| Firebase[Firebase Auth]
     API -->|Data| DB[(MongoDB)]
-    API -->|Vision + Text| Gemini[Google Gemini 2.5 Flash]
+    API -->|Vision + Text| Groq[Groq Llama 3.2 Vision / 3.3 Text]
 
     subgraph Client
         User
@@ -109,18 +110,18 @@ graph TD
     end
 
     subgraph AI
-        Gemini
+        Groq
     end
 ```
 
 | Layer | Technology |
 | :--- | :--- |
 | Frontend | Flutter 3.x, Dart, Provider, CustomPaint (60 FPS rendering) |
-| Backend | FastAPI, Python 3.10+, Uvicorn, Pydantic |
-| AI | Google Gemini 2.5 Flash (vision + text + JSON mode) |
+| Backend | FastAPI, Python 3.10+, Uvicorn, uv package manager, Pydantic |
+| AI | Groq LLM (Llama 3.2 Vision + Llama 3.3 70B Text) |
 | Database | MongoDB Atlas (async via Motor) |
 | Auth | Firebase Authentication (Google Sign-In, email/password) |
-| Deployment | Vercel (backend), APK/IPA (frontend) |
+| Deployment | Cloud Run / Render / Docker |
 
 See `ARCHITECTURE.md` for detailed component diagrams, data flows, and the scan-to-simulation pipeline.
 
@@ -131,8 +132,8 @@ See `ARCHITECTURE.md` for detailed component diagrams, data flows, and the scan-
 ### Prerequisites
 
 - Flutter 3.x+ and Dart SDK 3.10.1+
-- Python 3.10+
-- API keys: Google Gemini + Firebase + MongoDB Atlas
+- Python 3.10+ and [`uv`](https://docs.astral.sh/uv/) (fast Python package and project manager)
+- API keys: Groq AI (Vision & Text) + Firebase + MongoDB Atlas
 
 ### Setup
 
@@ -142,10 +143,9 @@ cd Stemly
 
 # Backend
 cd backend
-python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env   # Fill in your API keys
-uvicorn main:app --reload
+uv sync --extra dev      # Automatically creates .venv and installs all dependencies
+cp .env.example .env     # Fill in your API keys
+uv run uvicorn main:app --host 0.0.0.0 --port 8080 --reload
 
 # Flutter (in a new terminal)
 cd stemly_app
