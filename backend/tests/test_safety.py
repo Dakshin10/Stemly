@@ -7,7 +7,6 @@ Covers:
 - Clean mathematical expressions pass unmolested
 """
 
-import pytest
 from core.safety import filter_unsafe_output, scrub_pii_and_secrets
 
 

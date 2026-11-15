@@ -426,4 +426,3 @@ async def test_topic_analysis_structured_variables_and_templates():
     mechanics_tmpl = await get_template_by_topic("mechanics")
     assert mechanics_tmpl is not None
     assert mechanics_tmpl["template_id"] == "mechanics_2d"
-

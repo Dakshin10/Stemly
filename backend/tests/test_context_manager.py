@@ -10,7 +10,6 @@ Covers:
 import pytest
 from database.chat_history import get_session_history, save_session_turn
 from services.llm.context_manager import (
-    DEFAULT_MAX_CONTEXT_TOKENS,
     build_conversation_context,
     estimate_tokens,
 )
@@ -53,7 +52,7 @@ def test_build_conversation_context_sliding_window_and_summarization():
     """Verify long conversation histories exceeding budget are pruned with rolling summary."""
     sys_prompt = "You are an AI tutor."
     user_query = "What happens to the apex?"
-    
+
     # Generate 25 verbose turns
     history = []
     for i in range(25):

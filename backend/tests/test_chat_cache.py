@@ -10,10 +10,9 @@ import pytest
 from services.llm.cache import (
     compute_tutor_cache_key,
     get_cached_tutor,
-    normalize_query,
     set_cached_tutor,
 )
-from services.llm.text import stream_tutor_chat, tutor_chat
+from services.llm.text import stream_tutor_chat
 
 
 def test_tutor_cache_key_normalization():
@@ -29,7 +28,7 @@ async def test_tutor_cache_get_and_set():
     """Verify caching in-memory stores and retrieves structured response dicts."""
     topic = "Thermodynamics"
     query = "State the first law of thermodynamics"
-    
+
     # Cache miss
     miss = await get_cached_tutor(topic, query)
     assert miss is None

@@ -3,7 +3,7 @@ Standardized Event Envelope and Data Models for Streaming Protocol v2.
 Contract: {v: 1, id: str, seq: int, type: str, data: dict}
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from pydantic import BaseModel, Field
 
 

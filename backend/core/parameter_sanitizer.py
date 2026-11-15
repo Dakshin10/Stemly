@@ -45,7 +45,6 @@ PARAMETER_BOUNDS: Dict[str, tuple[float, float]] = {
     "amplitude": (0.01, 500.0),
     "damping": (0.0, 10.0),
     # Optics
-    "f": (-1000.0, 1000.0),
     "focal_length": (-1000.0, 1000.0),
     "do": (0.1, 1000.0),
     "di": (-1000.0, 1000.0),

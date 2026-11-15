@@ -8,7 +8,6 @@ Covers:
 - Backward compatibility with legacy text tags
 """
 
-import json
 from unittest.mock import MagicMock, patch
 import pytest
 

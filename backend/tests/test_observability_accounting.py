@@ -9,7 +9,7 @@ Covers:
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from core.observability import ChatTelemetryAggregator, chat_telemetry
+from core.observability import ChatTelemetryAggregator
 from main import app
 
 

@@ -6,7 +6,6 @@ Tests for ChatGPT-grade AI STEM tutor:
 """
 
 import json
-from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient

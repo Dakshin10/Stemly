@@ -16,7 +16,6 @@ import time
 import uuid
 from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, List, Optional
 
-import httpx
 from pydantic import BaseModel, Field
 
 from config import settings
@@ -367,7 +366,7 @@ async def tutor_chat(
 
     default_followups = [
         f"Explain the governing formula for {topic_str}",
-        f"How do variables relate to each other?",
+        "How do variables relate to each other?",
         "Show me a step-by-step example problem",
     ]
 

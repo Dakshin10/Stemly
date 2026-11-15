@@ -10,7 +10,7 @@ Covers:
 import pytest
 from core.guardrails import evaluate_guardrails
 from prompts.tutor_prompts import TUTOR_STREAM_SYSTEM_PROMPT
-from services.llm.text import stream_tutor_chat, tutor_chat
+from services.llm.text import stream_tutor_chat
 
 
 def test_guardrails_blocks_prompt_injections():

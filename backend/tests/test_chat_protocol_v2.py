@@ -11,7 +11,7 @@ Comprehensive tests for Streaming Protocol v2:
 """
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -82,7 +82,7 @@ async def test_streaming_protocol_v2_envelope_and_headers(auth_headers):
             lines = [line for line in text_body.split("\n") if line.startswith("data: ")]
             assert len(lines) >= 3
 
-            events = [json.loads(l[6:]) for l in lines]
+            events = [json.loads(line[6:]) for line in lines]
 
             # Verify envelope structure
             for e in events:
