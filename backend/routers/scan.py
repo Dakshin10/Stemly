@@ -54,7 +54,7 @@ async def upload_scan(
     request: Request,
     file: UploadFile = File(...),
     ocr_text: str = Form("", max_length=5000),
-    x_ai_api_key: str = Header(None, alias="X-AI-API-Key"),
+    x_ai_api_key: Optional[str] = Header(None, alias="X-AI-API-Key"),
 ):
     user_id = request.state.user["uid"]
 
@@ -85,8 +85,9 @@ async def upload_scan(
     analysis = await analyze_image(image_bytes=clean_bytes, ocr_text=ocr_text)
 
     # Convert Pydantic structured variables to dicts
-    structured_vars_dicts = [
-        v.model_dump() if hasattr(v, "model_dump") else v for v in analysis.structured_variables
+    structured_vars_dicts: List[Dict[str, Any]] = [
+        v.model_dump() if isinstance(v, BaseModel) else dict(v)
+        for v in analysis.structured_variables
     ]
 
     # 5. Save History with content_hash for future deduplication
