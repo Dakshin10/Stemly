@@ -8,15 +8,18 @@ Features:
 - Graceful local fallbacks tagged with degraded=true.
 """
 
+import json
 import logging
-from typing import Any, Dict, List, Optional
+import re
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
+import httpx
 from pydantic import BaseModel, Field
 
 from config import settings
 from prompts.notes_prompts import NOTES_FOLLOWUP_PROMPT_V1, NOTES_GENERATION_PROMPT_V1
 from prompts.quiz_prompts import QUIZ_GENERATION_PROMPT_V1
-from prompts.tutor_prompts import TUTOR_CHAT_PROMPT_V1
+from prompts.tutor_prompts import TUTOR_CHAT_PROMPT_V1, TUTOR_STREAM_SYSTEM_PROMPT
 from prompts.visualiser_prompts import PARAM_UPDATE_PROMPT_V1, VISUALISER_CHAT_PROMPT_V1
 
 from .cache import (
@@ -74,6 +77,9 @@ class TutorChatResponse(BaseModel):
     response: str
     parameter_updates: Optional[Dict[str, Any]] = None
     update_type: str = "explanation"
+    suggested_followups: List[str] = Field(
+        default_factory=list, description="3 dynamic follow-up questions"
+    )
     degraded: bool = Field(default=False)
 
 
@@ -341,18 +347,25 @@ async def tutor_chat(
     """
     client = get_text_client()
 
+    topic_str = topic or "General STEM"
+    vars_str = ", ".join(variables) if variables else "None specified"
+    template_str = template_id or "Standard Canvas"
+    params_str = str(current_params) if current_params else "{}"
+
+    default_followups = [
+        f"Explain the governing formula for {topic_str}",
+        f"How do variables relate to each other?",
+        "Show me a step-by-step example problem",
+    ]
+
     if not settings.GROQ_TEXT_API_KEY:
         return TutorChatResponse(
             response="Tutor chat is currently operating in offline mode. Please try again shortly.",
             parameter_updates=None,
             update_type="explanation",
+            suggested_followups=default_followups,
             degraded=True,
         )
-
-    topic_str = topic or "General STEM"
-    vars_str = ", ".join(variables) if variables else "None specified"
-    template_str = template_id or "Standard Canvas"
-    params_str = str(current_params) if current_params else "{}"
 
     prompt = TUTOR_CHAT_PROMPT_V1.format(
         topic=topic_str,
@@ -364,11 +377,11 @@ async def tutor_chat(
 
     messages: List[Dict[str, Any]] = []
 
-    # Include recent chat history (up to 4 turns) if provided
+    # Include recent chat history (up to 8 turns) if provided
     if history:
-        for turn in history[-4:]:
-            role = "user" if turn.get("isUser") else "assistant"
-            content = turn.get("text", "")
+        for turn in history[-8:]:
+            role = turn.get("role") or ("user" if turn.get("isUser") else "assistant")
+            content = turn.get("content") or turn.get("text", "")
             if content:
                 messages.append({"role": role, "content": content})
 
@@ -385,6 +398,8 @@ async def tutor_chat(
         )
         if result:
             result.degraded = False
+            if not result.suggested_followups:
+                result.suggested_followups = default_followups
             return result
     except Exception as exc:
         logger.error("Groq tutor chat error: %s", exc)
@@ -393,8 +408,183 @@ async def tutor_chat(
         response=f"Regarding {topic_str}: Keep in mind the underlying relations between the key variables ({vars_str}).",
         parameter_updates=None,
         update_type="explanation",
+        suggested_followups=default_followups,
         degraded=True,
     )
+
+
+async def stream_tutor_chat(
+    message: str,
+    topic: Optional[str] = None,
+    variables: Optional[List[str]] = None,
+    current_params: Optional[Dict[str, Any]] = None,
+    template_id: Optional[str] = None,
+    history: Optional[List[Dict[str, Any]]] = None,
+) -> AsyncGenerator[Dict[str, Any], None]:
+    """
+    Streams ChatGPT-grade AI STEM tutor responses token-by-token via Server-Sent Events (SSE).
+    Yields events:
+      - {"type": "token", "content": "..."}
+      - {"type": "parameters", "updates": {...}}
+      - {"type": "followups", "suggestions": [...]}
+      - {"type": "done"}
+    """
+    topic_str = topic or "General STEM"
+    vars_str = ", ".join(variables) if variables else "None specified"
+    template_str = template_id or "Standard Canvas"
+    params_str = json.dumps(current_params) if current_params else "{}"
+
+    default_followups = [
+        f"Explain the governing formula for {topic_str}",
+        f"How do variables relate to each other?",
+        "Show me a step-by-step example problem",
+    ]
+
+    if not settings.GROQ_TEXT_API_KEY:
+        yield {
+            "type": "token",
+            "content": f"I am currently operating in offline mode. For **{topic_str}**, review the core equations connecting: {vars_str}.",
+        }
+        yield {"type": "followups", "suggestions": default_followups}
+        yield {"type": "done"}
+        return
+
+    system_prompt = TUTOR_STREAM_SYSTEM_PROMPT.format(current_params=params_str)
+    messages: List[Dict[str, Any]] = [{"role": "system", "content": system_prompt}]
+
+    # Multi-turn conversational memory (up to 8 turns)
+    if history:
+        for turn in history[-8:]:
+            role = turn.get("role") or ("user" if turn.get("isUser") else "assistant")
+            content = turn.get("content") or turn.get("text", "")
+            if content:
+                messages.append({"role": role, "content": content})
+
+    user_query = (
+        f"Topic: {topic_str}\n"
+        f"Variables: {vars_str}\n"
+        f"Active Template: {template_str}\n\n"
+        f"Student Question: {message}"
+    )
+    messages.append({"role": "user", "content": user_query})
+
+    payload = {
+        "model": settings.GROQ_TEXT_MODEL,
+        "messages": messages,
+        "temperature": 0.3,
+        "max_tokens": 1500,
+        "stream": True,
+    }
+
+    try:
+        auth_headers = {
+            "Authorization": f"Bearer {settings.GROQ_TEXT_API_KEY}",
+            "Content-Type": "application/json",
+            "User-Agent": "Stemly-Backend/2.0",
+        }
+
+        async with httpx.AsyncClient(
+            base_url="https://api.groq.com/openai/v1",
+            headers=auth_headers,
+            timeout=settings.LLM_TIMEOUT_SECONDS,
+        ) as stream_client:
+            async with stream_client.stream("POST", "/chat/completions", json=payload) as resp:
+                if resp.status_code != 200:
+                    logger.warning("Groq stream returned status %d. Falling back to non-streaming.", resp.status_code)
+                    fallback_res = await tutor_chat(
+                        message=message,
+                        topic=topic,
+                        variables=variables,
+                        current_params=current_params,
+                        template_id=template_id,
+                        history=history,
+                    )
+                    yield {"type": "token", "content": fallback_res.response}
+                    if fallback_res.parameter_updates:
+                        yield {"type": "parameters", "updates": fallback_res.parameter_updates}
+                    yield {
+                        "type": "followups",
+                        "suggestions": fallback_res.suggested_followups or default_followups,
+                    }
+                    yield {"type": "done"}
+                    return
+
+                tail_buffer = ""
+                emitted_followups = False
+
+                async for line in resp.aiter_lines():
+                    if not line or not line.startswith("data: "):
+                        continue
+                    raw_data = line[6:].strip()
+                    if raw_data == "[DONE]":
+                        break
+
+                    try:
+                        chunk = json.loads(raw_data)
+                        delta = chunk.get("choices", [{}])[0].get("delta", {})
+                        token = delta.get("content", "")
+                        if not token:
+                            continue
+
+                        tail_buffer += token
+
+                        # Check for special trailing tag markers <<<PARAMS or <<<FOLLOWUPS
+                        if "<<<" in tail_buffer:
+                            # Check if a tag has closed with >>>
+                            if ">>>" in tail_buffer:
+                                # Extract parameter updates
+                                param_match = re.search(r"<<<PARAMS:\s*(\{.*?\})\s*>>>", tail_buffer, re.DOTALL)
+                                if param_match:
+                                    try:
+                                        params = json.loads(param_match.group(1))
+                                        if isinstance(params, dict):
+                                            yield {"type": "parameters", "updates": params}
+                                    except Exception:
+                                        pass
+
+                                # Extract follow-up suggestions
+                                followup_match = re.search(r"<<<FOLLOWUPS:\s*(\[.*?\])\s*>>>", tail_buffer, re.DOTALL)
+                                if followup_match:
+                                    try:
+                                        f_list = json.loads(followup_match.group(1))
+                                        if isinstance(f_list, list) and f_list:
+                                            yield {"type": "followups", "suggestions": [str(x) for x in f_list[:3]]}
+                                            emitted_followups = True
+                                    except Exception:
+                                        pass
+
+                                # Clear tags from tail_buffer
+                                tail_buffer = re.sub(r"<<<PARAMS:.*?>>>", "", tail_buffer, flags=re.DOTALL)
+                                tail_buffer = re.sub(r"<<<FOLLOWUPS:.*?>>>", "", tail_buffer, flags=re.DOTALL)
+                        else:
+                            # Not inside tag: flush safe characters to stream
+                            if len(tail_buffer) > 4:
+                                safe_to_emit = tail_buffer[:-4]
+                                tail_buffer = tail_buffer[-4:]
+                                yield {"type": "token", "content": safe_to_emit}
+
+                    except json.JSONDecodeError:
+                        continue
+
+                # Flush remaining non-tag text if any
+                clean_tail = re.sub(r"<<<.*?>>>", "", tail_buffer, flags=re.DOTALL)
+                clean_tail = clean_tail.replace("<<<", "").strip()
+                if clean_tail:
+                    yield {"type": "token", "content": clean_tail}
+
+                if not emitted_followups:
+                    yield {"type": "followups", "suggestions": default_followups}
+
+                yield {"type": "done"}
+
+    except Exception as exc:
+        logger.error("Error during tutor chat streaming: %s", exc)
+        yield {
+            "type": "token",
+            "content": f"\n\nRegarding {topic_str}: Ensure you review the relations connecting {vars_str}.",
+        }
+        yield {"type": "followups", "suggestions": default_followups}
+        yield {"type": "done"}
 
 
 async def process_visualiser_chat_llm(

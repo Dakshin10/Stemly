@@ -16,6 +16,7 @@ from .text import (
     generate_quiz,
     parse_param_update,
     process_visualiser_chat_llm,
+    stream_tutor_chat,
     tutor_chat,
 )
 from .vision import TopicAnalysis, analyze_image
@@ -31,6 +32,7 @@ __all__ = [
     "generate_quiz",
     "parse_param_update",
     "tutor_chat",
+    "stream_tutor_chat",
     "process_visualiser_chat_llm",
     "NotesResponse",
     "QuizResponse",
