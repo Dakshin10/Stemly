@@ -48,6 +48,9 @@ class TopicAnalysis(BaseModel):
     latex_formula: Optional[str] = Field(
         default=None, description="Primary governing equation formatted in LaTeX"
     )
+    extracted_text: Optional[str] = Field(
+        default="", description="Transcribed problem statement or equation text from image"
+    )
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     degraded: bool = Field(default=False, description="True if local fallback engine was used")
 
@@ -233,7 +236,7 @@ async def analyze_image(image_bytes: bytes, ocr_text: str = "") -> TopicAnalysis
             messages=messages,
             schema=TopicAnalysis,
             temperature=0.1,
-            max_tokens=500,
+            max_tokens=1000,
         )
 
         if result:

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -24,16 +23,9 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   final ImagePicker _picker = ImagePicker();
-  final TextRecognizer _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
 
   bool _isProcessing = false;
   bool _isLoadingDialogShown = false;
-
-  @override
-  void dispose() {
-    _textRecognizer.close();
-    super.dispose();
-  }
 
   // ==========================================================
   // IMAGE CAPTURE / PICKER (WITH CLIENT PRE-COMPRESSION & CROPPER)
@@ -44,7 +36,7 @@ class _MainScreenState extends State<MainScreen> {
     try {
       setState(() => _isProcessing = true);
 
-      // Improvement 1: Hardware-accelerated client-side pre-compression (80% network boost)
+      // Hardware-accelerated client-side pre-compression (80% network boost)
       final XFile? photo = await _picker.pickImage(
         source: source,
         maxWidth: 1280,
@@ -59,8 +51,7 @@ class _MainScreenState extends State<MainScreen> {
 
       File finalImage = File(photo.path);
 
-      // Improvement 2: Document Cropper / ROI Selection UI
-      // Allows students to crop directly around the problem/formula/diagram
+      // Interactive Document Cropper / ROI Selection UI
       final File? cropped = await Navigator.push<File?>(
         context,
         MaterialPageRoute(
@@ -79,11 +70,8 @@ class _MainScreenState extends State<MainScreen> {
 
       _showLoading();
 
-      // 1. Perform Local OCR on cropped region
-      final extractedText = await _performOCR(finalImage.path);
-
-      // 2. Upload and generate via StemlyApiService
-      await _uploadScan(finalImage, extractedText);
+      // Upload and analyze directly via Groq Vision LLM (single-pass multimodal pipeline)
+      await _uploadScan(finalImage);
     } catch (e) {
       if (mounted) {
         _hideLoading();
@@ -93,21 +81,10 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  Future<String> _performOCR(String path) async {
-    try {
-      final inputImage = InputImage.fromFilePath(path);
-      final recognizedText = await _textRecognizer.processImage(inputImage);
-      return recognizedText.text;
-    } catch (e) {
-      debugPrint("OCR extraction failed (will rely on vision model): $e");
-      return "";
-    }
-  }
-
   // ==========================================================
   // UPLOAD AND ANALYSIS PIPELINE
   // ==========================================================
-  Future<void> _uploadScan(File image, String ocrText) async {
+  Future<void> _uploadScan(File image) async {
     final apiService = Provider.of<StemlyApiService>(context, listen: false);
 
     try {
@@ -116,18 +93,18 @@ class _MainScreenState extends State<MainScreen> {
 
       debugPrint("Uploading pre-compressed scan: ${imageBytes.lengthInBytes} bytes");
 
-      // 1. Upload scan to backend with OCR context
+      // 1. Upload scan to backend - Groq Vision performs multimodal transcription + analysis
       final scanData = await apiService.uploadScan(
         imageBytes: imageBytes,
         filename: filename,
-        ocrText: ocrText,
       );
 
       final topic = scanData['topic']?.toString() ?? "Physics Problem";
       final rawVars = scanData['variables'] as List<dynamic>? ?? [];
       final variables = rawVars.map((e) => e.toString()).toList();
+      final extractedText = scanData['extracted_text']?.toString() ?? "";
 
-      // Improvement 3: Strongly-typed structured variables, target question, and formula
+      // Strongly-typed structured variables, target question, and formula
       final rawStructured = scanData['structured_variables'] as List<dynamic>? ?? [];
       final structuredVariables = rawStructured.map((e) => Map<String, dynamic>.from(e as Map)).toList();
       final targetQuestion = scanData['target_question']?.toString();
@@ -149,13 +126,13 @@ class _MainScreenState extends State<MainScreen> {
         debugPrint("Warning saving local image: $e");
       }
 
-      // 3. Generate structured notes
+      // 3. Generate structured notes using transcribed text from Vision LLM
       final notesResponse = await apiService.generateNotes(
         topic: topic,
         variables: variables,
         imagePath: savedLocalPath,
         historyId: historyId,
-        ocrText: ocrText,
+        ocrText: extractedText,
       );
 
       final notesData = (notesResponse['notes'] as Map<String, dynamic>?) ?? {};

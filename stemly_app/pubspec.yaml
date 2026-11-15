@@ -21,11 +21,6 @@ dependencies:
   curved_navigation_bar: ^1.0.6
 
   # ----------------
-  # Machine Learning
-  # ----------------
-  google_mlkit_text_recognition: ^0.13.0
-
-  # ----------------
   # Firebase
   # ----------------
   firebase_core: ^3.7.0

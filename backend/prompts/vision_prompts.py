@@ -32,7 +32,8 @@ Extraction Rules:
    - is_target: true if this is the variable the problem asks the student to solve for, false otherwise
 4. target_question: A concise statement of what question/target the student needs to find (e.g. "Find maximum height and horizontal range").
 5. latex_formula: The primary governing mathematical formula in standard LaTeX (e.g. "H_{\\\\max} = \\\\frac{u^2 \\\\sin^2\\\\theta}{2g}").
-6. confidence: Confidence score between 0.0 and 1.0.
+6. extracted_text: Full verbatim transcription of the text, question, and mathematical problem visible in the image.
+7. confidence: Confidence score between 0.0 and 1.0.
 
 Output Format:
 You MUST respond ONLY with a valid JSON object matching this schema:
@@ -47,6 +48,7 @@ You MUST respond ONLY with a valid JSON object matching this schema:
   ],
   "target_question": "Find the maximum height reached by the projectile.",
   "latex_formula": "H_{\\\\max} = \\\\frac{u^2 \\\\sin^2\\\\theta}{2g}",
+  "extracted_text": "A projectile is launched with velocity 20 m/s at an angle of 45 degrees. Calculate its maximum height.",
   "confidence": 0.95
 }
 Do NOT include markdown formatting or commentary outside the JSON object.

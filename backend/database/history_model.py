@@ -60,6 +60,7 @@ async def save_scan_history(
     structured_variables: Optional[List[dict]] = None,
     target_question: Optional[str] = None,
     latex_formula: Optional[str] = None,
+    extracted_text: Optional[str] = None,
 ) -> str:
     if not user_id:
         raise ValueError("user_id is required to save scan history.")
@@ -71,6 +72,7 @@ async def save_scan_history(
         "structured_variables": structured_variables or [],
         "target_question": target_question,
         "latex_formula": latex_formula,
+        "extracted_text": extracted_text or "",
         "image_path": image_path,
         "content_hash": content_hash,
         "timestamp": datetime.now(timezone.utc),
@@ -85,6 +87,7 @@ async def save_scan_history(
             "structured_variables": structured_variables or [],
             "target_question": target_question,
             "latex_formula": latex_formula,
+            "extracted_text": extracted_text or "",
             "image_path": image_path,
             "content_hash": content_hash,
         }
