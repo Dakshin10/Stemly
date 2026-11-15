@@ -35,6 +35,7 @@ from .cache import (
     set_cached_quiz,
 )
 from .client import get_text_client
+from .context_manager import build_conversation_context
 from .engine import call_groq_structured
 from .fallback import get_fallback_quiz
 
@@ -526,24 +527,19 @@ async def stream_tutor_chat(
         )
         return
 
-    # 3. Construct prompt and message context
+    # 3. Construct prompt and message context via token-budgeted context manager
     system_prompt = TUTOR_STREAM_SYSTEM_PROMPT.format(current_params=params_str)
-    messages: List[Dict[str, Any]] = [{"role": "system", "content": system_prompt}]
-
-    if history:
-        for turn in history[-8:]:
-            role = turn.get("role") or ("user" if turn.get("isUser") else "assistant")
-            content = turn.get("content") or turn.get("text", "")
-            if content:
-                messages.append({"role": role, "content": content})
-
     user_query = (
         f"Topic: {topic_str}\n"
         f"Variables: {vars_str}\n"
         f"Active Template: {template_str}\n\n"
         f"Student Question: {message}"
     )
-    messages.append({"role": "user", "content": user_query})
+    messages, _ = build_conversation_context(
+        system_prompt=system_prompt,
+        history=history,
+        user_query=user_query,
+    )
 
     payload = {
         "model": settings.GROQ_TEXT_MODEL,
