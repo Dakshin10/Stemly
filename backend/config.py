@@ -26,7 +26,7 @@ class Settings(BaseSettings):
         description="API key for Groq Text models. Never log or leak this value.",
     )
     GROQ_TEXT_MODEL: str = Field(
-        default="llama-3.3-70b-versatile",
+        default="openai/gpt-oss-120b",
         description="Groq Text model identifier.",
     )
 
