@@ -244,9 +244,37 @@ async def analyze_image(image_bytes: bytes, ocr_text: str = "") -> TopicAnalysis
             return result
 
     except Exception as exc:
-        logger.error("Groq vision analysis failed: %s. Falling back to local engine.", exc)
+        logger.warning("Groq vision analysis failed: %s. Attempting Gemini Flash failover...", exc)
 
-    # Local fallback
+    # Secondary Cloud Fallback: Google Gemini Flash
+    try:
+        from .gemini_fallback import call_gemini_vision
+
+        gemini_data = await call_gemini_vision(image_bytes=image_bytes, ocr_text=ocr_text)
+        if gemini_data and isinstance(gemini_data, dict) and gemini_data.get("topic"):
+            raw_struct_vars = gemini_data.get("structured_variables", [])
+            parsed_struct_vars = []
+            for item in raw_struct_vars:
+                if isinstance(item, dict):
+                    parsed_struct_vars.append(PhysicsVariable(**item))
+                elif isinstance(item, PhysicsVariable):
+                    parsed_struct_vars.append(item)
+
+            logger.info("Successfully recovered scan analysis using Gemini Flash Vision.")
+            return TopicAnalysis(
+                topic=str(gemini_data.get("topic", "general_physics")).strip().lower(),
+                variables=gemini_data.get("variables", []),
+                structured_variables=parsed_struct_vars,
+                target_question=gemini_data.get("target_question"),
+                latex_formula=gemini_data.get("latex_formula"),
+                extracted_text=gemini_data.get("extracted_text", ""),
+                confidence=float(gemini_data.get("confidence", 0.85)),
+                degraded=False,
+            )
+    except Exception as gemini_exc:
+        logger.warning("Gemini Flash fallback also failed: %s. Reverting to local heuristic fallback.", gemini_exc)
+
+    # Tertiary Fallback: Local Regex Keyword Engine
     fallback_topic, fallback_vars = detect_topic_from_keywords(ocr_text)
     struct_vars, target_q, latex = get_fallback_structured_data(fallback_topic)
     return TopicAnalysis(

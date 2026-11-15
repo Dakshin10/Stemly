@@ -9,6 +9,7 @@ pydantic-settings
 
 # Rate Limiting & Observability
 slowapi
+redis
 python-json-logger
 sentry-sdk[fastapi]
 
@@ -16,9 +17,10 @@ sentry-sdk[fastapi]
 httpx
 groq
 
-# Image Processing
+# Image Processing & Cloud Storage
 pillow
 python-multipart
+boto3
 
 # Environment variables
 python-dotenv

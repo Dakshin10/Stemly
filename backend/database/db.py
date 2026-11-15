@@ -24,10 +24,15 @@ else:
     try:
         if MONGO_ALLOW_INVALID_CERTS:
             logger.warning("MongoDB running with invalid TLS certs allowed (development only).")
+        max_pool = int(os.getenv("MONGO_MAX_POOL_SIZE", "25"))
+        min_pool = int(os.getenv("MONGO_MIN_POOL_SIZE", "5"))
         client = AsyncIOMotorClient(
             MONGO_URI,
             tlsCAFile=certifi.where(),
             server_api=ServerApi("1"),
+            maxPoolSize=max_pool,
+            minPoolSize=min_pool,
+            maxIdleTimeMS=45000,
             connectTimeoutMS=10000,
             socketTimeoutMS=20000,
             retryWrites=True,

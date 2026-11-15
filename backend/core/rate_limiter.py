@@ -3,9 +3,14 @@ Per-UID and IP-based rate limiting configuration using SlowAPI.
 Applies stricter limits on Vision and Generation endpoints.
 """
 
+import logging
+import os
+
 from fastapi import Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+
+logger = logging.getLogger("stemly.core.limiter")
 
 
 def get_rate_limit_key(request: Request) -> str:
@@ -32,10 +37,18 @@ def get_rate_limit_key(request: Request) -> str:
     return f"ip:{get_remote_address(request)}"
 
 
-# Centralized Limiter instance
+# Centralized Limiter instance (supports distributed Redis or in-memory fallback)
+_redis_url = os.getenv("REDIS_URL")
+if _redis_url and _redis_url.strip():
+    logger.info("Configuring SlowAPI with distributed Redis storage.")
+    _storage_uri = _redis_url.strip()
+else:
+    _storage_uri = "memory://"
+
 limiter = Limiter(
     key_func=get_rate_limit_key,
     default_limits=["60/minute"],
+    storage_uri=_storage_uri,
     headers_enabled=False,
 )
 

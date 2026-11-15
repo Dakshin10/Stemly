@@ -23,6 +23,8 @@ dependencies = [
     "firebase-admin",
     "certifi",
     "requests",
+    "boto3>=1.44.3",
+    "redis>=8.1.0",
 ]
 
 [project.optional-dependencies]

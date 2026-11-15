@@ -50,7 +50,7 @@ class Settings(BaseSettings):
         description="Daily quota of LLM generation requests per user.",
     )
 
-    # Database Configuration
+    # Database Configuration & Connection Pool
     MONGO_URI: Optional[str] = Field(
         default=None,
         description="MongoDB connection URI.",
@@ -58,6 +58,64 @@ class Settings(BaseSettings):
     MONGO_ALLOW_INVALID_CERTS: bool = Field(
         default=False,
         description="Allow invalid TLS certs for local development only.",
+    )
+    MONGO_MAX_POOL_SIZE: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description="Maximum connection pool size per worker process.",
+    )
+    MONGO_MIN_POOL_SIZE: int = Field(
+        default=5,
+        ge=0,
+        le=50,
+        description="Minimum connection pool size kept warm per worker process.",
+    )
+
+    # Distributed Redis Cache & Rate Limiting
+    REDIS_URL: Optional[str] = Field(
+        default=None,
+        description="Redis connection URI for distributed rate limiting across workers (e.g. rediss://...).",
+    )
+
+    # Cloud Object Storage (Cloudflare R2 / AWS S3)
+    S3_ENDPOINT_URL: Optional[str] = Field(
+        default=None,
+        description="S3 endpoint URL (e.g. https://<accountid>.r2.cloudflarestorage.com for Cloudflare R2).",
+    )
+    S3_BUCKET: Optional[str] = Field(
+        default=None,
+        description="Target S3 or Cloudflare R2 bucket name for scan images.",
+    )
+    S3_ACCESS_KEY_ID: Optional[str] = Field(
+        default=None,
+        description="S3 access key ID.",
+    )
+    S3_SECRET_ACCESS_KEY: Optional[str] = Field(
+        default=None,
+        description="S3 secret access key. Never log or leak this value.",
+    )
+    S3_REGION_NAME: str = Field(
+        default="auto",
+        description="S3 region name ('auto' for Cloudflare R2, 'us-east-1' etc. for AWS).",
+    )
+    S3_PUBLIC_DOMAIN: Optional[str] = Field(
+        default=None,
+        description="Public CDN or domain prefix for scan assets (e.g. https://cdn.stemly.app).",
+    )
+
+    # Gemini LLM Fallback Configuration
+    GEMINI_API_KEY: Optional[str] = Field(
+        default=None,
+        description="Google Gemini API key for high-RPM secondary fallback when Groq is throttled.",
+    )
+    GEMINI_VISION_MODEL: str = Field(
+        default="gemini-1.5-flash",
+        description="Gemini Vision model identifier.",
+    )
+    GEMINI_TEXT_MODEL: str = Field(
+        default="gemini-1.5-flash",
+        description="Gemini Text model identifier.",
     )
 
     # Firebase Authentication
