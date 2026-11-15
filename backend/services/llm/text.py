@@ -20,7 +20,9 @@ import httpx
 from pydantic import BaseModel, Field
 
 from config import settings
+from core.parameter_sanitizer import sanitize_simulation_parameters
 from models.chat_protocol import StreamEventEnvelope
+from models.tools import TUTOR_TOOLS, SuggestFollowupsArgs, UpdateSimulationArgs
 from prompts.notes_prompts import NOTES_FOLLOWUP_PROMPT_V1, NOTES_GENERATION_PROMPT_V1
 from prompts.quiz_prompts import QUIZ_GENERATION_PROMPT_V1
 from prompts.tutor_prompts import TUTOR_CHAT_PROMPT_V1, TUTOR_STREAM_SYSTEM_PROMPT
@@ -550,11 +552,14 @@ async def stream_tutor_chat(
         "max_tokens": 1500,
         "stream": True,
         "stream_options": {"include_usage": True},
+        "tools": TUTOR_TOOLS,
+        "tool_choice": "auto",
     }
 
     client = get_text_client()
     tail_buffer = ""
     emitted_followups = False
+    accumulated_tool_calls: Dict[int, Dict[str, str]] = {}
 
     try:
         async with client.stream("POST", "/chat/completions", json=payload) as resp:
@@ -622,6 +627,26 @@ async def stream_tutor_chat(
                     continue
 
                 delta = choices[0].get("delta", {})
+
+                # Accumulate tool calls deltas across chunks
+                tool_calls_delta = delta.get("tool_calls")
+                if tool_calls_delta:
+                    for tc in tool_calls_delta:
+                        idx = tc.get("index", 0)
+                        if idx not in accumulated_tool_calls:
+                            accumulated_tool_calls[idx] = {
+                                "id": tc.get("id", ""),
+                                "name": tc.get("function", {}).get("name", "") if tc.get("function") else "",
+                                "arguments": tc.get("function", {}).get("arguments", "") if tc.get("function") else "",
+                            }
+                        else:
+                            fn = tc.get("function")
+                            if fn:
+                                if fn.get("name"):
+                                    accumulated_tool_calls[idx]["name"] += fn["name"]
+                                if fn.get("arguments"):
+                                    accumulated_tool_calls[idx]["arguments"] += fn["arguments"]
+
                 token = delta.get("content", "")
                 if not token:
                     continue
@@ -640,14 +665,16 @@ async def stream_tutor_chat(
                             try:
                                 params = json.loads(param_match.group(1))
                                 if isinstance(params, dict):
-                                    yield StreamEventEnvelope(
-                                        v=1,
-                                        id=request_id,
-                                        seq=seq,
-                                        type="parameters",
-                                        data={"updates": params},
-                                    )
-                                    seq += 1
+                                    clamped = sanitize_simulation_parameters(params)
+                                    if clamped:
+                                        yield StreamEventEnvelope(
+                                            v=1,
+                                            id=request_id,
+                                            seq=seq,
+                                            type="parameters",
+                                            data={"updates": clamped},
+                                        )
+                                        seq += 1
                             except Exception:
                                 pass
 
@@ -694,6 +721,85 @@ async def stream_tutor_chat(
                     data={"delta": clean_tail},
                 )
                 seq += 1
+
+            # Dispatch accumulated native tool calls
+            for tc in accumulated_tool_calls.values():
+                fn_name = tc.get("name", "").strip()
+                raw_args = tc.get("arguments", "").strip()
+                if not fn_name:
+                    continue
+
+                if fn_name == "update_simulation":
+                    try:
+                        parsed_sim = json.loads(raw_args) if raw_args else {}
+                        sim_args = UpdateSimulationArgs.model_validate(parsed_sim)
+                        clamped = sanitize_simulation_parameters(sim_args.parameters)
+                        if clamped:
+                            yield StreamEventEnvelope(
+                                v=1,
+                                id=request_id,
+                                seq=seq,
+                                type="parameters",
+                                data={
+                                    "updates": clamped,
+                                    "explanation": sim_args.explanation or "",
+                                    "visual_cue": sim_args.visual_cue or "",
+                                },
+                            )
+                            seq += 1
+                    except Exception as err:
+                        logger.warning("Failed to validate update_simulation tool args: %s", err)
+                        # Graceful regex fallback on malformed JSON
+                        param_fallback = re.search(r"\{.*\}", raw_args)
+                        if param_fallback:
+                            try:
+                                p = json.loads(param_fallback.group(0))
+                                if isinstance(p, dict):
+                                    clamped = sanitize_simulation_parameters(p.get("parameters", p))
+                                    if clamped:
+                                        yield StreamEventEnvelope(
+                                            v=1,
+                                            id=request_id,
+                                            seq=seq,
+                                            type="parameters",
+                                            data={"updates": clamped},
+                                        )
+                                        seq += 1
+                            except Exception:
+                                pass
+
+                elif fn_name == "suggest_followups":
+                    try:
+                        parsed_fu = json.loads(raw_args) if raw_args else {}
+                        followup_args = SuggestFollowupsArgs.model_validate(parsed_fu)
+                        if followup_args.questions:
+                            yield StreamEventEnvelope(
+                                v=1,
+                                id=request_id,
+                                seq=seq,
+                                type="followups",
+                                data={"suggestions": followup_args.questions},
+                            )
+                            seq += 1
+                            emitted_followups = True
+                    except Exception as err:
+                        logger.warning("Failed to validate suggest_followups tool args: %s", err)
+                        list_fallback = re.search(r"\[.*\]", raw_args)
+                        if list_fallback:
+                            try:
+                                ql = json.loads(list_fallback.group(0))
+                                if isinstance(ql, list) and ql:
+                                    yield StreamEventEnvelope(
+                                        v=1,
+                                        id=request_id,
+                                        seq=seq,
+                                        type="followups",
+                                        data={"suggestions": [str(x) for x in ql[:3]]},
+                                    )
+                                    seq += 1
+                                    emitted_followups = True
+                            except Exception:
+                                pass
 
             if not emitted_followups:
                 yield StreamEventEnvelope(
