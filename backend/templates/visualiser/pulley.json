@@ -1,0 +1,11 @@
+{
+  "template_id": "pulley",
+  "title": "Atwood Machine (Pulley)",
+  "animation_type": "physics_2d",
+  "description": "Two masses connected by a massless cord over a frictionless pulley: a = g*(m1 - m2)/(m1 + m2), Tension T = 2*m1*m2*g/(m1 + m2).",
+  "parameters": {
+    "m1": { "value": 6, "min": 0.5, "max": 50, "unit": "kg", "label": "Mass 1 (m₁)" },
+    "m2": { "value": 4, "min": 0.5, "max": 50, "unit": "kg", "label": "Mass 2 (m₂)" },
+    "g": { "value": 9.81, "min": 0.1, "max": 20, "unit": "m/s²", "label": "Gravity (g)" }
+  }
+}

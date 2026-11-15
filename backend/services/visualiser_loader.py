@@ -30,6 +30,23 @@ TOPIC_TO_TEMPLATE = {
     "equation": "equation_plotter.json",
     "equation_plotter": "equation_plotter.json",
     "plot": "equation_plotter.json",
+    "mechanics": "mechanics_2d.json",
+    "mechanics_2d": "mechanics_2d.json",
+    "force": "mechanics_2d.json",
+    "forces": "mechanics_2d.json",
+    "friction": "mechanics_2d.json",
+    "newton": "mechanics_2d.json",
+    "incline": "inclined_plane.json",
+    "inclined plane": "inclined_plane.json",
+    "inclined_plane": "inclined_plane.json",
+    "ramp": "inclined_plane.json",
+    "pulley": "pulley.json",
+    "atwood": "pulley.json",
+    "atwood machine": "pulley.json",
+    "collision": "collision.json",
+    "collisions": "collision.json",
+    "momentum": "collision.json",
+    "declarative_physics": "mechanics_2d.json",
 }
 
 # In-memory template cache to eliminate blocking disk I/O in async request handlers

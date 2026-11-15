@@ -1,0 +1,13 @@
+{
+  "template_id": "collision",
+  "title": "Collisions & Momentum",
+  "animation_type": "physics_2d",
+  "description": "1D/2D collision of two masses showing momentum conservation (m1*u1 + m2*u2) and coefficient of restitution (e).",
+  "parameters": {
+    "m1": { "value": 3, "min": 0.5, "max": 50, "unit": "kg", "label": "Mass 1 (m₁)" },
+    "m2": { "value": 2, "min": 0.5, "max": 50, "unit": "kg", "label": "Mass 2 (m₂)" },
+    "u1": { "value": 10, "min": -30, "max": 30, "unit": "m/s", "label": "Velocity 1 (u₁)" },
+    "u2": { "value": -5, "min": -30, "max": 30, "unit": "m/s", "label": "Velocity 2 (u₂)" },
+    "e": { "value": 1.0, "min": 0.0, "max": 1.0, "unit": "", "label": "Restitution (e)" }
+  }
+}

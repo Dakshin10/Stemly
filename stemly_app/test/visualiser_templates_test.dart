@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stemly_app/visualiser/projectile_motion.dart';
+import 'package:stemly_app/visualiser/declarative_physics_component.dart';
 import 'package:stemly_app/visualiser/optics_component.dart';
 import 'package:stemly_app/visualiser/shm_component.dart';
 import 'package:stemly_app/visualiser/kinematics_component.dart';
@@ -321,6 +322,69 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(OpticsWidget), findsOneWidget);
+    });
+
+    testWidgets('creates DeclarativePhysicsWidget for inclined_plane template', (tester) async {
+      final template = VisualTemplate(
+        templateId: 'inclined_plane',
+        title: 'Inclined Plane',
+        animationType: 'physics_2d',
+        description: 'Test',
+        parameters: {
+          'theta': TemplateParameter(name: 'theta', label: 'theta', value: 30, min: 5, max: 75, unit: 'deg'),
+          'm': TemplateParameter(name: 'm', label: 'm', value: 5, min: 1, max: 50, unit: 'kg'),
+          'mu': TemplateParameter(name: 'mu', label: 'mu', value: 0.2, min: 0, max: 1, unit: ''),
+          'g': TemplateParameter(name: 'g', label: 'g', value: 9.8, min: 0.1, max: 20, unit: 'm/s²'),
+        },
+      );
+
+      final widget = VisualiserFactory.create(template);
+      await tester.pumpWidget(_wrap(widget));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(DeclarativePhysicsWidget), findsOneWidget);
+    });
+
+    testWidgets('creates DeclarativePhysicsWidget for pulley template', (tester) async {
+      final template = VisualTemplate(
+        templateId: 'pulley',
+        title: 'Atwood Pulley',
+        animationType: 'physics_2d',
+        description: 'Test',
+        parameters: {
+          'm1': TemplateParameter(name: 'm1', label: 'm1', value: 6, min: 1, max: 50, unit: 'kg'),
+          'm2': TemplateParameter(name: 'm2', label: 'm2', value: 4, min: 1, max: 50, unit: 'kg'),
+          'g': TemplateParameter(name: 'g', label: 'g', value: 9.8, min: 0.1, max: 20, unit: 'm/s²'),
+        },
+      );
+
+      final widget = VisualiserFactory.create(template);
+      await tester.pumpWidget(_wrap(widget));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(DeclarativePhysicsWidget), findsOneWidget);
+    });
+
+    testWidgets('creates DeclarativePhysicsWidget for collision template', (tester) async {
+      final template = VisualTemplate(
+        templateId: 'collision',
+        title: 'Collisions',
+        animationType: 'physics_2d',
+        description: 'Test',
+        parameters: {
+          'm1': TemplateParameter(name: 'm1', label: 'm1', value: 3, min: 1, max: 50, unit: 'kg'),
+          'm2': TemplateParameter(name: 'm2', label: 'm2', value: 2, min: 1, max: 50, unit: 'kg'),
+          'u1': TemplateParameter(name: 'u1', label: 'u1', value: 10, min: -20, max: 20, unit: 'm/s'),
+          'u2': TemplateParameter(name: 'u2', label: 'u2', value: -5, min: -20, max: 20, unit: 'm/s'),
+          'e': TemplateParameter(name: 'e', label: 'e', value: 1.0, min: 0, max: 1, unit: ''),
+        },
+      );
+
+      final widget = VisualiserFactory.create(template);
+      await tester.pumpWidget(_wrap(widget));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(DeclarativePhysicsWidget), findsOneWidget);
     });
   });
 }

@@ -7,6 +7,9 @@ class ScanHistory {
   final DateTime timestamp;
   List<Map<String, dynamic>> quizResults;
   String? visualiserHistoryId;
+  final List<Map<String, dynamic>> structuredVariables;
+  final String? targetQuestion;
+  final String? latexFormula;
 
   ScanHistory({
     required this.topic,
@@ -17,6 +20,9 @@ class ScanHistory {
     required this.timestamp,
     this.quizResults = const [],
     this.visualiserHistoryId,
+    this.structuredVariables = const [],
+    this.targetQuestion,
+    this.latexFormula,
   });
 
   Map<String, dynamic> toJson() {
@@ -29,6 +35,9 @@ class ScanHistory {
       "timestamp": timestamp.toIso8601String(),
       "quizResults": quizResults,
       "visualiserHistoryId": visualiserHistoryId,
+      "structuredVariables": structuredVariables,
+      "targetQuestion": targetQuestion,
+      "latexFormula": latexFormula,
     };
   }
 
@@ -44,6 +53,11 @@ class ScanHistory {
         (json["quizResults"] ?? []).map((x) => Map<String, dynamic>.from(x)),
       ),
       visualiserHistoryId: json["visualiserHistoryId"],
+      structuredVariables: List<Map<String, dynamic>>.from(
+        (json["structuredVariables"] ?? []).map((x) => Map<String, dynamic>.from(x)),
+      ),
+      targetQuestion: json["targetQuestion"],
+      latexFormula: json["latexFormula"],
     );
   }
 }

@@ -382,3 +382,48 @@ async def test_engine_rate_limit_backoff():
 
     assert result is not None
     assert result.topic == "Kinematics"
+
+
+@pytest.mark.asyncio
+async def test_topic_analysis_structured_variables_and_templates():
+    """Verify structured variables extraction, sync, and mechanics templates."""
+    from services.llm.vision import PhysicsVariable, TopicAnalysis, get_fallback_structured_data
+    from services.visualiser_loader import get_template_by_topic
+
+    # Test sync when structured_variables is supplied
+    analysis = TopicAnalysis(
+        topic="Projectile Motion",
+        structured_variables=[
+            PhysicsVariable(name="Initial Velocity", symbol="u", value=25.0, unit="m/s", is_target=False),
+            PhysicsVariable(name="Maximum Height", symbol="H_max", value=None, unit="m", is_target=True),
+        ],
+        target_question="Find maximum height",
+        latex_formula=r"H_{max} = \frac{u^2 \sin^2\theta}{2g}",
+    )
+    assert len(analysis.structured_variables) == 2
+    assert "u=25.0m/s" in analysis.variables
+    assert analysis.structured_variables[1].is_target is True
+
+    # Test fallback structured variables
+    struct_vars, target_q, latex = get_fallback_structured_data("projectile motion")
+    assert len(struct_vars) >= 3
+    assert target_q is not None
+    assert "H" in latex
+
+    # Test new templates loading
+    incline_tmpl = await get_template_by_topic("inclined plane")
+    assert incline_tmpl is not None
+    assert incline_tmpl["template_id"] == "inclined_plane"
+
+    pulley_tmpl = await get_template_by_topic("pulley")
+    assert pulley_tmpl is not None
+    assert pulley_tmpl["template_id"] == "pulley"
+
+    collision_tmpl = await get_template_by_topic("collision")
+    assert collision_tmpl is not None
+    assert collision_tmpl["template_id"] == "collision"
+
+    mechanics_tmpl = await get_template_by_topic("mechanics")
+    assert mechanics_tmpl is not None
+    assert mechanics_tmpl["template_id"] == "mechanics_2d"
+

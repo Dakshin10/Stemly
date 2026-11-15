@@ -21,6 +21,12 @@ class _FreeFallWidgetState extends State<FreeFallWidget>
   late AnimationController _controller;
   late double _totalFallTime;
 
+  bool _showVelocityVector = true;
+  bool _showGravityVector = true;
+  bool _showTrail = true;
+  bool _showTelemetryHud = true;
+  bool _isPaused = false;
+
   double get _safeH => max(0.5, widget.h);
   double get _safeG => max(0.1, widget.g);
 
@@ -51,6 +57,17 @@ class _FreeFallWidgetState extends State<FreeFallWidget>
     )..repeat();
   }
 
+  void _togglePause() {
+    setState(() {
+      _isPaused = !_isPaused;
+      if (_isPaused) {
+        _controller.stop();
+      } else {
+        _controller.repeat();
+      }
+    });
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -60,19 +77,121 @@ class _FreeFallWidgetState extends State<FreeFallWidget>
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return CustomPaint(
-            painter: FreeFallPainter(
-              h: _safeH,
-              g: _safeG,
-              progress: _controller.value,
-              totalFallTime: _totalFallTime,
+      child: Stack(
+        children: [
+          // Physics Canvas
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, _) {
+                return CustomPaint(
+                  painter: FreeFallPainter(
+                    h: _safeH,
+                    g: _safeG,
+                    progress: _controller.value,
+                    totalFallTime: _totalFallTime,
+                    showVelocityVector: _showVelocityVector,
+                    showGravityVector: _showGravityVector,
+                    showTrail: _showTrail,
+                    showTelemetryHud: _showTelemetryHud,
+                  ),
+                  child: const SizedBox.expand(),
+                );
+              },
             ),
-            child: const SizedBox.expand(),
-          );
-        },
+          ),
+
+          // Interactive Overlay Controls
+          Positioned(
+            top: 10,
+            left: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InkWell(
+                    onTap: _togglePause,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: Icon(
+                        _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Container(width: 1, height: 16, color: Colors.white24),
+                  const SizedBox(width: 4),
+                  _controlChip(
+                    label: "v⃗",
+                    color: const Color(0xFF10B981),
+                    isActive: _showVelocityVector,
+                    onTap: () => setState(() => _showVelocityVector = !_showVelocityVector),
+                  ),
+                  _controlChip(
+                    label: "g⃗",
+                    color: const Color(0xFFEF4444),
+                    isActive: _showGravityVector,
+                    onTap: () => setState(() => _showGravityVector = !_showGravityVector),
+                  ),
+                  _controlChip(
+                    label: "Trail",
+                    color: const Color(0xFFF59E0B),
+                    isActive: _showTrail,
+                    onTap: () => setState(() => _showTrail = !_showTrail),
+                  ),
+                  _controlChip(
+                    label: "HUD",
+                    color: const Color(0xFF8B5CF6),
+                    isActive: _showTelemetryHud,
+                    onTap: () => setState(() => _showTelemetryHud = !_showTelemetryHud),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _controlChip({
+    required String label,
+    required Color color,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          color: isActive ? color.withValues(alpha: 0.85) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive ? color : Colors.white24,
+            width: 1.0,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? Colors.white : Colors.white60,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }
@@ -83,9 +202,14 @@ class FreeFallPainter extends CustomPainter {
   final double g;
   final double progress;
   final double totalFallTime;
+  final bool showVelocityVector;
+  final bool showGravityVector;
+  final bool showTrail;
+  final bool showTelemetryHud;
 
   // Cached Paint objects for smooth 60 FPS rendering
-  static final Paint _groundPaint = Paint()..color = const Color(0xFF689F38);
+  static final Paint _groundPaint = Paint()..color = const Color(0xFF4CAF50);
+  static final Paint _groundUnderPaint = Paint()..color = const Color(0xFF388E3C);
   static final Paint _rulerPaint = Paint()
     ..color = const Color(0x61000000)
     ..strokeWidth = 1.5;
@@ -97,15 +221,28 @@ class FreeFallPainter extends CustomPainter {
     ..color = const Color(0x40000000)
     ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
   static final Paint _ballHighlightPaint = Paint()..color = const Color(0xB3FFFFFF);
-  static final Paint _vectorPaint = Paint()
-    ..color = const Color(0xFF1565C0)
-    ..strokeWidth = 2.5;
-  static final Paint _arrowHeadPaint = Paint()..color = const Color(0xFF1565C0);
-  static final Paint _panelBgPaint = Paint()
-    ..color = const Color(0xE6FFFFFF)
+  static final Paint _trailDotPaint = Paint()
+    ..color = const Color(0x80FF7043)
     ..style = PaintingStyle.fill;
-  static final Paint _panelBorderPaint = Paint()
-    ..color = const Color(0x1F000000)
+
+  static final Paint _velocityVectorPaint = Paint()
+    ..color = const Color(0xFF10B981)
+    ..strokeWidth = 2.5
+    ..style = PaintingStyle.stroke;
+  static final Paint _velocityArrowHeadPaint = Paint()..color = const Color(0xFF10B981);
+
+  static final Paint _gravityVectorPaint = Paint()
+    ..color = const Color(0xFFEF4444)
+    ..strokeWidth = 2.2
+    ..style = PaintingStyle.stroke;
+  static final Paint _gravityArrowHeadPaint = Paint()..color = const Color(0xFFEF4444);
+
+  static final Paint _hudBgPaint = Paint()
+    ..color = const Color(0xCC0F172A)
+    ..style = PaintingStyle.fill;
+  static final Paint _hudBorderPaint = Paint()
+    ..color = const Color(0x4038BDF8)
+    ..strokeWidth = 1.0
     ..style = PaintingStyle.stroke;
 
   static final TextPainter _cachedTextPainter = TextPainter(
@@ -117,145 +254,169 @@ class FreeFallPainter extends CustomPainter {
     required this.g,
     required this.progress,
     required this.totalFallTime,
+    this.showVelocityVector = true,
+    this.showGravityVector = true,
+    this.showTrail = true,
+    this.showTelemetryHud = true,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Total cycle duration includes fall time + pause on ground
     final totalDuration = totalFallTime + 1.2;
     final currentTime = progress * totalDuration;
     final t = min(currentTime, totalFallTime);
 
-    // Physics equations of motion
-    // y(t) = h - 0.5 * g * t^2
-    // v(t) = g * t (downward)
     final currentHeight = max(0.0, h - 0.5 * g * t * t);
     final currentVelocity = g * t;
 
     final marginY = size.height * 0.14;
     final scale = (size.height - 2.0 * marginY) / max(0.1, h);
     final groundY = size.height - marginY;
-    final centerX = size.width * 0.42;
+    final centerX = size.width * 0.38;
 
     // Background gradient
     final bgRect = Rect.fromLTWH(0, 0, size.width, size.height);
     final bgShader = const LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: [Color(0xFFE1F5FE), Color(0xFFFAFAFA)],
+      colors: [Color(0xFFF0FDF4), Color(0xFFF8FAFC)],
     ).createShader(bgRect);
     canvas.drawRect(bgRect, Paint()..shader = bgShader);
 
     // Ground
-    canvas.drawRect(
-      Rect.fromLTWH(0, groundY, size.width, size.height - groundY),
-      _groundPaint,
-    );
+    canvas.drawRect(Rect.fromLTWH(0, groundY, size.width, 4), _groundPaint);
+    canvas.drawRect(Rect.fromLTWH(0, groundY + 4, size.width, size.height - groundY - 4), _groundUnderPaint);
 
-    // Vertical measurement ruler
-    _drawRuler(canvas, centerX - 55.0, groundY, scale, h);
+    // Ruler
+    _drawRuler(canvas, groundY, scale, marginY);
+
+    // Drop line
+    final dropLinePaint = Paint()
+      ..color = const Color(0x20000000)
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(Offset(centerX, marginY), Offset(centerX, groundY), dropLinePaint);
+
+    // Ghost trail dots
+    if (showTrail) {
+      const dotCount = 12;
+      for (int i = 0; i <= dotCount; i++) {
+        final dotT = (i / dotCount) * t;
+        if (dotT > t) break;
+        final dotHeight = max(0.0, h - 0.5 * g * dotT * dotT);
+        final dotY = groundY - dotHeight * scale;
+        canvas.drawCircle(Offset(centerX, dotY), 2.5, _trailDotPaint);
+      }
+    }
 
     // Ball position
     final ballY = groundY - currentHeight * scale;
-    _drawBall(canvas, centerX, ballY, groundY);
 
-    // Velocity vector (downward)
-    if (t < totalFallTime && currentVelocity > 0.1) {
-      _drawVelocityVector(canvas, centerX, ballY, currentVelocity, scale);
-    }
-
-    // Telemetry Info Panel
-    _drawInfoPanel(canvas, t, currentHeight, currentVelocity);
-  }
-
-  void _drawRuler(
-    Canvas canvas,
-    double x,
-    double groundY,
-    double scale,
-    double maxHeight,
-  ) {
-    final topY = groundY - maxHeight * scale;
-    canvas.drawLine(Offset(x, groundY), Offset(x, topY), _rulerPaint);
-
-    final step = max(1.0, (maxHeight / 5.0).roundToDouble());
-    for (double mark = 0; mark <= maxHeight; mark += step) {
-      final y = groundY - mark * scale;
-      canvas.drawLine(Offset(x - 6, y), Offset(x, y), _rulerMarkPaint);
-      _drawText(
-        canvas,
-        '${mark.toInt()}m',
-        x - 30,
-        y - 6,
-        size: 9,
-        color: Colors.grey.shade700,
-      );
-    }
-  }
-
-  void _drawBall(Canvas canvas, double x, double y, double groundY) {
-    const radius = 13.0;
-
-    // Contact shadow
-    final shadowScale = ((groundY - y) / (groundY)).clamp(0.2, 1.0);
+    // Shadow on ground
+    final shadowScale = (1.0 - (currentHeight / max(0.1, h))).clamp(0.2, 1.0);
     canvas.drawOval(
-      Rect.fromCenter(center: Offset(x, groundY), width: 22.0 * shadowScale, height: 6.0),
+      Rect.fromCenter(
+        center: Offset(centerX, groundY),
+        width: 24 * shadowScale,
+        height: 6 * shadowScale,
+      ),
       _ballShadowPaint,
     );
 
-    // Ball body
-    canvas.drawCircle(Offset(x, y), radius, _ballPaint);
+    // Ball
+    canvas.drawCircle(Offset(centerX, ballY), 12, _ballPaint);
+    canvas.drawCircle(Offset(centerX - 3, ballY - 3), 3.5, _ballHighlightPaint);
 
-    // Highlight
-    canvas.drawCircle(Offset(x - 3, y - 3), 4, _ballHighlightPaint);
+    // Vectors
+    if (t < totalFallTime) {
+      // Downward velocity vector (v in emerald green)
+      if (showVelocityVector && currentVelocity > 0.05) {
+        final vectorLen = (currentVelocity * 3.5).clamp(12.0, 70.0);
+        final endV = Offset(centerX + 16, ballY + vectorLen);
+        final startV = Offset(centerX + 16, ballY);
+
+        canvas.drawLine(startV, endV, _velocityVectorPaint);
+        _drawArrowHead(canvas, startV, endV, _velocityArrowHeadPaint, 8);
+        _drawText(
+          canvas,
+          'v=${currentVelocity.toStringAsFixed(1)}m/s',
+          endV.dx + 4,
+          endV.dy - 6,
+          size: 9.5,
+          bold: true,
+          color: const Color(0xFF059669),
+        );
+      }
+
+      // Gravity vector (downward in red)
+      if (showGravityVector) {
+        const gLen = 26.0;
+        final startG = Offset(centerX - 16, ballY);
+        final endG = Offset(centerX - 16, ballY + gLen);
+
+        canvas.drawLine(startG, endG, _gravityVectorPaint);
+        _drawArrowHead(canvas, startG, endG, _gravityArrowHeadPaint, 7);
+        _drawText(
+          canvas,
+          'g=${g.toStringAsFixed(1)}',
+          startG.dx - 40,
+          endG.dy - 6,
+          size: 9.5,
+          bold: true,
+          color: const Color(0xFFDC2626),
+        );
+      }
+    }
+
+    // Telemetry HUD
+    if (showTelemetryHud) {
+      _drawTelemetryHud(canvas, size, t, currentHeight, currentVelocity);
+    }
   }
 
-  void _drawVelocityVector(
-    Canvas canvas,
-    double x,
-    double y,
-    double v,
-    double scale,
-  ) {
-    final arrowLen = (v * 1.5).clamp(8.0, 50.0);
-    final endY = y + arrowLen;
+  void _drawRuler(Canvas canvas, double groundY, double scale, double marginY) {
+    final rulerX = 40.0;
+    canvas.drawLine(Offset(rulerX, marginY), Offset(rulerX, groundY), _rulerPaint);
 
-    canvas.drawLine(Offset(x + 22, y), Offset(x + 22, endY), _vectorPaint);
+    final stepH = max(1.0, (h / 5.0).roundToDouble());
+    for (double yVal = 0.0; yVal <= h * 1.05; yVal += stepH) {
+      final yPx = groundY - yVal * scale;
+      if (yPx < marginY - 10) break;
 
-    // Arrowhead pointing down
+      canvas.drawLine(Offset(rulerX - 5, yPx), Offset(rulerX + 5, yPx), _rulerMarkPaint);
+      _drawText(canvas, '${yVal.toStringAsFixed(0)}m', rulerX - 32, yPx - 6, size: 9, color: Colors.black54);
+    }
+  }
+
+  void _drawArrowHead(Canvas canvas, Offset start, Offset end, Paint paint, double arrowSize) {
+    final angle = atan2(end.dy - start.dy, end.dx - start.dx);
     final path = Path()
-      ..moveTo(x + 22, endY)
-      ..lineTo(x + 18, endY - 6)
-      ..lineTo(x + 26, endY - 6)
+      ..moveTo(end.dx, end.dy)
+      ..lineTo(end.dx - arrowSize * cos(angle - pi / 6), end.dy - arrowSize * sin(angle - pi / 6))
+      ..lineTo(end.dx - arrowSize * cos(angle + pi / 6), end.dy - arrowSize * sin(angle + pi / 6))
       ..close();
-    canvas.drawPath(path, _arrowHeadPaint);
-
-    _drawText(
-      canvas,
-      'v = ${v.toStringAsFixed(1)} m/s',
-      x + 30,
-      y + arrowLen / 2 - 6,
-      size: 9,
-      bold: true,
-      color: const Color(0xFF0D47A1),
-    );
+    canvas.drawPath(path, paint);
   }
 
-  void _drawInfoPanel(
-    Canvas canvas,
-    double t,
-    double height,
-    double velocity,
-  ) {
-    final rect = Rect.fromLTWH(12, 12, 195, 95);
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(8));
-    canvas.drawRRect(rrect, _panelBgPaint);
-    canvas.drawRRect(rrect, _panelBorderPaint);
+  void _drawTelemetryHud(Canvas canvas, Size size, double t, double currentH, double currentV) {
+    const hudW = 120.0;
+    const hudH = 75.0;
+    final hudX = size.width - hudW - 12.0;
+    const hudY = 10.0;
 
-    _drawText(canvas, 'Free Fall Under Gravity', 20, 20, size: 12, bold: true, color: const Color(0xFFE65100));
-    _drawText(canvas, 'Height: ${height.toStringAsFixed(1)} m / ${h.toStringAsFixed(1)} m', 20, 40, size: 11);
-    _drawText(canvas, 'Velocity: ${velocity.toStringAsFixed(1)} m/s', 20, 58, size: 11);
-    _drawText(canvas, 'Fall Time: ${t.toStringAsFixed(2)} s / ${totalFallTime.toStringAsFixed(2)} s', 20, 76, size: 11);
+    final hudRRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(hudX, hudY, hudW, hudH),
+      const Radius.circular(10),
+    );
+
+    canvas.drawRRect(hudRRect, _hudBgPaint);
+    canvas.drawRRect(hudRRect, _hudBorderPaint);
+
+    _drawText(canvas, 'TELEMETRY HUD', hudX + 16, hudY + 6, size: 8.5, bold: true, color: const Color(0xFF38BDF8));
+    _drawText(canvas, 't  : ${t.toStringAsFixed(2)} s', hudX + 8, hudY + 20, size: 9, color: Colors.white70);
+    _drawText(canvas, 'h  : ${currentH.toStringAsFixed(1)} m', hudX + 8, hudY + 33, size: 9, color: Colors.white70);
+    _drawText(canvas, 'v  : ${currentV.toStringAsFixed(1)} m/s', hudX + 8, hudY + 46, size: 9, color: const Color(0xFF4ADE80));
+    _drawText(canvas, 'g  : ${g.toStringAsFixed(2)} m/s²', hudX + 8, hudY + 59, size: 9, color: Colors.white70);
   }
 
   void _drawText(
@@ -283,6 +444,10 @@ class FreeFallPainter extends CustomPainter {
   bool shouldRepaint(FreeFallPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.h != h ||
-        oldDelegate.g != g;
+        oldDelegate.g != g ||
+        oldDelegate.showVelocityVector != showVelocityVector ||
+        oldDelegate.showGravityVector != showGravityVector ||
+        oldDelegate.showTrail != showTrail ||
+        oldDelegate.showTelemetryHud != showTelemetryHud;
   }
 }

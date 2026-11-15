@@ -3,6 +3,7 @@ import 'visualiser_models.dart';
 
 // Components
 import 'atom_component.dart';
+import 'declarative_physics_component.dart';
 import 'free_fall_component.dart';
 import 'graph_component.dart';
 import 'kinematics_component.dart';
@@ -67,6 +68,24 @@ class VisualiserFactory {
 
     if (id.contains("optics") || id.contains("lens")) {
       return OpticsWidget(f: getVal("f"), u: getVal("u"), ho: getVal("h_o"));
+    }
+
+    // Declarative 2D Physics Engine (Inclined Plane, Pulley, Collisions, Forces)
+    if (id.contains("incline") ||
+        id.contains("ramp") ||
+        id.contains("pulley") ||
+        id.contains("atwood") ||
+        id.contains("collision") ||
+        id.contains("momentum") ||
+        id.contains("mechanics") ||
+        id.contains("declarative")) {
+      final paramMap = <String, double>{};
+      p.forEach((k, v) => paramMap[k] = v.value);
+      return DeclarativePhysicsWidget(
+        scenario: id,
+        parameters: paramMap,
+        onSimulationUpdate: onSimulationUpdate,
+      );
     }
 
     // Dynamic Equation Plotter

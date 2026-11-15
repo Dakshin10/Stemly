@@ -12,12 +12,14 @@ class StemlyApiService {
   Future<Map<String, dynamic>> uploadScan({
     required List<int> imageBytes,
     required String filename,
+    String? ocrText,
   }) async {
     final response = await _client.uploadFile(
       '/scan/upload',
       fileField: 'file',
       fileBytes: imageBytes,
       filename: filename,
+      fields: (ocrText != null && ocrText.isNotEmpty) ? {'ocr_text': ocrText} : null,
     );
 
     if (response is Map<String, dynamic>) {

@@ -21,6 +21,9 @@ class ScanResultScreen extends StatefulWidget {
   final String imagePath;
   final ScanHistory? historyItem;
   final bool isDegraded;
+  final List<Map<String, dynamic>> structuredVariables;
+  final String? targetQuestion;
+  final String? latexFormula;
 
   const ScanResultScreen({
     super.key,
@@ -30,6 +33,9 @@ class ScanResultScreen extends StatefulWidget {
     required this.imagePath,
     this.historyItem,
     this.isDegraded = false,
+    this.structuredVariables = const [],
+    this.targetQuestion,
+    this.latexFormula,
   });
 
   @override
@@ -393,6 +399,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 0. EQUATION & PROBLEM TARGET CARD
+          _buildEquationAndVariablesCard(deepBlue),
+
           // 1. VISUALISER CARD
           Container(
             height: 340,
@@ -753,6 +762,207 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     );
   }
 
+  Widget _buildEquationAndVariablesCard(Color deepBlue) {
+    final target = widget.targetQuestion ?? widget.historyItem?.targetQuestion;
+    final formula = widget.latexFormula ?? widget.historyItem?.latexFormula;
+    final structured = widget.structuredVariables.isNotEmpty
+        ? widget.structuredVariables
+        : (widget.historyItem?.structuredVariables ?? []);
+
+    if (target == null && formula == null && structured.isEmpty && widget.variables.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: deepBlue.withValues(alpha: 0.12)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Target Question Banner
+          if (target != null && target.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("🎯", style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Target Objective",
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.amber.shade900,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          target,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+
+          // Governing Formula Card
+          if (formula != null && formula.isNotEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.functions, size: 16, color: Colors.blue.shade300),
+                      const SizedBox(width: 6),
+                      Text(
+                        "Governing Equation",
+                        style: TextStyle(fontSize: 11, color: Colors.blue.shade200, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  SelectableText(
+                    formula,
+                    style: const TextStyle(
+                      fontFamily: "monospace",
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF38BDF8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+
+          // Structured Variables Chips
+          if (structured.isNotEmpty) ...[
+            Text(
+              "Extracted Physics Variables",
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: structured.map((v) {
+                final symbol = v["symbol"]?.toString() ?? "";
+                final name = v["name"]?.toString() ?? symbol;
+                final val = v["value"];
+                final unit = v["unit"]?.toString() ?? "";
+                final isTarget = v["is_target"] == true;
+
+                final displayVal = val != null ? "$val $unit".trim() : "? (To Find)";
+
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isTarget ? Colors.red.withValues(alpha: 0.1) : deepBlue.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isTarget ? Colors.red.withValues(alpha: 0.4) : deepBlue.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isTarget ? Colors.redAccent : deepBlue,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          symbol.isNotEmpty ? symbol : name,
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            name,
+                            style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                          ),
+                          Text(
+                            displayVal,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isTarget ? Colors.red.shade700 : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ] else if (widget.variables.isNotEmpty) ...[
+            Text(
+              "Detected Variables",
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: widget.variables.map((v) {
+                return Chip(
+                  backgroundColor: deepBlue.withValues(alpha: 0.08),
+                  label: Text(v, style: TextStyle(fontSize: 12, color: deepBlue, fontWeight: FontWeight.bold)),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   // ==========================================================
   // NOTES TAB
   // ==========================================================
@@ -778,6 +988,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
+          _buildEquationAndVariablesCard(deepBlue),
           if (isDegraded) ...[
             const DegradedModeBanner(),
             const SizedBox(height: 8),

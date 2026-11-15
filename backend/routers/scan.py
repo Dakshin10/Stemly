@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, Header, Query, Request, UploadFile
 from pydantic import BaseModel, Field
@@ -24,6 +24,11 @@ class ScanUploadResponse(BaseModel):
     status: str = Field(description="Upload status")
     topic: str = Field(description="Detected STEM topic")
     variables: List[str] = Field(default_factory=list, description="Variables extracted from scan")
+    structured_variables: List[Dict[str, Any]] = Field(
+        default_factory=list, description="Strongly typed physics variables"
+    )
+    target_question: Optional[str] = Field(default=None, description="Primary unknown or question to solve")
+    latex_formula: Optional[str] = Field(default=None, description="Governing LaTeX equation")
     image_path: str = Field(description="Relative path to stored image")
     history_id: str = Field(description="Database record identifier")
     degraded: bool = Field(default=False, description="True if local fallback engine was used")
@@ -62,6 +67,9 @@ async def upload_scan(
             status="success",
             topic=existing_scan["topic"],
             variables=existing_scan.get("variables", []),
+            structured_variables=existing_scan.get("structured_variables", []),
+            target_question=existing_scan.get("target_question"),
+            latex_formula=existing_scan.get("latex_formula"),
             image_path=existing_scan["image_path"],
             history_id=existing_scan["_id"],
             degraded=False,
@@ -74,6 +82,11 @@ async def upload_scan(
     # 4. Analyze image using Groq Vision (prompt-injection safe: ocr_text kept in user role)
     analysis = await analyze_image(image_bytes=clean_bytes, ocr_text=ocr_text)
 
+    # Convert Pydantic structured variables to dicts
+    structured_vars_dicts = [
+        v.model_dump() if hasattr(v, "model_dump") else v for v in analysis.structured_variables
+    ]
+
     # 5. Save History with content_hash for future deduplication
     try:
         record_id = await save_scan_history(
@@ -82,6 +95,9 @@ async def upload_scan(
             topic=analysis.topic,
             variables=analysis.variables,
             content_hash=content_hash,
+            structured_variables=structured_vars_dicts,
+            target_question=analysis.target_question,
+            latex_formula=analysis.latex_formula,
         )
     except Exception:
         record_id = "error-saving-history"
@@ -90,6 +106,9 @@ async def upload_scan(
         status="success",
         topic=analysis.topic,
         variables=analysis.variables,
+        structured_variables=structured_vars_dicts,
+        target_question=analysis.target_question,
+        latex_formula=analysis.latex_formula,
         image_path=saved_path,
         history_id=record_id,
         degraded=analysis.degraded,
