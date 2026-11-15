@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from config import settings
 from core.circuit_breaker import groq_circuit_breaker
 from core.guardrails import evaluate_guardrails
+from core.safety import filter_unsafe_output
 from core.parameter_sanitizer import sanitize_simulation_parameters
 from models.chat_protocol import StreamEventEnvelope
 from models.tools import TUTOR_TOOLS, SuggestFollowupsArgs, UpdateSimulationArgs
@@ -426,6 +427,7 @@ async def tutor_chat(
         )
         if result:
             result.degraded = False
+            result.response = filter_unsafe_output(result.response)
             if not result.suggested_followups:
                 result.suggested_followups = default_followups
             if not history:
@@ -881,7 +883,7 @@ async def stream_tutor_chat(
                             id=request_id,
                             seq=seq,
                             type="token",
-                            data={"delta": safe_to_emit},
+                            data={"delta": filter_unsafe_output(safe_to_emit)},
                         )
                         seq += 1
 
@@ -893,7 +895,7 @@ async def stream_tutor_chat(
                     id=request_id,
                     seq=seq,
                     type="token",
-                    data={"delta": clean_tail},
+                    data={"delta": filter_unsafe_output(clean_tail)},
                 )
                 seq += 1
 
