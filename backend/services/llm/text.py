@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from config import settings
 from core.circuit_breaker import groq_circuit_breaker
 from core.guardrails import evaluate_guardrails
+from core.observability import chat_telemetry
 from core.safety import filter_unsafe_output
 from core.parameter_sanitizer import sanitize_simulation_parameters
 from models.chat_protocol import StreamEventEnvelope
@@ -681,6 +682,13 @@ async def stream_tutor_chat(
             seq += 1
 
             dur_ms = (time.perf_counter() - start_time) * 1000.0
+            chat_telemetry.record_turn(
+                prompt_tokens=len(message.split()),
+                completion_tokens=len(cached_resp.split()),
+                latency_ms=dur_ms,
+                ttft_ms=dur_ms,
+                is_cached=True,
+            )
             yield StreamEventEnvelope(
                 v=1,
                 id=request_id,
@@ -990,6 +998,13 @@ async def stream_tutor_chat(
 
             # Emit usage event
             total_lat = (time.perf_counter() - start_time) * 1000.0
+            chat_telemetry.record_turn(
+                prompt_tokens=prompt_tokens_est,
+                completion_tokens=completion_tokens,
+                latency_ms=total_lat,
+                ttft_ms=ttft_ms or total_lat,
+                is_cached=False,
+            )
             yield StreamEventEnvelope(
                 v=1,
                 id=request_id,

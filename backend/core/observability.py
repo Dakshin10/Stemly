@@ -204,3 +204,93 @@ def track_daily_llm_usage(user_id: str, count: int, quota: int) -> None:
             "quota_limit": quota,
         },
     )
+
+
+# ==============================================================================
+# Chat Telemetry & Cost Accounting Aggregator
+# ==============================================================================
+
+import statistics
+from typing import Any, Dict, List
+
+PROMPT_COST_PER_MILLION = 0.15
+COMPLETION_COST_PER_MILLION = 0.60
+
+
+class ChatTelemetryAggregator:
+    """In-memory rolling aggregator for token costs, latency percentiles, and cache hits."""
+
+    def __init__(self):
+        self.total_requests = 0
+        self.cached_requests = 0
+        self.total_prompt_tokens = 0
+        self.total_completion_tokens = 0
+        self.total_cost_usd = 0.0
+        self.ttft_samples: List[float] = []
+        self.latency_samples: List[float] = []
+
+    def record_turn(
+        self,
+        prompt_tokens: int,
+        completion_tokens: int,
+        latency_ms: float,
+        ttft_ms: float,
+        is_cached: bool = False,
+    ) -> None:
+        self.total_requests += 1
+        if is_cached:
+            self.cached_requests += 1
+
+        self.total_prompt_tokens += prompt_tokens
+        self.total_completion_tokens += completion_tokens
+
+        turn_cost = (
+            (prompt_tokens / 1_000_000.0) * PROMPT_COST_PER_MILLION
+            + (completion_tokens / 1_000_000.0) * COMPLETION_COST_PER_MILLION
+        )
+        self.total_cost_usd += turn_cost
+
+        if len(self.ttft_samples) >= 1000:
+            self.ttft_samples.pop(0)
+        self.ttft_samples.append(ttft_ms)
+
+        if len(self.latency_samples) >= 1000:
+            self.latency_samples.pop(0)
+        self.latency_samples.append(latency_ms)
+
+    def get_summary(self) -> Dict[str, Any]:
+        from core.circuit_breaker import groq_circuit_breaker
+
+        hit_rate = (self.cached_requests / self.total_requests * 100.0) if self.total_requests > 0 else 0.0
+
+        ttft_p50 = statistics.median(self.ttft_samples) if self.ttft_samples else 0.0
+        ttft_p95 = (
+            statistics.quantiles(self.ttft_samples, n=20)[18]
+            if len(self.ttft_samples) >= 20
+            else (max(self.ttft_samples) if self.ttft_samples else 0.0)
+        )
+
+        lat_p50 = statistics.median(self.latency_samples) if self.latency_samples else 0.0
+        lat_p95 = (
+            statistics.quantiles(self.latency_samples, n=20)[18]
+            if len(self.latency_samples) >= 20
+            else (max(self.latency_samples) if self.latency_samples else 0.0)
+        )
+
+        return {
+            "total_requests": self.total_requests,
+            "cached_requests": self.cached_requests,
+            "cache_hit_rate_pct": round(hit_rate, 2),
+            "total_prompt_tokens": self.total_prompt_tokens,
+            "total_completion_tokens": self.total_completion_tokens,
+            "total_tokens": self.total_prompt_tokens + self.total_completion_tokens,
+            "total_cost_usd": round(self.total_cost_usd, 6),
+            "ttft_p50_ms": round(ttft_p50, 2),
+            "ttft_p95_ms": round(ttft_p95, 2),
+            "latency_p50_ms": round(lat_p50, 2),
+            "latency_p95_ms": round(lat_p95, 2),
+            "circuit_breaker_state": groq_circuit_breaker.state.value,
+        }
+
+
+chat_telemetry = ChatTelemetryAggregator()

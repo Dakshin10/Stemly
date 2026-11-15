@@ -172,3 +172,13 @@ async def chat_stream(
             "Content-Encoding": "identity",
         },
     )
+
+
+@router.get("/metrics")
+async def chat_metrics(request: Request):
+    """
+    Returns rolling chat telemetry, token cost accounting, and latency percentiles.
+    """
+    from core.observability import chat_telemetry
+
+    return chat_telemetry.get_summary()
