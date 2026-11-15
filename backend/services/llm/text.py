@@ -8,15 +8,19 @@ Features:
 - Graceful local fallbacks tagged with degraded=true.
 """
 
+import asyncio
 import json
 import logging
 import re
-from typing import Any, AsyncGenerator, Dict, List, Optional
+import time
+import uuid
+from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, List, Optional
 
 import httpx
 from pydantic import BaseModel, Field
 
 from config import settings
+from models.chat_protocol import StreamEventEnvelope
 from prompts.notes_prompts import NOTES_FOLLOWUP_PROMPT_V1, NOTES_GENERATION_PROMPT_V1
 from prompts.quiz_prompts import QUIZ_GENERATION_PROMPT_V1
 from prompts.tutor_prompts import TUTOR_CHAT_PROMPT_V1, TUTOR_STREAM_SYSTEM_PROMPT
@@ -420,15 +424,24 @@ async def stream_tutor_chat(
     current_params: Optional[Dict[str, Any]] = None,
     template_id: Optional[str] = None,
     history: Optional[List[Dict[str, Any]]] = None,
-) -> AsyncGenerator[Dict[str, Any], None]:
+    session_id: Optional[str] = None,
+    is_disconnected_fn: Optional[Callable[[], Awaitable[bool]]] = None,
+) -> AsyncGenerator[StreamEventEnvelope, None]:
     """
     Streams ChatGPT-grade AI STEM tutor responses token-by-token via Server-Sent Events (SSE).
-    Yields events:
-      - {"type": "token", "content": "..."}
-      - {"type": "parameters", "updates": {...}}
-      - {"type": "followups", "suggestions": [...]}
-      - {"type": "done"}
+    Adheres to Streaming Protocol v2 envelope specification:
+      {v: 1, id: str, seq: int, type: str, data: dict}
+    Event types:
+      - meta: request_id, session_id, model, created_at
+      - token: delta token string
+      - parameters: sanitized simulation parameter updates
+      - followups: 3 one-tap suggestion chips
+      - usage: prompt_tokens, completion_tokens, total_tokens, latency_ms, ttft_ms
+      - done: finish_reason
+      - error: stable code, message, retryable
     """
+    request_id = str(uuid.uuid4())
+    active_session_id = session_id or request_id
     topic_str = topic or "General STEM"
     vars_str = ", ".join(variables) if variables else "None specified"
     template_str = template_id or "Standard Canvas"
@@ -436,23 +449,85 @@ async def stream_tutor_chat(
 
     default_followups = [
         f"Explain the governing formula for {topic_str}",
-        f"How do variables relate to each other?",
+        "How do variables relate to each other?",
         "Show me a step-by-step example problem",
     ]
 
-    if not settings.GROQ_TEXT_API_KEY:
-        yield {
-            "type": "token",
-            "content": f"I am currently operating in offline mode. For **{topic_str}**, review the core equations connecting: {vars_str}.",
-        }
-        yield {"type": "followups", "suggestions": default_followups}
-        yield {"type": "done"}
+    seq = 0
+    start_time = time.perf_counter()
+    ttft_ms: Optional[float] = None
+    prompt_tokens_est = len(message.split()) + 40
+    completion_tokens = 0
+
+    # 1. First event is ALWAYS meta, sent immediately
+    yield StreamEventEnvelope(
+        v=1,
+        id=request_id,
+        seq=seq,
+        type="meta",
+        data={
+            "request_id": request_id,
+            "session_id": active_session_id,
+            "model": settings.GROQ_TEXT_MODEL,
+            "created_at": int(time.time()),
+        },
+    )
+    seq += 1
+
+    # Check client disconnect immediately
+    if is_disconnected_fn and await is_disconnected_fn():
+        logger.info("Client disconnected immediately after meta frame. Aborting stream.")
         return
 
+    # 2. Check offline mode / missing API key
+    if not settings.GROQ_TEXT_API_KEY:
+        offline_text = (
+            f"I am currently operating in offline mode. For **{topic_str}**, review the core equations connecting: {vars_str}."
+        )
+        yield StreamEventEnvelope(
+            v=1,
+            id=request_id,
+            seq=seq,
+            type="token",
+            data={"delta": offline_text},
+        )
+        seq += 1
+        yield StreamEventEnvelope(
+            v=1,
+            id=request_id,
+            seq=seq,
+            type="followups",
+            data={"suggestions": default_followups},
+        )
+        seq += 1
+        dur_ms = (time.perf_counter() - start_time) * 1000.0
+        yield StreamEventEnvelope(
+            v=1,
+            id=request_id,
+            seq=seq,
+            type="usage",
+            data={
+                "prompt_tokens": 0,
+                "completion_tokens": len(offline_text.split()),
+                "total_tokens": len(offline_text.split()),
+                "latency_ms": round(dur_ms, 2),
+                "ttft_ms": round(dur_ms, 2),
+            },
+        )
+        seq += 1
+        yield StreamEventEnvelope(
+            v=1,
+            id=request_id,
+            seq=seq,
+            type="done",
+            data={"finish_reason": "stop"},
+        )
+        return
+
+    # 3. Construct prompt and message context
     system_prompt = TUTOR_STREAM_SYSTEM_PROMPT.format(current_params=params_str)
     messages: List[Dict[str, Any]] = [{"role": "system", "content": system_prompt}]
 
-    # Multi-turn conversational memory (up to 8 turns)
     if history:
         for turn in history[-8:]:
             role = turn.get("role") or ("user" if turn.get("isUser") else "assistant")
@@ -474,117 +549,209 @@ async def stream_tutor_chat(
         "temperature": 0.3,
         "max_tokens": 1500,
         "stream": True,
+        "stream_options": {"include_usage": True},
     }
 
-    try:
-        auth_headers = {
-            "Authorization": f"Bearer {settings.GROQ_TEXT_API_KEY}",
-            "Content-Type": "application/json",
-            "User-Agent": "Stemly-Backend/2.0",
-        }
+    client = get_text_client()
+    tail_buffer = ""
+    emitted_followups = False
 
-        async with httpx.AsyncClient(
-            base_url="https://api.groq.com/openai/v1",
-            headers=auth_headers,
-            timeout=settings.LLM_TIMEOUT_SECONDS,
-        ) as stream_client:
-            async with stream_client.stream("POST", "/chat/completions", json=payload) as resp:
-                if resp.status_code != 200:
-                    logger.warning("Groq stream returned status %d. Falling back to non-streaming.", resp.status_code)
-                    fallback_res = await tutor_chat(
-                        message=message,
-                        topic=topic,
-                        variables=variables,
-                        current_params=current_params,
-                        template_id=template_id,
-                        history=history,
-                    )
-                    yield {"type": "token", "content": fallback_res.response}
-                    if fallback_res.parameter_updates:
-                        yield {"type": "parameters", "updates": fallback_res.parameter_updates}
-                    yield {
-                        "type": "followups",
-                        "suggestions": fallback_res.suggested_followups or default_followups,
-                    }
-                    yield {"type": "done"}
+    try:
+        async with client.stream("POST", "/chat/completions", json=payload) as resp:
+            if resp.status_code != 200:
+                logger.warning("Groq stream returned status %d. Falling back.", resp.status_code)
+                yield StreamEventEnvelope(
+                    v=1,
+                    id=request_id,
+                    seq=seq,
+                    type="error",
+                    data={
+                        "code": f"upstream_{resp.status_code}",
+                        "message": "AI tutoring service temporarily degraded. Please try again.",
+                        "retryable": True,
+                    },
+                )
+                seq += 1
+                yield StreamEventEnvelope(
+                    v=1,
+                    id=request_id,
+                    seq=seq,
+                    type="done",
+                    data={"finish_reason": "error"},
+                )
+                return
+
+            aiter = resp.aiter_lines().__aiter__()
+            while True:
+                # Disconnect check
+                if is_disconnected_fn and await is_disconnected_fn():
+                    logger.info("Client disconnected during stream. Cancelling upstream Groq call.")
                     return
 
-                tail_buffer = ""
-                emitted_followups = False
+                try:
+                    # 15s idle check
+                    line = await asyncio.wait_for(aiter.__anext__(), timeout=15.0)
+                except asyncio.TimeoutError:
+                    if is_disconnected_fn and await is_disconnected_fn():
+                        logger.info("Client disconnected during idle wait. Cancelling stream.")
+                        return
+                    continue
+                except StopAsyncIteration:
+                    break
 
-                async for line in resp.aiter_lines():
-                    if not line or not line.startswith("data: "):
-                        continue
-                    raw_data = line[6:].strip()
-                    if raw_data == "[DONE]":
-                        break
+                if not line or not line.startswith("data: "):
+                    continue
 
-                    try:
-                        chunk = json.loads(raw_data)
-                        delta = chunk.get("choices", [{}])[0].get("delta", {})
-                        token = delta.get("content", "")
-                        if not token:
-                            continue
+                raw_data = line[6:].strip()
+                if raw_data == "[DONE]":
+                    break
 
-                        tail_buffer += token
+                try:
+                    chunk = json.loads(raw_data)
+                except json.JSONDecodeError:
+                    continue
 
-                        # Check for special trailing tag markers <<<PARAMS or <<<FOLLOWUPS
-                        if "<<<" in tail_buffer:
-                            # Check if a tag has closed with >>>
-                            if ">>>" in tail_buffer:
-                                # Extract parameter updates
-                                param_match = re.search(r"<<<PARAMS:\s*(\{.*?\})\s*>>>", tail_buffer, re.DOTALL)
-                                if param_match:
-                                    try:
-                                        params = json.loads(param_match.group(1))
-                                        if isinstance(params, dict):
-                                            yield {"type": "parameters", "updates": params}
-                                    except Exception:
-                                        pass
+                # Parse usage if Groq provided it in stream
+                if "usage" in chunk and chunk["usage"]:
+                    u = chunk["usage"]
+                    prompt_tokens_est = u.get("prompt_tokens", prompt_tokens_est)
+                    completion_tokens = u.get("completion_tokens", completion_tokens)
 
-                                # Extract follow-up suggestions
-                                followup_match = re.search(r"<<<FOLLOWUPS:\s*(\[.*?\])\s*>>>", tail_buffer, re.DOTALL)
-                                if followup_match:
-                                    try:
-                                        f_list = json.loads(followup_match.group(1))
-                                        if isinstance(f_list, list) and f_list:
-                                            yield {"type": "followups", "suggestions": [str(x) for x in f_list[:3]]}
-                                            emitted_followups = True
-                                    except Exception:
-                                        pass
+                choices = chunk.get("choices", [])
+                if not choices:
+                    continue
 
-                                # Clear tags from tail_buffer
-                                tail_buffer = re.sub(r"<<<PARAMS:.*?>>>", "", tail_buffer, flags=re.DOTALL)
-                                tail_buffer = re.sub(r"<<<FOLLOWUPS:.*?>>>", "", tail_buffer, flags=re.DOTALL)
-                        else:
-                            # Not inside tag: flush safe characters to stream
-                            if len(tail_buffer) > 4:
-                                safe_to_emit = tail_buffer[:-4]
-                                tail_buffer = tail_buffer[-4:]
-                                yield {"type": "token", "content": safe_to_emit}
+                delta = choices[0].get("delta", {})
+                token = delta.get("content", "")
+                if not token:
+                    continue
 
-                    except json.JSONDecodeError:
-                        continue
+                if ttft_ms is None:
+                    ttft_ms = (time.perf_counter() - start_time) * 1000.0
 
-                # Flush remaining non-tag text if any
-                clean_tail = re.sub(r"<<<.*?>>>", "", tail_buffer, flags=re.DOTALL)
-                clean_tail = clean_tail.replace("<<<", "").strip()
-                if clean_tail:
-                    yield {"type": "token", "content": clean_tail}
+                completion_tokens += 1
+                tail_buffer += token
 
-                if not emitted_followups:
-                    yield {"type": "followups", "suggestions": default_followups}
+                # Parse control tags if any
+                if "<<<" in tail_buffer:
+                    if ">>>" in tail_buffer:
+                        param_match = re.search(r"<<<PARAMS:\s*(\{.*?\})\s*>>>", tail_buffer, re.DOTALL)
+                        if param_match:
+                            try:
+                                params = json.loads(param_match.group(1))
+                                if isinstance(params, dict):
+                                    yield StreamEventEnvelope(
+                                        v=1,
+                                        id=request_id,
+                                        seq=seq,
+                                        type="parameters",
+                                        data={"updates": params},
+                                    )
+                                    seq += 1
+                            except Exception:
+                                pass
 
-                yield {"type": "done"}
+                        followup_match = re.search(r"<<<FOLLOWUPS:\s*(\[.*?\])\s*>>>", tail_buffer, re.DOTALL)
+                        if followup_match:
+                            try:
+                                f_list = json.loads(followup_match.group(1))
+                                if isinstance(f_list, list) and f_list:
+                                    yield StreamEventEnvelope(
+                                        v=1,
+                                        id=request_id,
+                                        seq=seq,
+                                        type="followups",
+                                        data={"suggestions": [str(x) for x in f_list[:3]]},
+                                    )
+                                    seq += 1
+                                    emitted_followups = True
+                            except Exception:
+                                pass
+
+                        tail_buffer = re.sub(r"<<<PARAMS:.*?>>>", "", tail_buffer, flags=re.DOTALL)
+                        tail_buffer = re.sub(r"<<<FOLLOWUPS:.*?>>>", "", tail_buffer, flags=re.DOTALL)
+                else:
+                    if len(tail_buffer) > 4:
+                        safe_to_emit = tail_buffer[:-4]
+                        tail_buffer = tail_buffer[-4:]
+                        yield StreamEventEnvelope(
+                            v=1,
+                            id=request_id,
+                            seq=seq,
+                            type="token",
+                            data={"delta": safe_to_emit},
+                        )
+                        seq += 1
+
+            clean_tail = re.sub(r"<<<.*?>>>", "", tail_buffer, flags=re.DOTALL)
+            clean_tail = clean_tail.replace("<<<", "").strip()
+            if clean_tail:
+                yield StreamEventEnvelope(
+                    v=1,
+                    id=request_id,
+                    seq=seq,
+                    type="token",
+                    data={"delta": clean_tail},
+                )
+                seq += 1
+
+            if not emitted_followups:
+                yield StreamEventEnvelope(
+                    v=1,
+                    id=request_id,
+                    seq=seq,
+                    type="followups",
+                    data={"suggestions": default_followups},
+                )
+                seq += 1
+
+            # Emit usage event
+            total_lat = (time.perf_counter() - start_time) * 1000.0
+            yield StreamEventEnvelope(
+                v=1,
+                id=request_id,
+                seq=seq,
+                type="usage",
+                data={
+                    "prompt_tokens": prompt_tokens_est,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": prompt_tokens_est + completion_tokens,
+                    "latency_ms": round(total_lat, 2),
+                    "ttft_ms": round(ttft_ms or total_lat, 2),
+                },
+            )
+            seq += 1
+
+            # Emit done event
+            yield StreamEventEnvelope(
+                v=1,
+                id=request_id,
+                seq=seq,
+                type="done",
+                data={"finish_reason": "stop"},
+            )
 
     except Exception as exc:
         logger.error("Error during tutor chat streaming: %s", exc)
-        yield {
-            "type": "token",
-            "content": f"\n\nRegarding {topic_str}: Ensure you review the relations connecting {vars_str}.",
-        }
-        yield {"type": "followups", "suggestions": default_followups}
-        yield {"type": "done"}
+        yield StreamEventEnvelope(
+            v=1,
+            id=request_id,
+            seq=seq,
+            type="error",
+            data={
+                "code": "stream_internal_error",
+                "message": "An error occurred while streaming the tutor response.",
+                "retryable": True,
+            },
+        )
+        seq += 1
+        yield StreamEventEnvelope(
+            v=1,
+            id=request_id,
+            seq=seq,
+            type="done",
+            data={"finish_reason": "error"},
+        )
 
 
 async def process_visualiser_chat_llm(

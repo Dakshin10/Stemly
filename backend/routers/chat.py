@@ -1,15 +1,19 @@
 import json
+import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Header, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from auth.auth_middleware import require_firebase_user
+from core.idempotency import acquire_idempotency_key, complete_idempotency_key
 from core.parameter_sanitizer import sanitize_simulation_parameters
 from core.rate_limiter import LIMIT_CHAT, limiter
 from core.usage_limiter import check_and_increment_daily_usage
 from services.llm import stream_tutor_chat, tutor_chat
+
+logger = logging.getLogger("stemly.routers.chat")
 
 router = APIRouter(
     prefix="/chat",
@@ -93,34 +97,70 @@ async def chat_stream(
     request: Request,
     req: ChatRequest,
     x_ai_api_key: Optional[str] = Header(None, alias="X-AI-API-Key"),
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
+    x_session_id: Optional[str] = Header(None, alias="X-Session-ID"),
 ):
     """
-    ChatGPT-style Server-Sent Events (SSE) token-by-token streaming endpoint.
-    Emits real-time tokens (<150ms TTFT), parameter updates, and follow-up chips.
-    Event types:
-      - {"type": "token", "content": "..."}
-      - {"type": "parameters", "updates": {...}}
-      - {"type": "followups", "suggestions": [...]}
-      - {"type": "done"}
+    ChatGPT/Claude-grade Server-Sent Events (SSE) token-by-token streaming endpoint.
+    Streaming Protocol v2 Envelope:
+      {v: 1, id: str, seq: int, type: str, data: dict}
+    Headers:
+      Cache-Control: no-cache, Connection: keep-alive, X-Accel-Buffering: no, Content-Encoding: identity
     """
-    await check_and_increment_daily_usage(user_id=request.state.user["uid"])
+    user_id = request.state.user.get("uid", "anonymous")
+    effective_idemp = idempotency_key or x_idempotency_key
+
+    # Check and acquire idempotency reservation to prevent duplicate stream processing
+    is_new, idemp_status, _ = acquire_idempotency_key(effective_idemp, user_id=user_id)
+    if not is_new:
+        if idemp_status == "in_flight":
+            raise HTTPException(
+                status_code=409,
+                detail="A stream request with this Idempotency-Key is currently in flight.",
+            )
+        if idemp_status == "completed":
+            raise HTTPException(
+                status_code=409,
+                detail="A stream request with this Idempotency-Key has already completed.",
+            )
+
+    await check_and_increment_daily_usage(user_id=user_id)
 
     history_dicts = [m.model_dump() for m in req.history]
 
     async def sse_event_generator():
-        async for event in stream_tutor_chat(
-            message=req.user_prompt,
-            topic=req.topic,
-            variables=req.variables,
-            current_params=req.current_params,
-            template_id=req.template_id,
-            history=history_dicts,
-        ):
-            # Sanitize simulation parameters on the fly
-            if event.get("type") == "parameters" and event.get("updates"):
-                event["updates"] = sanitize_simulation_parameters(event["updates"])
+        completed_cleanly = False
+        try:
+            async for envelope in stream_tutor_chat(
+                message=req.user_prompt,
+                topic=req.topic,
+                variables=req.variables,
+                current_params=req.current_params,
+                template_id=req.template_id,
+                history=history_dicts,
+                session_id=x_session_id,
+                is_disconnected_fn=request.is_disconnected,
+            ):
+                if await request.is_disconnected():
+                    logger.info("Client disconnected from /chat/stream; aborting generator.")
+                    break
 
-            yield f"data: {json.dumps(event)}\n\n"
+                # Sanitize simulation parameters on the fly
+                if envelope.type == "parameters" and "updates" in envelope.data:
+                    envelope.data["updates"] = sanitize_simulation_parameters(envelope.data["updates"])
+
+                if envelope.type == "done":
+                    completed_cleanly = True
+
+                yield envelope.to_sse()
+        finally:
+            if effective_idemp and completed_cleanly:
+                complete_idempotency_key(
+                    effective_idemp,
+                    user_id=user_id,
+                    payload={"status": "completed"},
+                )
 
     return StreamingResponse(
         sse_event_generator(),
@@ -129,5 +169,6 @@ async def chat_stream(
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
+            "Content-Encoding": "identity",
         },
     )
