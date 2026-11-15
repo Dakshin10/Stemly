@@ -20,6 +20,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from config import settings
+from core.guardrails import evaluate_guardrails
 from core.parameter_sanitizer import sanitize_simulation_parameters
 from models.chat_protocol import StreamEventEnvelope
 from models.tools import TUTOR_TOOLS, SuggestFollowupsArgs, UpdateSimulationArgs
@@ -365,6 +366,17 @@ async def tutor_chat(
         "Show me a step-by-step example problem",
     ]
 
+    # Pre-flight guardrail evaluation
+    is_blocked, deflection_msg = evaluate_guardrails(user_prompt=message, topic=topic_str)
+    if is_blocked and deflection_msg:
+        return TutorChatResponse(
+            response=deflection_msg,
+            parameter_updates=None,
+            update_type="explanation",
+            suggested_followups=default_followups,
+            degraded=False,
+        )
+
     if not settings.GROQ_TEXT_API_KEY:
         return TutorChatResponse(
             response="Tutor chat is currently operating in offline mode. Please try again shortly.",
@@ -513,6 +525,49 @@ async def stream_tutor_chat(
                 "prompt_tokens": 0,
                 "completion_tokens": len(offline_text.split()),
                 "total_tokens": len(offline_text.split()),
+                "latency_ms": round(dur_ms, 2),
+                "ttft_ms": round(dur_ms, 2),
+            },
+        )
+        seq += 1
+        yield StreamEventEnvelope(
+            v=1,
+            id=request_id,
+            seq=seq,
+            type="done",
+            data={"finish_reason": "stop"},
+        )
+        return
+
+    # Pre-flight domain & safety guardrail check
+    is_blocked, deflection_msg = evaluate_guardrails(user_prompt=message, topic=topic_str)
+    if is_blocked and deflection_msg:
+        yield StreamEventEnvelope(
+            v=1,
+            id=request_id,
+            seq=seq,
+            type="token",
+            data={"delta": deflection_msg},
+        )
+        seq += 1
+        yield StreamEventEnvelope(
+            v=1,
+            id=request_id,
+            seq=seq,
+            type="followups",
+            data={"suggestions": default_followups},
+        )
+        seq += 1
+        dur_ms = (time.perf_counter() - start_time) * 1000.0
+        yield StreamEventEnvelope(
+            v=1,
+            id=request_id,
+            seq=seq,
+            type="usage",
+            data={
+                "prompt_tokens": len(message.split()),
+                "completion_tokens": len(deflection_msg.split()),
+                "total_tokens": len(message.split()) + len(deflection_msg.split()),
                 "latency_ms": round(dur_ms, 2),
                 "ttft_ms": round(dur_ms, 2),
             },
