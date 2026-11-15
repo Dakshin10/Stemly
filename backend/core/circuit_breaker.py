@@ -12,6 +12,8 @@ import logging
 import time
 from typing import Optional
 
+from config import settings
+
 logger = logging.getLogger("stemly.core.circuit_breaker")
 
 
@@ -108,6 +110,6 @@ class CircuitBreaker:
 # Global circuit breaker instance for Groq LLM text services
 groq_circuit_breaker = CircuitBreaker(
     name="groq_text",
-    failure_threshold=5,
-    cooldown_seconds=30.0,
+    failure_threshold=settings.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+    cooldown_seconds=settings.CIRCUIT_BREAKER_COOLDOWN_SECONDS,
 )

@@ -50,6 +50,36 @@ class Settings(BaseSettings):
         description="Daily quota of LLM generation requests per user.",
     )
 
+    # AI Tutor Chat Hardening & Circuit Breaker Settings
+    CIRCUIT_BREAKER_FAILURE_THRESHOLD: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Number of consecutive failures before tripping circuit breaker to OPEN.",
+    )
+    CIRCUIT_BREAKER_COOLDOWN_SECONDS: float = Field(
+        default=30.0,
+        ge=1.0,
+        le=600.0,
+        description="Cooldown period in seconds before probing upstream in HALF_OPEN state.",
+    )
+    CHAT_CACHE_ENABLED: bool = Field(
+        default=True,
+        description="Enable multi-tier memory caching for identical tutor queries.",
+    )
+    CHAT_CACHE_TTL_SECONDS: int = Field(
+        default=3600,
+        ge=60,
+        le=86400,
+        description="TTL for cached tutor chat responses in seconds.",
+    )
+    CHAT_MAX_CONTEXT_TOKENS: int = Field(
+        default=3000,
+        ge=500,
+        le=32000,
+        description="Token budget for conversation history window before rolling summary.",
+    )
+
     # Database Configuration & Connection Pool
     MONGO_URI: Optional[str] = Field(
         default=None,

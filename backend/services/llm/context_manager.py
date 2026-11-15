@@ -10,10 +10,12 @@ Implements:
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
+from config import settings
+
 logger = logging.getLogger("stemly.llm.context_manager")
 
 # Default token budget for conversation history inside context window
-DEFAULT_MAX_CONTEXT_TOKENS = 3000
+DEFAULT_MAX_CONTEXT_TOKENS = settings.CHAT_MAX_CONTEXT_TOKENS
 DEFAULT_MAX_HISTORY_TURNS = 12
 
 
