@@ -32,8 +32,10 @@ from prompts.visualiser_prompts import PARAM_UPDATE_PROMPT_V1, VISUALISER_CHAT_P
 from .cache import (
     get_cached_notes,
     get_cached_quiz,
+    get_cached_tutor,
     set_cached_notes,
     set_cached_quiz,
+    set_cached_tutor,
 )
 from .client import get_text_client
 from .context_manager import build_conversation_context
@@ -377,6 +379,12 @@ async def tutor_chat(
             degraded=False,
         )
 
+    # Cache lookup for initial question turns
+    if not history:
+        cached_turn = await get_cached_tutor(topic_str, message)
+        if cached_turn:
+            return TutorChatResponse.model_validate(cached_turn)
+
     if not settings.GROQ_TEXT_API_KEY:
         return TutorChatResponse(
             response="Tutor chat is currently operating in offline mode. Please try again shortly.",
@@ -419,6 +427,8 @@ async def tutor_chat(
             result.degraded = False
             if not result.suggested_followups:
                 result.suggested_followups = default_followups
+            if not history:
+                await set_cached_tutor(topic_str, message, result.model_dump())
             return result
     except Exception as exc:
         logger.error("Groq tutor chat error: %s", exc)
@@ -581,6 +591,69 @@ async def stream_tutor_chat(
             data={"finish_reason": "stop"},
         )
         return
+
+    # Cache lookup for initial question turns
+    if not history:
+        cached_turn = await get_cached_tutor(topic_str, message)
+        if cached_turn:
+            cached_resp = str(cached_turn.get("response", ""))
+            cached_params = cached_turn.get("parameter_updates")
+            cached_followups = cached_turn.get("suggested_followups") or default_followups
+
+            yield StreamEventEnvelope(
+                v=1,
+                id=request_id,
+                seq=seq,
+                type="token",
+                data={"delta": cached_resp},
+            )
+            seq += 1
+
+            if cached_params:
+                clamped = sanitize_simulation_parameters(cached_params)
+                if clamped:
+                    yield StreamEventEnvelope(
+                        v=1,
+                        id=request_id,
+                        seq=seq,
+                        type="parameters",
+                        data={"updates": clamped},
+                    )
+                    seq += 1
+
+            yield StreamEventEnvelope(
+                v=1,
+                id=request_id,
+                seq=seq,
+                type="followups",
+                data={"suggestions": cached_followups},
+            )
+            seq += 1
+
+            dur_ms = (time.perf_counter() - start_time) * 1000.0
+            yield StreamEventEnvelope(
+                v=1,
+                id=request_id,
+                seq=seq,
+                type="usage",
+                data={
+                    "prompt_tokens": len(message.split()),
+                    "completion_tokens": len(cached_resp.split()),
+                    "total_tokens": len(message.split()) + len(cached_resp.split()),
+                    "latency_ms": round(dur_ms, 2),
+                    "ttft_ms": round(dur_ms, 2),
+                },
+            )
+            seq += 1
+
+            yield StreamEventEnvelope(
+                v=1,
+                id=request_id,
+                seq=seq,
+                type="done",
+                data={"finish_reason": "stop"},
+            )
+            return
 
     # 3. Construct prompt and message context via token-budgeted context manager
     system_prompt = TUTOR_STREAM_SYSTEM_PROMPT.format(current_params=params_str)

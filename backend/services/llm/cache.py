@@ -185,3 +185,59 @@ async def set_cached_quiz(topic: str, num_questions: int, payload: Dict[str, Any
             )
         except Exception as exc:
             logger.error("MongoDB error writing quiz cache: %s", exc)
+
+
+def normalize_query(query: str) -> str:
+    """Normalize query text: lowercased, alphanumeric and single spaces."""
+    cleaned = re.sub(r"[^\w\s]", "", query.lower())
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def compute_tutor_cache_key(topic: str, query: str) -> str:
+    norm_topic = normalize_topic(topic)
+    norm_query = normalize_query(query)
+    seed = f"tutor:{CACHE_VERSION}:{norm_topic}:{norm_query}"
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()
+
+
+async def get_cached_tutor(topic: str, query: str) -> Optional[Dict[str, Any]]:
+    """Retrieves cached tutor response from In-Memory LRU or MongoDB."""
+    key = compute_tutor_cache_key(topic, query)
+    mem_hit = _get_from_memory(key)
+    if mem_hit:
+        logger.info("Tutor cache hit (Memory) for topic='%s'", topic)
+        return mem_hit
+
+    if llm_cache_collection is not None:
+        try:
+            doc = await llm_cache_collection.find_one({"cache_key": key})
+            if doc and "payload" in doc:
+                logger.info("Tutor cache hit (MongoDB) for topic='%s'", topic)
+                _set_to_memory(key, doc["payload"])
+                return doc["payload"]
+        except Exception as exc:
+            logger.error("MongoDB error reading tutor cache: %s", exc)
+    return None
+
+
+async def set_cached_tutor(topic: str, query: str, payload: Dict[str, Any]) -> None:
+    """Persists tutor response to In-Memory LRU and MongoDB."""
+    key = compute_tutor_cache_key(topic, query)
+    _set_to_memory(key, payload)
+    if llm_cache_collection is not None:
+        try:
+            doc = {
+                "cache_key": key,
+                "type": "tutor",
+                "version": CACHE_VERSION,
+                "topic": normalize_topic(topic),
+                "payload": payload,
+                "created_at": datetime.now(timezone.utc),
+            }
+            await llm_cache_collection.update_one(
+                {"cache_key": key},
+                {"$set": doc},
+                upsert=True,
+            )
+        except Exception as exc:
+            logger.error("MongoDB error writing tutor cache: %s", exc)
