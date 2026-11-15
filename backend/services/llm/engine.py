@@ -20,6 +20,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from config import settings
+from core.circuit_breaker import groq_circuit_breaker
 
 logger = logging.getLogger("stemly.llm.engine")
 
@@ -72,6 +73,11 @@ async def execute_groq_request_with_backoff(
     retries = max_retries if max_retries is not None else settings.LLM_MAX_RETRIES
     model_name = payload.get("model", "unknown")
 
+    # Circuit breaker check: fail fast if upstream is degraded
+    if not groq_circuit_breaker.can_execute():
+        logger.warning("Groq circuit breaker is OPEN; failing fast to local degraded fallback.")
+        return None, None, 0.0
+
     for attempt in range(retries + 1):
         start_time = time.perf_counter()
         try:
@@ -112,9 +118,11 @@ async def execute_groq_request_with_backoff(
                     response.status_code,
                     latency_ms,
                 )
+                groq_circuit_breaker.record_failure()
                 return None, None, latency_ms
 
             response.raise_for_status()
+            groq_circuit_breaker.record_success()
             data = response.json()
             usage = data.get("usage", {})
 
@@ -144,6 +152,7 @@ async def execute_groq_request_with_backoff(
                 delay = (2**attempt) + random.uniform(0.1, 0.5)
                 await asyncio.sleep(delay)
                 continue
+            groq_circuit_breaker.record_failure()
             return None, None, latency_ms
 
         except httpx.HTTPError as exc:
@@ -159,11 +168,13 @@ async def execute_groq_request_with_backoff(
                 delay = (2**attempt) + random.uniform(0.1, 0.5)
                 await asyncio.sleep(delay)
                 continue
+            groq_circuit_breaker.record_failure()
             return None, None, latency_ms
 
         except Exception as exc:
             latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
             logger.error("Unexpected error during Groq call: %s", exc)
+            groq_circuit_breaker.record_failure()
             return None, None, latency_ms
 
     return None, None, 0.0

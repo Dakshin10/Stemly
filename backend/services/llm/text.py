@@ -20,6 +20,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from config import settings
+from core.circuit_breaker import groq_circuit_breaker
 from core.guardrails import evaluate_guardrails
 from core.parameter_sanitizer import sanitize_simulation_parameters
 from models.chat_protocol import StreamEventEnvelope
@@ -549,6 +550,53 @@ async def stream_tutor_chat(
         )
         return
 
+    # Check Circuit Breaker
+    if not groq_circuit_breaker.can_execute():
+        logger.warning("Groq circuit breaker is OPEN; streaming local degraded explanation.")
+        degraded_text = (
+            f"The AI reasoning engine is currently running in local degraded mode. "
+            f"For **{topic_str}**, review the foundational equations relating: {vars_str}."
+        )
+        yield StreamEventEnvelope(
+            v=1,
+            id=request_id,
+            seq=seq,
+            type="token",
+            data={"delta": degraded_text},
+        )
+        seq += 1
+        yield StreamEventEnvelope(
+            v=1,
+            id=request_id,
+            seq=seq,
+            type="followups",
+            data={"suggestions": default_followups},
+        )
+        seq += 1
+        dur_ms = (time.perf_counter() - start_time) * 1000.0
+        yield StreamEventEnvelope(
+            v=1,
+            id=request_id,
+            seq=seq,
+            type="usage",
+            data={
+                "prompt_tokens": 0,
+                "completion_tokens": len(degraded_text.split()),
+                "total_tokens": len(degraded_text.split()),
+                "latency_ms": round(dur_ms, 2),
+                "ttft_ms": round(dur_ms, 2),
+            },
+        )
+        seq += 1
+        yield StreamEventEnvelope(
+            v=1,
+            id=request_id,
+            seq=seq,
+            type="done",
+            data={"finish_reason": "stop"},
+        )
+        return
+
     # Pre-flight domain & safety guardrail check
     is_blocked, deflection_msg = evaluate_guardrails(user_prompt=message, topic=topic_str)
     if is_blocked and deflection_msg:
@@ -689,6 +737,7 @@ async def stream_tutor_chat(
         async with client.stream("POST", "/chat/completions", json=payload) as resp:
             if resp.status_code != 200:
                 logger.warning("Groq stream returned status %d. Falling back.", resp.status_code)
+                groq_circuit_breaker.record_failure()
                 yield StreamEventEnvelope(
                     v=1,
                     id=request_id,
@@ -709,6 +758,8 @@ async def stream_tutor_chat(
                     data={"finish_reason": "error"},
                 )
                 return
+
+            groq_circuit_breaker.record_success()
 
             aiter = resp.aiter_lines().__aiter__()
             while True:
@@ -963,6 +1014,7 @@ async def stream_tutor_chat(
 
     except Exception as exc:
         logger.error("Error during tutor chat streaming: %s", exc)
+        groq_circuit_breaker.record_failure(exc)
         yield StreamEventEnvelope(
             v=1,
             id=request_id,
