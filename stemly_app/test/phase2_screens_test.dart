@@ -11,7 +11,6 @@ import 'package:stemly_app/screens/splash_screen.dart';
 import 'package:stemly_app/services/firebase_auth_service.dart';
 import 'package:stemly_app/strings.dart';
 import 'package:stemly_app/theme/theme.dart';
-import 'package:stemly_app/theme/theme_provider.dart';
 
 class MockFirebaseAuthService extends ChangeNotifier implements FirebaseAuthService {
   @override

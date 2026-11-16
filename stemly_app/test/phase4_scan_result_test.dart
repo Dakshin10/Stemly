@@ -7,7 +7,6 @@ import 'package:stemly_app/presentation/components/math_tex_view.dart';
 import 'package:stemly_app/screens/scan_result_screen.dart';
 import 'package:stemly_app/services/firebase_auth_service.dart';
 import 'package:stemly_app/strings.dart';
-import 'package:stemly_app/theme/theme.dart';
 
 class MockFirebaseAuthService extends ChangeNotifier implements FirebaseAuthService {
   @override
