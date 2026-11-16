@@ -11,7 +11,7 @@ import 'firebase_options.dart';
 import 'data/services/api_client.dart';
 import 'data/services/stemly_api_service.dart';
 import 'services/firebase_auth_service.dart';
-import 'theme/theme_provider.dart';
+import 'theme/theme.dart';
 import 'storage/history_store.dart';
 
 // Screens
@@ -104,18 +104,10 @@ class MyApp extends StatelessWidget {
       themeMode: themeProvider.themeMode,
 
       // Light Theme
-      theme: ThemeData(
-        brightness: Brightness.light,
-        useMaterial3: true,
-        colorSchemeSeed: Colors.blue,
-      ),
+      theme: AppTheme.lightTheme,
 
       // Dark Theme
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        useMaterial3: true,
-        colorSchemeSeed: Colors.blue,
-      ),
+      darkTheme: AppTheme.darkTheme,
 
       initialRoute: '/splash',
 
