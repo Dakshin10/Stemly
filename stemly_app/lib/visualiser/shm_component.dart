@@ -19,7 +19,7 @@ class SHMWidget extends StatefulWidget {
 }
 
 class _SHMWidgetState extends State<SHMWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
   late double _omega;
   late double _period;
@@ -31,7 +31,8 @@ class _SHMWidgetState extends State<SHMWidget>
   @override
   void initState() {
     super.initState();
-    _initSimulation();
+    _controller = AnimationController(vsync: this);
+    _updateSimulation(reset: true);
   }
 
   @override
@@ -40,23 +41,24 @@ class _SHMWidgetState extends State<SHMWidget>
     if (oldWidget.A != widget.A ||
         oldWidget.m != widget.m ||
         oldWidget.k != widget.k) {
-      _controller.stop();
-      _controller.dispose();
-      _initSimulation();
+      _updateSimulation(reset: false);
     }
   }
 
-  void _initSimulation() {
+  void _updateSimulation({bool reset = false}) {
     // omega = sqrt(k / m)
     _omega = sqrt(_safeK / _safeM);
     // period T = 2 * pi / omega
     _period = (2.0 * pi) / _omega;
 
     final durationMs = max(300, min(10000, (_period * 1000).toInt()));
-    _controller = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: durationMs),
-    )..repeat();
+    _controller.duration = Duration(milliseconds: durationMs);
+
+    if (reset) {
+      _controller.repeat();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
   }
 
   @override

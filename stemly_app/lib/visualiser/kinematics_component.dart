@@ -19,7 +19,7 @@ class KinematicsWidget extends StatefulWidget {
 }
 
 class _KinematicsWidgetState extends State<KinematicsWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
 
   double get _safeTMax => max(0.5, widget.tMax);
@@ -27,7 +27,8 @@ class _KinematicsWidgetState extends State<KinematicsWidget>
   @override
   void initState() {
     super.initState();
-    _initAnimation();
+    _controller = AnimationController(vsync: this);
+    _updateAnimation(reset: true);
   }
 
   @override
@@ -36,18 +37,19 @@ class _KinematicsWidgetState extends State<KinematicsWidget>
     if (oldWidget.u != widget.u ||
         oldWidget.a != widget.a ||
         oldWidget.tMax != widget.tMax) {
-      _controller.stop();
-      _controller.dispose();
-      _initAnimation();
+      _updateAnimation(reset: false);
     }
   }
 
-  void _initAnimation() {
+  void _updateAnimation({bool reset = false}) {
     final durationMs = (_safeTMax * 1000).toInt().clamp(500, 30000);
-    _controller = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: durationMs),
-    )..repeat();
+    _controller.duration = Duration(milliseconds: durationMs);
+
+    if (reset) {
+      _controller.repeat();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
   }
 
   @override

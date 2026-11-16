@@ -17,7 +17,7 @@ class FreeFallWidget extends StatefulWidget {
 }
 
 class _FreeFallWidgetState extends State<FreeFallWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
   late double _totalFallTime;
 
@@ -33,28 +33,29 @@ class _FreeFallWidgetState extends State<FreeFallWidget>
   @override
   void initState() {
     super.initState();
-    _initAnimation();
+    _controller = AnimationController(vsync: this);
+    _updateAnimation(reset: true);
   }
 
   @override
   void didUpdateWidget(FreeFallWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.h != widget.h || oldWidget.g != widget.g) {
-      _controller.stop();
-      _controller.dispose();
-      _initAnimation();
+      _updateAnimation(reset: false);
     }
   }
 
-  void _initAnimation() {
+  void _updateAnimation({bool reset = false}) {
     // t_fall = sqrt(2 * h / g)
     _totalFallTime = sqrt(2.0 * _safeH / _safeG);
     final durationMs = ((_totalFallTime + 1.2) * 1000).toInt().clamp(600, 25000);
 
-    _controller = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: durationMs),
-    )..repeat();
+    _controller.duration = Duration(milliseconds: durationMs);
+    if (reset && !_isPaused) {
+      _controller.repeat();
+    } else if (!_isPaused && !_controller.isAnimating) {
+      _controller.repeat();
+    }
   }
 
   void _togglePause() {

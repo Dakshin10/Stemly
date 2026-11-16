@@ -26,7 +26,7 @@ class DeclarativePhysicsWidget extends StatefulWidget {
 }
 
 class _DeclarativePhysicsWidgetState extends State<DeclarativePhysicsWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
 
   bool _showVectors = true;
@@ -49,24 +49,19 @@ class _DeclarativePhysicsWidgetState extends State<DeclarativePhysicsWidget>
   @override
   void initState() {
     super.initState();
-    _initAnimation();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 4000),
+    );
+    if (!_isPaused) {
+      _controller.repeat();
+    }
+    _updateStats();
   }
 
   @override
   void didUpdateWidget(DeclarativePhysicsWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _controller.stop();
-    _controller.dispose();
-    _initAnimation();
-  }
-
-  void _initAnimation() {
-    // 4-second looping cycle
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 4000),
-    )..repeat();
-
     _updateStats();
   }
 

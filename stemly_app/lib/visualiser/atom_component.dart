@@ -17,7 +17,7 @@ class AtomWidget extends StatefulWidget {
 }
 
 class _AtomWidgetState extends State<AtomWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
 
   int get _safeProtons => widget.protons.toInt().clamp(1, 118);

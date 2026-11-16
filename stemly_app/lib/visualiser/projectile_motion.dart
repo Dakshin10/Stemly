@@ -21,7 +21,7 @@ class ProjectileMotionWidget extends StatefulWidget {
 }
 
 class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
   late double _totalFlightTime;
 
@@ -40,7 +40,8 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
   @override
   void initState() {
     super.initState();
-    _initSimulation();
+    _controller = AnimationController(vsync: this);
+    _updateSimulation(resetController: true);
   }
 
   @override
@@ -49,13 +50,11 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
     if (oldWidget.U != widget.U ||
         oldWidget.theta != widget.theta ||
         oldWidget.g != widget.g) {
-      _controller.stop();
-      _controller.dispose();
-      _initSimulation();
+      _updateSimulation(resetController: false);
     }
   }
 
-  void _initSimulation() {
+  void _updateSimulation({bool resetController = false}) {
     final thetaRad = _safeTheta * pi / 180.0;
     // Total flight time: 2 * U * sin(theta) / g
     final rawFlightTime = (2.0 * _safeU * sin(thetaRad)) / _safeG;
@@ -80,10 +79,23 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
     }
 
     final durationMs = max(500, (_totalFlightTime * 1000 + 800).toInt());
-    _controller = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: durationMs),
-    )..repeat();
+    _controller.duration = Duration(milliseconds: durationMs);
+
+    if (resetController) {
+      if (!_isPaused) {
+        _controller.repeat();
+      }
+    } else {
+      if (!_isPaused && !_controller.isAnimating) {
+        _controller.repeat();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -104,12 +116,6 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
         _controller.repeat();
       }
     });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 
   @override
