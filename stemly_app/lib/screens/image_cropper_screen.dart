@@ -255,37 +255,48 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
                         Container(
                           height: 90,
                           color: const Color(0xFF121212),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _toolbarButton(
-                                icon: Icons.crop_free,
-                                label: "Focus Equation",
-                                onTap: _presetCenterProblem,
-                              ),
-                              _toolbarButton(
-                                icon: Icons.fullscreen,
-                                label: "Full Page",
-                                onTap: _resetToFull,
-                              ),
-                              _toolbarButton(
-                                icon: Icons.skip_next_outlined,
-                                label: "Skip Crop",
-                                onTap: () => Navigator.pop(context, widget.originalImage),
-                              ),
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF2563EB),
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          child: SafeArea(
+                            top: false,
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(minWidth: constraints.maxWidth - 20),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    _toolbarButton(
+                                      icon: Icons.crop_free,
+                                      label: "Focus",
+                                      onTap: _presetCenterProblem,
+                                    ),
+                                    _toolbarButton(
+                                      icon: Icons.fullscreen,
+                                      label: "Full Page",
+                                      onTap: _resetToFull,
+                                    ),
+                                    _toolbarButton(
+                                      icon: Icons.skip_next_outlined,
+                                      label: "Skip",
+                                      onTap: () => Navigator.pop(context, widget.originalImage),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF2563EB),
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      ),
+                                      onPressed: _applyCropAndReturn,
+                                      icon: const Icon(Icons.check_circle_outline, size: 18),
+                                      label: const Text("Scan Selection"),
+                                    ),
+                                  ],
                                 ),
-                                onPressed: _applyCropAndReturn,
-                                icon: const Icon(Icons.check_circle_outline, size: 20),
-                                label: const Text("Scan Selection"),
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ],
@@ -304,12 +315,12 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: Colors.white70, size: 22),
-            const SizedBox(height: 4),
+            Icon(icon, color: Colors.white70, size: 20),
+            const SizedBox(height: 2),
             Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
           ],
         ),
