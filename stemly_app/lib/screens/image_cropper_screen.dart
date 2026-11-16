@@ -5,9 +5,13 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// Interactive Document Cropper and Region-of-Interest selector.
-/// Allows students to crop directly around equations, diagrams, or problem statements
-/// to eliminate background noise and maximize OCR/Vision detection accuracy.
+import '../presentation/components/components.dart';
+import '../strings.dart';
+import '../theme/theme.dart';
+
+/// HIG-compliant Interactive Document Cropper.
+/// Provides a distraction-free dark canvas, 44x44 dp touch targets on corner handles,
+/// image rotation controls, and 52 dp action buttons.
 class ImageCropperScreen extends StatefulWidget {
   final File originalImage;
 
@@ -24,6 +28,7 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
   ui.Image? _decodedImage;
   bool _isLoading = true;
   String? _errorMessage;
+  int _rotationDegrees = 0; // 0, 90, 180, 270
 
   // Normalized crop coordinates [0.0 - 1.0] relative to original image
   Rect _normalizedCrop = const Rect.fromLTWH(0.05, 0.1, 0.9, 0.8);
@@ -55,11 +60,30 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = "Failed to load image: $e";
+          _errorMessage = "Unable to load image: $e";
           _isLoading = false;
         });
       }
     }
+  }
+
+  void _rotateClockwise() {
+    setState(() {
+      _rotationDegrees = (_rotationDegrees + 90) % 360;
+    });
+  }
+
+  void _rotateCounterClockwise() {
+    setState(() {
+      _rotationDegrees = (_rotationDegrees - 90 + 360) % 360;
+    });
+  }
+
+  void _resetCrop() {
+    setState(() {
+      _normalizedCrop = const Rect.fromLTWH(0.05, 0.1, 0.9, 0.8);
+      _rotationDegrees = 0;
+    });
   }
 
   Future<void> _applyCropAndReturn() async {
@@ -74,7 +98,6 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
       final imgW = _decodedImage!.width.toDouble();
       final imgH = _decodedImage!.height.toDouble();
 
-      // Convert normalized rect to actual pixel coordinates
       final left = (_normalizedCrop.left * imgW).clamp(0.0, imgW - 10);
       final top = (_normalizedCrop.top * imgH).clamp(0.0, imgH - 10);
       final right = (_normalizedCrop.right * imgW).clamp(left + 10, imgW);
@@ -86,10 +109,23 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
 
+      // Handle rotation if rotated
+      if (_rotationDegrees != 0) {
+        final rad = _rotationDegrees * pi / 180.0;
+        canvas.translate(cropWidth / 2, cropHeight / 2);
+        canvas.rotate(rad);
+        canvas.translate(-cropWidth / 2, -cropHeight / 2);
+      }
+
       final srcRect = Rect.fromLTWH(left, top, cropWidth, cropHeight);
       final dstRect = Rect.fromLTWH(0, 0, cropWidth, cropHeight);
 
-      canvas.drawImageRect(_decodedImage!, srcRect, dstRect, Paint()..filterQuality = FilterQuality.high);
+      canvas.drawImageRect(
+        _decodedImage!,
+        srcRect,
+        dstRect,
+        Paint()..filterQuality = FilterQuality.high,
+      );
       final picture = recorder.endRecording();
       final croppedUiImage = await picture.toImage(cropWidth.toInt(), cropHeight.toInt());
 
@@ -101,30 +137,19 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
 
       final croppedBytes = byteData.buffer.asUint8List();
       final tempDir = await getTemporaryDirectory();
-      final croppedFile = File('${tempDir.path}/cropped_${DateTime.now().millisecondsSinceEpoch}.png');
+      final croppedFile =
+          File('${tempDir.path}/cropped_${DateTime.now().millisecondsSinceEpoch}.png');
       await croppedFile.writeAsBytes(croppedBytes);
 
       if (mounted) {
         Navigator.pop(context, croppedFile);
       }
     } catch (e) {
-      debugPrint("Crop failed: $e, falling back to original");
+      debugPrint("Crop error: $e");
       if (mounted) {
         Navigator.pop(context, widget.originalImage);
       }
     }
-  }
-
-  void _resetToFull() {
-    setState(() {
-      _normalizedCrop = const Rect.fromLTWH(0.02, 0.02, 0.96, 0.96);
-    });
-  }
-
-  void _presetCenterProblem() {
-    setState(() {
-      _normalizedCrop = const Rect.fromLTWH(0.1, 0.2, 0.8, 0.6);
-    });
   }
 
   @override
@@ -134,38 +159,41 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        title: const Text(
-          "Crop STEM Problem",
-          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+        scrolledUnderElevation: 0,
+        title: Text(
+          AppStrings.cropTitle,
+          style: AppTypography.headline(context).copyWith(color: Colors.white),
         ),
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
+          icon: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
           onPressed: () => Navigator.pop(context, widget.originalImage),
+          tooltip: AppStrings.cancel,
         ),
-        actions: [
-          TextButton.icon(
-            onPressed: _applyCropAndReturn,
-            icon: const Icon(Icons.check, color: Colors.greenAccent),
-            label: const Text(
-              "Analyze",
-              style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.greenAccent))
+          ? Center(
+              child: CircularProgressIndicator(
+                color: AppColors.primary(context),
+                strokeWidth: 3,
+              ),
+            )
           : _errorMessage != null
-              ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.white)))
+              ? Center(
+                  child: Text(
+                    _errorMessage!,
+                    style: AppTypography.body(context).copyWith(color: Colors.white70),
+                  ),
+                )
               : LayoutBuilder(
                   builder: (context, constraints) {
                     final viewW = constraints.maxWidth;
-                    final viewH = constraints.maxHeight - 90; // reserve space for toolbar
+                    // Reserve 160 dp for controls and action buttons
+                    final viewH = max(100.0, constraints.maxHeight - 160);
 
                     final imgW = _decodedImage!.width.toDouble();
                     final imgH = _decodedImage!.height.toDouble();
 
-                    // Calculate fit inside viewport
                     final scaleX = viewW / imgW;
                     final scaleY = viewH / imgH;
                     final scale = min(scaleX, scaleY);
@@ -178,7 +206,6 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
 
                     final imageRect = Rect.fromLTWH(offsetX, offsetY, displayW, displayH);
 
-                    // Convert normalized crop rect to screen coordinates
                     final screenCrop = Rect.fromLTRB(
                       imageRect.left + _normalizedCrop.left * displayW,
                       imageRect.top + _normalizedCrop.top * displayH,
@@ -188,6 +215,7 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
 
                     return Column(
                       children: [
+                        // CROP VIEW CANVAS
                         Expanded(
                           child: GestureDetector(
                             onPanStart: (details) {
@@ -209,20 +237,28 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
 
                                 switch (_activeHandle) {
                                   case _HandleType.topLeft:
-                                    newLeft = (_normalizedCrop.left + deltaX).clamp(0.0, newRight - minSize);
-                                    newTop = (_normalizedCrop.top + deltaY).clamp(0.0, newBottom - minSize);
+                                    newLeft =
+                                        (_normalizedCrop.left + deltaX).clamp(0.0, newRight - minSize);
+                                    newTop =
+                                        (_normalizedCrop.top + deltaY).clamp(0.0, newBottom - minSize);
                                     break;
                                   case _HandleType.topRight:
-                                    newRight = (_normalizedCrop.right + deltaX).clamp(newLeft + minSize, 1.0);
-                                    newTop = (_normalizedCrop.top + deltaY).clamp(0.0, newBottom - minSize);
+                                    newRight =
+                                        (_normalizedCrop.right + deltaX).clamp(newLeft + minSize, 1.0);
+                                    newTop =
+                                        (_normalizedCrop.top + deltaY).clamp(0.0, newBottom - minSize);
                                     break;
                                   case _HandleType.bottomLeft:
-                                    newLeft = (_normalizedCrop.left + deltaX).clamp(0.0, newRight - minSize);
-                                    newBottom = (_normalizedCrop.bottom + deltaY).clamp(newTop + minSize, 1.0);
+                                    newLeft =
+                                        (_normalizedCrop.left + deltaX).clamp(0.0, newRight - minSize);
+                                    newBottom =
+                                        (_normalizedCrop.bottom + deltaY).clamp(newTop + minSize, 1.0);
                                     break;
                                   case _HandleType.bottomRight:
-                                    newRight = (_normalizedCrop.right + deltaX).clamp(newLeft + minSize, 1.0);
-                                    newBottom = (_normalizedCrop.bottom + deltaY).clamp(newTop + minSize, 1.0);
+                                    newRight =
+                                        (_normalizedCrop.right + deltaX).clamp(newLeft + minSize, 1.0);
+                                    newBottom =
+                                        (_normalizedCrop.bottom + deltaY).clamp(newTop + minSize, 1.0);
                                     break;
                                   case _HandleType.body:
                                     final width = _normalizedCrop.width;
@@ -236,7 +272,8 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
                                     break;
                                 }
 
-                                _normalizedCrop = Rect.fromLTRB(newLeft, newTop, newRight, newBottom);
+                                _normalizedCrop =
+                                    Rect.fromLTRB(newLeft, newTop, newRight, newBottom);
                               });
                             },
                             onPanEnd: (_) => _activeHandle = _HandleType.none,
@@ -245,57 +282,68 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
                                 image: _decodedImage!,
                                 imageRect: imageRect,
                                 cropRect: screenCrop,
+                                rotation: _rotationDegrees,
                               ),
                               child: const SizedBox.expand(),
                             ),
                           ),
                         ),
 
-                        // Bottom Toolbar
+                        // TOOLBAR & ACTIONS
                         Container(
-                          height: 90,
-                          color: const Color(0xFF121212),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.screenMargin,
+                            vertical: AppSpacing.sm,
+                          ),
+                          color: const Color(0xFF14171A),
                           child: SafeArea(
                             top: false,
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              physics: const BouncingScrollPhysics(),
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(minWidth: constraints.maxWidth - 20),
-                                child: Row(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // TOOL BUTTONS ROW (Rotate, Reset)
+                                Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                   children: [
-                                    _toolbarButton(
-                                      icon: Icons.crop_free,
-                                      label: "Focus",
-                                      onTap: _presetCenterProblem,
+                                    _buildToolButton(
+                                      icon: Icons.rotate_left_rounded,
+                                      label: AppStrings.rotateLeft,
+                                      onTap: _rotateCounterClockwise,
                                     ),
-                                    _toolbarButton(
-                                      icon: Icons.fullscreen,
-                                      label: "Full Page",
-                                      onTap: _resetToFull,
+                                    _buildToolButton(
+                                      icon: Icons.refresh_rounded,
+                                      label: AppStrings.resetCrop,
+                                      onTap: _resetCrop,
                                     ),
-                                    _toolbarButton(
-                                      icon: Icons.skip_next_outlined,
-                                      label: "Skip",
-                                      onTap: () => Navigator.pop(context, widget.originalImage),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF2563EB),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                      ),
-                                      onPressed: _applyCropAndReturn,
-                                      icon: const Icon(Icons.check_circle_outline, size: 18),
-                                      label: const Text("Scan Selection"),
+                                    _buildToolButton(
+                                      icon: Icons.rotate_right_rounded,
+                                      label: AppStrings.rotateRight,
+                                      onTap: _rotateClockwise,
                                     ),
                                   ],
                                 ),
-                              ),
+                                const SizedBox(height: AppSpacing.md),
+
+                                // ACTION BUTTONS (RETAKE & USE PHOTO)
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: SecondaryButton(
+                                        label: AppStrings.retake,
+                                        onPressed: () => Navigator.pop(context, null),
+                                      ),
+                                    ),
+                                    const SizedBox(width: AppSpacing.sm),
+                                    Expanded(
+                                      child: PrimaryButton(
+                                        label: AppStrings.usePhoto,
+                                        icon: const Icon(Icons.check_rounded, size: 20),
+                                        onPressed: _applyCropAndReturn,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -306,30 +354,42 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
     );
   }
 
-  Widget _toolbarButton({
+  Widget _buildToolButton({
     required IconData icon,
     required String label,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white70, size: 20),
-            const SizedBox(height: 2),
-            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-          ],
+    return Semantics(
+      button: true,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        child: Container(
+          constraints: const BoxConstraints(
+            minWidth: AppSpacing.minTouchTarget,
+            minHeight: AppSpacing.minTouchTarget,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: Colors.white, size: 22),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: AppTypography.caption(context).copyWith(color: Colors.white70),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   _HandleType _hitTestHandle(Offset pos, Rect crop) {
-    const handleRadius = 32.0;
+    // 44 dp touch target radius (at least 22 radius = 44x44 dp)
+    const handleRadius = 28.0;
 
     if ((pos - crop.topLeft).distance <= handleRadius) return _HandleType.topLeft;
     if ((pos - crop.topRight).distance <= handleRadius) return _HandleType.topRight;
@@ -347,27 +407,31 @@ class _CropperPainter extends CustomPainter {
   final ui.Image image;
   final Rect imageRect;
   final Rect cropRect;
+  final int rotation;
 
-  static final Paint _dimPaint = Paint()..color = const Color(0x99000000);
+  static final Paint _dimPaint = Paint()..color = const Color(0xB3000000);
   static final Paint _borderPaint = Paint()
-    ..color = const Color(0xFF60A5FA)
-    ..strokeWidth = 2.0
+    ..color = Colors.white
+    ..strokeWidth = 1.5
     ..style = PaintingStyle.stroke;
   static final Paint _gridPaint = Paint()
-    ..color = const Color(0x44FFFFFF)
+    ..color = const Color(0x33FFFFFF)
     ..strokeWidth = 1.0;
   static final Paint _cornerPaint = Paint()
-    ..color = const Color(0xFF3B82F6)
+    ..color = Colors.white
     ..style = PaintingStyle.fill;
 
   _CropperPainter({
     required this.image,
     required this.imageRect,
     required this.cropRect,
+    required this.rotation,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
+    canvas.save();
+
     // 1. Draw source image
     final src = Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
     canvas.drawImageRect(image, src, imageRect, Paint());
@@ -381,7 +445,7 @@ class _CropperPainter extends CustomPainter {
     // 3. Draw crop border
     canvas.drawRect(cropRect, _borderPaint);
 
-    // 4. Draw Rule of Thirds grid inside cropRect
+    // 4. Draw Rule of Thirds grid
     final thirdW = cropRect.width / 3.0;
     final thirdH = cropRect.height / 3.0;
     for (int i = 1; i <= 2; i++) {
@@ -397,16 +461,20 @@ class _CropperPainter extends CustomPainter {
       );
     }
 
-    // 5. Draw 4 Corner Handles
-    const cornerSize = 14.0;
+    // 5. Draw 4 Corner Handles (Apple style corner brackets / rounded dots)
+    const cornerSize = 12.0;
     canvas.drawCircle(cropRect.topLeft, cornerSize / 2, _cornerPaint);
     canvas.drawCircle(cropRect.topRight, cornerSize / 2, _cornerPaint);
     canvas.drawCircle(cropRect.bottomLeft, cornerSize / 2, _cornerPaint);
     canvas.drawCircle(cropRect.bottomRight, cornerSize / 2, _cornerPaint);
+
+    canvas.restore();
   }
 
   @override
   bool shouldRepaint(covariant _CropperPainter oldDelegate) {
-    return oldDelegate.cropRect != cropRect || oldDelegate.imageRect != imageRect;
+    return oldDelegate.cropRect != cropRect ||
+        oldDelegate.imageRect != imageRect ||
+        oldDelegate.rotation != rotation;
   }
 }

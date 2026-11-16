@@ -86,6 +86,15 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
     )..repeat();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.of(context).disableAnimations && !_isPaused) {
+      _isPaused = true;
+      _controller.stop();
+    }
+  }
+
   void _togglePause() {
     setState(() {
       _isPaused = !_isPaused;
