@@ -1,11 +1,17 @@
-import 'dart:ui';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../presentation/components/components.dart';
 import '../services/firebase_auth_service.dart';
-import '../widgets/google_sign_in_button.dart';
+import '../strings.dart';
+import '../theme/theme.dart';
 
+/// Clean, HIG-compliant Login Screen.
+/// Solid background, clear value proposition, 52 dp action buttons, 44 dp touch targets,
+/// and calm in-line error feedback.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -13,30 +19,10 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _pulse;
+class _LoginScreenState extends State<LoginScreen> {
+  bool _isLoading = false;
+  String? _errorMessage;
   bool _navigated = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 6),
-    )..repeat(reverse: true);
-
-    _pulse = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   void _maybeNavigateToHome(FirebaseAuthService auth) {
     if (!mounted || _navigated || !auth.isAuthenticated) return;
@@ -48,266 +34,278 @@ class _LoginScreenState extends State<LoginScreen>
     });
   }
 
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final authService = context.read<FirebaseAuthService>();
+    try {
+      final credential = await authService.signInWithGoogle();
+      if (credential != null && mounted) {
+        Navigator.pushReplacementNamed(context, '/');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = AppStrings.connectionError;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _handleAppleSignIn() {
+    if (!kIsWeb && Platform.isIOS) {
+      // In production, invoke Sign in with Apple API
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Apple Sign-in is coming soon.")),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Sign in with Apple is available on Apple devices.")),
+      );
+    }
+  }
+
+  void _continueAsGuest() {
+    Navigator.pushReplacementNamed(context, '/');
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<FirebaseAuthService>();
     _maybeNavigateToHome(auth);
 
-    final colorScheme = Theme.of(context).colorScheme;
+    final bg = AppColors.background(context);
+    final textSecondary = AppColors.textSecondary(context);
+    final surface = AppColors.surface(context);
+    final divider = AppColors.divider(context);
 
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                return Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color.lerp(
-                            const Color(0xFF0D47A1),
-                            const Color(0xFF1565C0),
-                            _controller.value)!,
-                        Color.lerp(
-                            const Color(0xFF1A237E),
-                            const Color(0xFF0D47A1),
-                            _controller.value)!,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          _AnimatedGlow(controller: _controller),
-          _BlurOrb(
-            top: 120,
-            left: -40,
-            size: 220,
-            color: Colors.cyanAccent.withValues(alpha: 0.25),
-            controller: _controller,
-            reverse: false,
-          ),
-          _BlurOrb(
-            bottom: 80,
-            right: -30,
-            size: 180,
-            color: Colors.deepPurpleAccent.withValues(alpha: 0.25),
-            controller: _controller,
-            reverse: true,
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 24),
-                  Text(
-                    "Welcome to",
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(color: Colors.white70),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "STEMLY",
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 2,
+      backgroundColor: bg,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // TOP HEADER
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          AppStrings.loginTitle,
+                          style: AppTypography.largeTitle(context),
                         ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Scan diagrams, explore simulations, and generate AI study notes—all synced to your profile.",
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(color: Colors.white70),
-                  ),
-                  const Spacer(),
-                  ScaleTransition(
-                    scale: _pulse,
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white24, width: 1),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        AppStrings.loginSubtitle,
+                        style: AppTypography.body(context).copyWith(color: textSecondary),
+                      ),
+
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // INLINE ERROR BANNER (only shown on failure)
+                      if (_errorMessage != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: AppColors.error(context).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(AppRadii.card),
+                            border: Border.all(color: AppColors.error(context).withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
                             children: [
-                              Icon(Icons.bolt, color: colorScheme.secondary),
-                              const SizedBox(width: 8),
-                              Text(
-                                "Why Sign In?",
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                              Icon(Icons.error_outline_rounded, color: AppColors.error(context)),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: AppTypography.subhead(context).copyWith(
+                                    color: AppColors.error(context),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _handleGoogleSignIn,
+                                child: Text(
+                                  AppStrings.retry,
+                                  style: AppTypography.headline(context).copyWith(
+                                    color: AppColors.primary(context),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          _LoginBenefit(
-                            icon: Icons.cloud_sync,
-                            text: "Sync scan history and AI notes across devices.",
-                          ),
-                          _LoginBenefit(
-                            icon: Icons.security,
-                            text: "Secure, password-free sign-in with Google.",
-                          ),
-                          _LoginBenefit(
-                            icon: Icons.auto_awesome,
-                            text:
-                                "Get personalised visualisations and study sessions.",
-                          ),
-                        ],
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
+
+                      // WHY SIGN IN CARD
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: surface,
+                          borderRadius: BorderRadius.circular(AppRadii.card),
+                          border: Border.all(color: divider),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              AppStrings.whySignInTitle,
+                              style: AppTypography.headline(context),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            _buildBenefitRow(
+                              context,
+                              icon: Icons.devices_rounded,
+                              text: AppStrings.benefitSync,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            _buildBenefitRow(
+                              context,
+                              icon: Icons.lock_outline_rounded,
+                              text: AppStrings.benefitPasswordFree,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            _buildBenefitRow(
+                              context,
+                              icon: Icons.history_rounded,
+                              text: AppStrings.benefitHistory,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+
+                      const Spacer(),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // BOTTOM ACTION STACK (52 dp height, 12 dp spacing)
+                      PrimaryButton(
+                        label: AppStrings.continueWithGoogle,
+                        icon: const Icon(Icons.account_circle_outlined, size: 20),
+                        isLoading: _isLoading,
+                        onPressed: _isLoading ? null : _handleGoogleSignIn,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+
+                      SecondaryButton(
+                        label: AppStrings.continueWithApple,
+                        icon: const Icon(Icons.apple_rounded, size: 20),
+                        onPressed: _isLoading ? null : _handleAppleSignIn,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+
+                      Center(
+                        child: TextButton(
+                          onPressed: _isLoading ? null : _continueAsGuest,
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(double.infinity, AppSpacing.minTouchTarget),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                AppStrings.continueAsGuest,
+                                style: AppTypography.callout(context).copyWith(
+                                  color: AppColors.primary(context),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                AppStrings.guestFootnote,
+                                style: AppTypography.caption(context).copyWith(color: textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+
+                      // LEGAL FOOTNOTE
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              AppStrings.legalPrefix,
+                              style: AppTypography.footnote(context),
+                            ),
+                            InkWell(
+                              onTap: () => Navigator.pushNamed(context, '/terms'),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                child: Text(
+                                  AppStrings.termsOfService,
+                                  style: AppTypography.footnote(context).copyWith(
+                                    color: AppColors.primary(context),
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              AppStrings.legalAnd,
+                              style: AppTypography.footnote(context),
+                            ),
+                            InkWell(
+                              onTap: () => Navigator.pushNamed(context, '/privacy'),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                child: Text(
+                                  AppStrings.privacyPolicy,
+                                  style: AppTypography.footnote(context).copyWith(
+                                    color: AppColors.primary(context),
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
                   ),
-                  const SizedBox(height: 32),
-                  const GoogleSignInButton(),
-                  TextButton(
-                    onPressed: () => auth.warmUpBackend(),
-                    child: const Text(
-                      "Need help connecting? Tap to retry backend sync.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }
-}
 
-class _LoginBenefit extends StatelessWidget {
-  const _LoginBenefit({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: Colors.cyanAccent, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyLarge
-                  ?.copyWith(color: Colors.white),
+  Widget _buildBenefitRow(BuildContext context, {required IconData icon, required String text}) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: AppColors.primary(context)),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            text,
+            style: AppTypography.subhead(context).copyWith(
+              color: AppColors.textPrimary(context),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
-
-class _BlurOrb extends StatelessWidget {
-  const _BlurOrb({
-    this.top,
-    this.left,
-    this.right,
-    this.bottom,
-    required this.size,
-    required this.color,
-    required this.controller,
-    this.reverse = false,
-  });
-
-  final double? top;
-  final double? left;
-  final double? right;
-  final double? bottom;
-  final double size;
-  final Color color;
-  final AnimationController controller;
-  final bool reverse;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, child) {
-        final value = reverse ? 1 - controller.value : controller.value;
-        return Positioned(
-          top: top != null ? top! + 10 * value : null,
-          left: left != null ? left! + 10 * value : null,
-          right: right != null ? right! - 10 * value : null,
-          bottom: bottom != null ? bottom! - 10 * value : null,
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-            ),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-              child: const SizedBox(),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _AnimatedGlow extends StatelessWidget {
-  const _AnimatedGlow({required this.controller});
-
-  final AnimationController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, child) {
-        return Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                colors: [
-                  Colors.white.withValues(alpha: 0.06 * controller.value),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-

@@ -11,6 +11,13 @@ class AppSpacing {
   static const double space24 = 24.0;
   static const double space32 = 32.0;
 
+  // Semantic size aliases
+  static const double xs = space4;
+  static const double sm = space8;
+  static const double md = space16;
+  static const double lg = space24;
+  static const double xl = space32;
+
   /// Standard screen side margin (16 dp)
   static const double screenMargin = 16.0;
 

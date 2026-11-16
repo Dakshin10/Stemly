@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
@@ -19,6 +20,70 @@ class StatusPill extends StatelessWidget {
     required this.color,
     this.backgroundColor,
   });
+
+  factory StatusPill.success({
+    Key? key,
+    required String label,
+    IconData icon = Icons.check_circle_rounded,
+    Color? color,
+    Color? backgroundColor,
+  }) {
+    return StatusPill(
+      key: key,
+      icon: icon,
+      label: label,
+      color: color ?? AppColors.successLight,
+      backgroundColor: backgroundColor,
+    );
+  }
+
+  factory StatusPill.warning({
+    Key? key,
+    required String label,
+    IconData icon = Icons.warning_amber_rounded,
+    Color? color,
+    Color? backgroundColor,
+  }) {
+    return StatusPill(
+      key: key,
+      icon: icon,
+      label: label,
+      color: color ?? AppColors.warningLight,
+      backgroundColor: backgroundColor,
+    );
+  }
+
+  factory StatusPill.error({
+    Key? key,
+    required String label,
+    IconData icon = Icons.error_outline_rounded,
+    Color? color,
+    Color? backgroundColor,
+  }) {
+    return StatusPill(
+      key: key,
+      icon: icon,
+      label: label,
+      color: color ?? AppColors.errorLight,
+      backgroundColor: backgroundColor,
+    );
+  }
+
+  factory StatusPill.info({
+    Key? key,
+    required String label,
+    IconData icon = Icons.info_outline_rounded,
+    Color? color,
+    Color? backgroundColor,
+  }) {
+    return StatusPill(
+      key: key,
+      icon: icon,
+      label: label,
+      color: color ?? AppColors.primaryLight,
+      backgroundColor: backgroundColor,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

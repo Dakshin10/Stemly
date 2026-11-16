@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -9,11 +10,16 @@ import '../core/errors/api_exceptions.dart';
 import '../data/services/stemly_api_service.dart';
 import '../data/storage/offline_storage.dart';
 import '../models/scan_history.dart';
+import '../presentation/components/components.dart';
 import '../storage/history_store.dart';
-import '../widgets/bottom_nav_bar.dart';
+import '../strings.dart';
+import '../theme/theme.dart';
 import 'image_cropper_screen.dart';
 import 'scan_result_screen.dart';
 
+/// HIG-compliant Home Screen for STEMLY.
+/// Content-first: Single hero scan card, gallery quick action, last scan rehydration,
+/// recent scans list with 56 dp thumbnails, and explore topics chips.
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -25,18 +31,33 @@ class _MainScreenState extends State<MainScreen> {
   final ImagePicker _picker = ImagePicker();
 
   bool _isProcessing = false;
-  bool _isLoadingDialogShown = false;
+  int _processingStep = 0; // 0: Reading, 1: Identifying, 2: Preparing notes
+
+  final List<String> _exploreTopics = const [
+    "Projectile motion",
+    "Optics",
+    "Kinematics",
+    "Circuits",
+    "Waves",
+    "Thermodynamics",
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Warm up offline storage
+    OfflineStorage.init().then((_) {
+      if (mounted) setState(() {});
+    });
+  }
 
   // ==========================================================
-  // IMAGE CAPTURE / PICKER (WITH CLIENT PRE-COMPRESSION & CROPPER)
+  // IMAGE CAPTURE / PICKER PIPELINE
   // ==========================================================
   Future<void> _pickImage(ImageSource source) async {
     if (_isProcessing || !mounted) return;
 
     try {
-      setState(() => _isProcessing = true);
-
-      // Hardware-accelerated client-side pre-compression (80% network boost)
       final XFile? photo = await _picker.pickImage(
         source: source,
         maxWidth: 1280,
@@ -44,14 +65,11 @@ class _MainScreenState extends State<MainScreen> {
         imageQuality: 82,
       );
 
-      if (photo == null || !mounted) {
-        setState(() => _isProcessing = false);
-        return;
-      }
+      if (photo == null || !mounted) return;
 
       File finalImage = File(photo.path);
 
-      // Interactive Document Cropper / ROI Selection UI
+      // Launch Document Cropper
       final File? cropped = await Navigator.push<File?>(
         context,
         MaterialPageRoute(
@@ -63,37 +81,32 @@ class _MainScreenState extends State<MainScreen> {
         finalImage = cropped;
       }
 
-      if (!mounted) {
-        setState(() => _isProcessing = false);
-        return;
-      }
+      if (!mounted) return;
 
-      _showLoading();
-
-      // Upload and analyze directly via Groq Vision LLM (single-pass multimodal pipeline)
-      await _uploadScan(finalImage);
+      await _uploadAndProcessScan(finalImage);
     } catch (e) {
       if (mounted) {
-        _hideLoading();
         setState(() => _isProcessing = false);
-        _showError("Failed to process image: $e");
+        _showError("Unable to open image: $e");
       }
     }
   }
 
-  // ==========================================================
-  // UPLOAD AND ANALYSIS PIPELINE
-  // ==========================================================
-  Future<void> _uploadScan(File image) async {
+  Future<void> _uploadAndProcessScan(File image) async {
     final apiService = Provider.of<StemlyApiService>(context, listen: false);
+
+    setState(() {
+      _isProcessing = true;
+      _processingStep = 0;
+    });
 
     try {
       final imageBytes = await image.readAsBytes();
       final filename = image.path.split(Platform.pathSeparator).last;
 
-      debugPrint("Uploading pre-compressed scan: ${imageBytes.lengthInBytes} bytes");
+      if (mounted) setState(() => _processingStep = 1);
 
-      // 1. Upload scan to backend - Groq Vision performs multimodal transcription + analysis
+      // 1. Upload scan
       final scanData = await apiService.uploadScan(
         imageBytes: imageBytes,
         filename: filename,
@@ -104,29 +117,31 @@ class _MainScreenState extends State<MainScreen> {
       final variables = rawVars.map((e) => e.toString()).toList();
       final extractedText = scanData['extracted_text']?.toString() ?? "";
 
-      // Strongly-typed structured variables, target question, and formula
       final rawStructured = scanData['structured_variables'] as List<dynamic>? ?? [];
-      final structuredVariables = rawStructured.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      final structuredVariables =
+          rawStructured.map((e) => Map<String, dynamic>.from(e as Map)).toList();
       final targetQuestion = scanData['target_question']?.toString();
       final latexFormula = scanData['latex_formula']?.toString();
-
       final historyId = scanData['history_id']?.toString();
       final bool isDegraded = scanData['degraded'] == true;
 
-      // 2. Save image locally for offline display
+      // 2. Cache image locally
       String savedLocalPath = image.path;
       try {
         final appDir = await getApplicationDocumentsDirectory();
         final scansDir = Directory('${appDir.path}/scans');
         if (!await scansDir.exists()) await scansDir.create(recursive: true);
-        final localFile = File('${scansDir.path}/scan_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        final localFile =
+            File('${scansDir.path}/scan_${DateTime.now().millisecondsSinceEpoch}.jpg');
         await image.copy(localFile.path);
         savedLocalPath = localFile.path;
       } catch (e) {
         debugPrint("Warning saving local image: $e");
       }
 
-      // 3. Generate structured notes using transcribed text from Vision LLM
+      if (mounted) setState(() => _processingStep = 2);
+
+      // 3. Generate notes
       final notesResponse = await apiService.generateNotes(
         topic: topic,
         variables: variables,
@@ -138,7 +153,7 @@ class _MainScreenState extends State<MainScreen> {
       final notesData = (notesResponse['notes'] as Map<String, dynamic>?) ?? {};
       final bool notesDegraded = notesResponse['degraded'] == true || isDegraded;
 
-      // 4. Save to Offline Storage & History
+      // 4. Save to history
       final historyItem = ScanHistory(
         imagePath: savedLocalPath,
         topic: topic,
@@ -159,7 +174,6 @@ class _MainScreenState extends State<MainScreen> {
       );
 
       if (mounted) {
-        _hideLoading();
         setState(() => _isProcessing = false);
 
         Navigator.push(
@@ -181,61 +195,14 @@ class _MainScreenState extends State<MainScreen> {
       }
     } on ApiException catch (e) {
       if (mounted) {
-        _hideLoading();
         setState(() => _isProcessing = false);
         _showError(e.friendlyMessage);
       }
     } catch (e) {
       if (mounted) {
-        _hideLoading();
         setState(() => _isProcessing = false);
         _showError("Unable to analyze worksheet. Please try again.");
       }
-    }
-  }
-
-  // ==========================================================
-  // LOADING & ERROR MODALS
-  // ==========================================================
-  void _showLoading() {
-    _isLoadingDialogShown = true;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 30),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(strokeWidth: 3),
-                SizedBox(height: 20),
-                Text(
-                  "Analyzing STEM Problem...",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  "Extracting equations and synthesizing simulations",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _hideLoading() {
-    if (!_isLoadingDialogShown || !mounted) return;
-    _isLoadingDialogShown = false;
-    if (Navigator.canPop(context)) {
-      Navigator.of(context, rootNavigator: true).pop();
     }
   }
 
@@ -243,189 +210,426 @@ class _MainScreenState extends State<MainScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red.shade700,
         behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.error(context),
       ),
     );
   }
 
-  // ==========================================================
-  // UI PRESENTATION
-  // ==========================================================
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: theme.cardColor,
-        elevation: 0.4,
-        title: Text(
-          "STEMLY",
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            color: cs.primary,
-            fontSize: 22,
+  void _continueLastScan() {
+    final history = HistoryStore.history;
+    if (history.isNotEmpty) {
+      final last = history.first;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ScanResultScreen(
+            topic: last.topic,
+            variables: last.variables,
+            structuredVariables: last.structuredVariables,
+            targetQuestion: last.targetQuestion,
+            latexFormula: last.latexFormula,
+            notesJson: last.notesJson,
+            imagePath: last.imagePath,
+            historyItem: last,
+            isDegraded: false,
           ),
         ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 22),
-          child: Column(
-            children: [
-              const SizedBox(height: 24),
-              Text(
-                "Scan → Visualize → Learn",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 17,
-                  color: cs.onSurface.withValues(alpha: 0.7),
-                  height: 1.3,
-                ),
-              ),
-              const SizedBox(height: 36),
+      );
+    } else if (OfflineStorage.lastNotes != null) {
+      final cached = OfflineStorage.lastNotes!;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ScanResultScreen(
+            topic: cached["topic"]?.toString() ?? "Saved Notes",
+            variables: List<String>.from(cached["variables"] ?? []),
+            notesJson: Map<String, dynamic>.from(cached["notes"] ?? {}),
+            imagePath: "",
+            isDegraded: true,
+          ),
+        ),
+      );
+    }
+  }
 
-              // Main Scan Card
-              Hero(tag: "scanBtn", child: _scanBox(theme, cs)),
+  String _formatRelativeDate(DateTime timestamp) {
+    final now = DateTime.now();
+    final diff = now.difference(timestamp);
 
-              const SizedBox(height: 28),
+    if (diff.inDays == 0) {
+      return "Today";
+    } else if (diff.inDays == 1) {
+      return "Yesterday";
+    } else if (diff.inDays < 7) {
+      return "${diff.inDays} days ago";
+    } else {
+      return "${timestamp.day}/${timestamp.month}/${timestamp.year}";
+    }
+  }
 
-              // Quick Action Buttons (Gallery upload + Offline cached notes)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Semantics(
-                    button: true,
-                    label: "Choose worksheet image from gallery",
-                    child: OutlinedButton.icon(
-                      onPressed: _isProcessing ? null : () => _pickImage(ImageSource.gallery),
-                      icon: const Icon(Icons.photo_library_outlined, size: 20),
-                      label: const Text("Gallery"),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  @override
+  Widget build(BuildContext context) {
+    final history = HistoryStore.history;
+    final hasHistory = history.isNotEmpty || OfflineStorage.lastNotes != null;
+    final textPrimary = AppColors.textPrimary(context);
+    final textSecondary = AppColors.textSecondary(context);
+
+    return Stack(
+      children: [
+        AppScaffold(
+          title: AppStrings.homeTitle,
+          isLargeTitle: true,
+          currentBottomNavIndex: 0,
+          body: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: AppSpacing.sm),
+
+                // 1. HERO SCAN CARD (THE ONLY FILLED PRIMARY ELEMENT)
+                Semantics(
+                  button: true,
+                  label: "Scan a problem using camera",
+                  hint: AppStrings.cameraPermissionRationale,
+                  child: InkWell(
+                    onTap: _isProcessing ? null : () => _pickImage(ImageSource.camera),
+                    borderRadius: BorderRadius.circular(AppRadii.card),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.xl,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary(context),
+                        borderRadius: BorderRadius.circular(AppRadii.card),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary(context).withValues(alpha: 0.25),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt_rounded,
+                              color: Colors.white,
+                              size: 32,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            AppStrings.scanCardTitle,
+                            style: AppTypography.title2(context).copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            AppStrings.scanCardSubtitle,
+                            style: AppTypography.subhead(context).copyWith(
+                              color: Colors.white.withValues(alpha: 0.85),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  if (OfflineStorage.lastNotes != null) ...[
-                    const SizedBox(width: 14),
-                    Semantics(
-                      button: true,
-                      label: "Open last cached notes offline",
-                      child: FilledButton.tonalIcon(
+                ),
+
+                const SizedBox(height: AppSpacing.md),
+
+                // 2. SECONDARY ACTION ROW (GALLERY + CONTINUE LAST SCAN)
+                Row(
+                  children: [
+                    Expanded(
+                      child: SecondaryButton(
+                        label: AppStrings.chooseFromGallery,
+                        icon: const Icon(Icons.photo_library_outlined, size: 20),
+                        onPressed:
+                            _isProcessing ? null : () => _pickImage(ImageSource.gallery),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: SecondaryButton(
+                        label: AppStrings.continueLastScan,
+                        icon: const Icon(Icons.history_rounded, size: 20),
+                        onPressed: hasHistory ? _continueLastScan : null,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: AppSpacing.lg),
+
+                // 3. EXPLORE TOPICS (HORIZONTAL CHIPS)
+                Text(
+                  AppStrings.exploreTopics,
+                  style: AppTypography.headline(context),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                SizedBox(
+                  height: 38,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: _exploreTopics.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
+                    itemBuilder: (context, index) {
+                      final topic = _exploreTopics[index];
+                      return ActionChip(
+                        label: Text(
+                          topic,
+                          style: AppTypography.footnote(context).copyWith(
+                            color: textPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        backgroundColor: AppColors.surface(context),
+                        side: BorderSide(color: AppColors.divider(context)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadii.chip),
+                        ),
                         onPressed: () {
-                          final cached = OfflineStorage.lastNotes!;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text("Explore $topic: scan a problem to begin."),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: AppSpacing.lg),
+
+                // 4. RECENT SCANS SECTION
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      AppStrings.recentScansSection,
+                      style: AppTypography.headline(context),
+                    ),
+                    if (history.isNotEmpty)
+                      TextButton(
+                        onPressed: () => Navigator.pushNamed(context, '/history'),
+                        child: Text(
+                          AppStrings.seeAll,
+                          style: AppTypography.subhead(context).copyWith(
+                            color: AppColors.primary(context),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xs),
+
+                if (history.isEmpty)
+                  const EmptyState(
+                    icon: Icons.document_scanner_outlined,
+                    title: AppStrings.emptyHomeTitle,
+                    message: AppStrings.emptyHomeMessage,
+                  )
+                else
+                  GroupedSection(
+                    children: history.take(3).map((item) {
+                      final file = File(item.imagePath);
+                      final hasImage = item.imagePath.isNotEmpty && file.existsSync();
+
+                      return GroupedRow(
+                        leading: Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceVariant(context),
+                            borderRadius: BorderRadius.circular(AppRadii.input),
+                            image: hasImage
+                                ? DecorationImage(
+                                    image: FileImage(file),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                          ),
+                          child: !hasImage
+                              ? Icon(
+                                  Icons.science_outlined,
+                                  color: AppColors.primary(context),
+                                  size: 26,
+                                )
+                              : null,
+                        ),
+                        title: item.topic,
+                        subtitle: _formatRelativeDate(item.timestamp),
+                        trailing: Icon(
+                          Icons.chevron_right_rounded,
+                          color: textSecondary,
+                          size: 20,
+                        ),
+                        onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => ScanResultScreen(
-                                topic: cached["topic"]?.toString() ?? "Offline Notes",
-                                variables: List<String>.from(cached["variables"] ?? []),
-                                notesJson: Map<String, dynamic>.from(cached["notes"] ?? {}),
-                                imagePath: "",
-                                isDegraded: true,
+                                topic: item.topic,
+                                variables: item.variables,
+                                structuredVariables: item.structuredVariables,
+                                targetQuestion: item.targetQuestion,
+                                latexFormula: item.latexFormula,
+                                notesJson: item.notesJson,
+                                imagePath: item.imagePath,
+                                historyItem: item,
+                                isDegraded: false,
                               ),
                             ),
                           );
                         },
-                        icon: const Icon(Icons.bookmark_outline, size: 20),
-                        label: const Text("Last Notes"),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 40),
-            ],
+                      );
+                    }).toList(),
+                  ),
+
+                const SizedBox(height: AppSpacing.xl),
+              ],
+            ),
           ),
         ),
-      ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 0),
-    );
-  }
 
-  Widget _scanBox(ThemeData theme, ColorScheme cs) {
-    return Center(
-      child: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.68,
-        child: AspectRatio(
-          aspectRatio: 1,
-          child: AbsorbPointer(
-            absorbing: _isProcessing,
-            child: Semantics(
-              button: true,
-              label: "Scan STEM problem with camera",
-              child: InkWell(
-                onTap: _isProcessing ? null : () => _pickImage(ImageSource.camera),
-                borderRadius: BorderRadius.circular(24),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: cs.primaryContainer,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: cs.shadow.withValues(alpha: 0.12),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
+        // FULL-SCREEN PROCESSING STATE (HIG compliant with step list & cancel)
+        if (_isProcessing)
+          Positioned.fill(
+            child: Material(
+              color: AppColors.background(context).withValues(alpha: 0.95),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.screenMargin),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CircleAvatar(
-                        radius: 46,
-                        backgroundColor: cs.primary,
-                        child: _isProcessing
-                            ? const SizedBox(
-                                width: 38,
-                                height: 38,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 3,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : Icon(
-                                Icons.camera_alt_rounded,
-                                color: cs.onPrimary,
-                                size: 54,
-                              ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        _isProcessing ? "Analyzing..." : "Scan to Learn",
-                        style: TextStyle(
-                          fontSize: 20,
-                          color: cs.primary,
-                          fontWeight: FontWeight.w700,
+                      const Spacer(),
+                      SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          color: AppColors.primary(context),
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: AppSpacing.lg),
                       Text(
-                        "Equations, diagrams, graphs",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurface.withValues(alpha: 0.6),
+                        AppStrings.processingTitle,
+                        style: AppTypography.title2(context).copyWith(
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // Steps
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface(context),
+                          borderRadius: BorderRadius.circular(AppRadii.card),
+                          border: Border.all(color: AppColors.divider(context)),
+                        ),
+                        child: Column(
+                          children: [
+                            _buildProgressStep(
+                              context,
+                              stepIndex: 0,
+                              currentIndex: _processingStep,
+                              label: AppStrings.stepReadingImage,
+                            ),
+                            const Divider(height: AppSpacing.md),
+                            _buildProgressStep(
+                              context,
+                              stepIndex: 1,
+                              currentIndex: _processingStep,
+                              label: AppStrings.stepIdentifyingTopic,
+                            ),
+                            const Divider(height: AppSpacing.md),
+                            _buildProgressStep(
+                              context,
+                              stepIndex: 2,
+                              currentIndex: _processingStep,
+                              label: AppStrings.stepPreparingNotes,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const Spacer(),
+                      SecondaryButton(
+                        label: AppStrings.cancel,
+                        onPressed: () {
+                          setState(() => _isProcessing = false);
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.md),
                     ],
                   ),
                 ),
               ),
             ),
           ),
+      ],
+    );
+  }
+
+  Widget _buildProgressStep(
+    BuildContext context, {
+    required int stepIndex,
+    required int currentIndex,
+    required String label,
+  }) {
+    final isDone = currentIndex > stepIndex;
+    final isCurrent = currentIndex == stepIndex;
+
+    return Row(
+      children: [
+        if (isDone)
+          Icon(Icons.check_circle_rounded, color: AppColors.success(context), size: 22)
+        else if (isCurrent)
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.primary(context),
+            ),
+          )
+        else
+          Icon(
+            Icons.radio_button_unchecked_rounded,
+            color: AppColors.textSecondary(context),
+            size: 22,
+          ),
+        const SizedBox(width: AppSpacing.md),
+        Text(
+          label,
+          style: AppTypography.body(context).copyWith(
+            color: isCurrent
+                ? AppColors.textPrimary(context)
+                : AppColors.textSecondary(context),
+            fontWeight: isCurrent ? FontWeight.w600 : FontWeight.normal,
+          ),
         ),
-      ),
+      ],
     );
   }
 }

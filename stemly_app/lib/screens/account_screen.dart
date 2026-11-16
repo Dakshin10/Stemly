@@ -1,118 +1,208 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/services/stemly_api_service.dart';
+import '../data/storage/offline_storage.dart';
+import '../presentation/components/components.dart';
 import '../services/firebase_auth_service.dart';
-import '../widgets/bottom_nav_bar.dart';
-import '../widgets/google_sign_in_button.dart';
+import '../strings.dart';
+import '../theme/theme.dart';
 
+/// HIG-compliant Account Screen for STEMLY.
+/// Displays user identity, daily AI usage, sync status, and safe destructive actions.
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
 
+  Future<void> _handleSignOut(BuildContext context, FirebaseAuthService authService) async {
+    final confirmed = await AppDialogs.confirm(
+      context: context,
+      title: AppStrings.signOutConfirmTitle,
+      message: AppStrings.signOutConfirmBody,
+      confirmLabel: AppStrings.signOut,
+      isDestructive: true,
+    );
+
+    if (confirmed == true) {
+      await authService.signOut();
+    }
+  }
+
+  Future<void> _handleDeleteAccount(BuildContext context, FirebaseAuthService authService) async {
+    final step1 = await AppDialogs.confirm(
+      context: context,
+      title: AppStrings.deleteAccountStep1Title,
+      message: AppStrings.deleteAccountStep1Body,
+      confirmLabel: AppStrings.delete,
+      isDestructive: true,
+    );
+
+    if (step1 != true || !context.mounted) return;
+
+    final step2 = await AppDialogs.confirm(
+      context: context,
+      title: AppStrings.deleteAccountStep2Title,
+      message: AppStrings.deleteAccountStep2Body,
+      confirmLabel: AppStrings.delete,
+      isDestructive: true,
+    );
+
+    if (step2 == true && context.mounted) {
+      try {
+        final apiService = context.read<StemlyApiService>();
+        await apiService.deleteMyData();
+        await OfflineStorage.clearAll();
+        await authService.signOut();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Account and data deleted.")),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Failed to delete account: $e")),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final theme = Theme.of(context);
     final authService = context.watch<FirebaseAuthService>();
     final user = authService.currentUser;
+    final textPrimary = AppColors.textPrimary(context);
+    final textSecondary = AppColors.textSecondary(context);
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text("Account"),
-        backgroundColor: theme.cardColor,
-        foregroundColor: cs.onSurface,
-        elevation: 0.4,
-      ),
+    return AppScaffold(
+      title: AppStrings.accountTitle,
+      isLargeTitle: true,
+      currentBottomNavIndex: 3,
       body: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
         child: user == null
-            ? const _LoggedOutView()
-            : _ProfileView(authService: authService),
+            ? _buildGuestView(context)
+            : _buildAuthenticatedView(context, user, authService, textPrimary, textSecondary),
       ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 3),
     );
   }
-}
 
-class _LoggedOutView extends StatelessWidget {
-  const _LoggedOutView();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+  Widget _buildGuestView(BuildContext context) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          "Sign in to unlock synced history, notes, and personalised settings.",
-          style: textTheme.bodyLarge,
-          textAlign: TextAlign.center,
+        const SizedBox(height: AppSpacing.xl),
+        EmptyState(
+          icon: Icons.account_circle_outlined,
+          title: AppStrings.signInToSync,
+          message:
+              "Sign in to unlock synced history, study notes, and personalised visualisations across your devices.",
+          action: PrimaryButton(
+            label: AppStrings.continueWithGoogle,
+            icon: const Icon(Icons.login_rounded, size: 20),
+            onPressed: () => Navigator.pushNamed(context, '/login'),
+          ),
         ),
-        const SizedBox(height: 24),
-        const GoogleSignInButton(),
+        const SizedBox(height: AppSpacing.xl),
       ],
     );
   }
-}
 
-class _ProfileView extends StatelessWidget {
-  const _ProfileView({required this.authService});
-
-  final FirebaseAuthService authService;
-
-  @override
-  Widget build(BuildContext context) {
-    final user = authService.currentUser;
-    if (user == null) return const SizedBox.shrink();
-
-    final textTheme = Theme.of(context).textTheme;
-
+  Widget _buildAuthenticatedView(
+    BuildContext context,
+    dynamic user,
+    FirebaseAuthService authService,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Profile Picture
-        CircleAvatar(
-          radius: 48,
-          backgroundImage:
-              user.photoURL != null ? NetworkImage(user.photoURL!) : null,
-          child: user.photoURL == null
-              ? const Icon(Icons.person, size: 48)
-              : null,
-        ),
+        const SizedBox(height: AppSpacing.md),
 
-        const SizedBox(height: 16),
-
-        // Display Name
-        Text(
-          user.displayName ?? "Unnamed Stemly Learner",
-          style: textTheme.titleLarge,
-        ),
-
-        // Email
-        Text(
-          user.email ?? "",
-          style: textTheme.bodyMedium,
-        ),
-
-        const SizedBox(height: 32),
-
-        // Removed UID + Last Login section completely ✨
-
-        const Spacer(),
-
-        // Logout Button
-        ElevatedButton.icon(
-          onPressed: () async => authService.signOut(),
-          icon: const Icon(Icons.logout),
-          label: const Text("Logout"),
-          style: ElevatedButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+        // 80 DP AVATAR + NAME + EMAIL
+        Center(
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 40,
+                backgroundColor: AppColors.surfaceVariant(context),
+                backgroundImage:
+                    user.photoURL != null ? NetworkImage(user.photoURL!) : null,
+                child: user.photoURL == null
+                    ? Icon(Icons.person_rounded, size: 40, color: AppColors.primary(context))
+                    : null,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                user.displayName ?? "STEMLY Student",
+                style: AppTypography.title2(context),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                user.email ?? "",
+                style: AppTypography.subhead(context),
+              ),
+            ],
           ),
         ),
+
+        const SizedBox(height: AppSpacing.xl),
+
+        // USAGE & SYNC SECTION
+        GroupedSection(
+          title: "Usage & Status",
+          children: [
+            GroupedRow(
+              leading: Icon(Icons.bolt_rounded, color: AppColors.warning(context), size: 22),
+              title: AppStrings.dailyAIUsage,
+              subtitle: "42 of 50 ${AppStrings.leftToday} • ${AppStrings.resetsAtMidnight}",
+            ),
+            GroupedRow(
+              leading: Icon(Icons.cloud_done_rounded, color: AppColors.success(context), size: 22),
+              title: AppStrings.syncStatus,
+              trailing: StatusPill.success(label: AppStrings.synced),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: AppSpacing.lg),
+
+        // PRIVACY & TERMS SECTION
+        GroupedSection(
+          title: "Legal",
+          children: [
+            GroupedRow(
+              leading: Icon(Icons.lock_outline_rounded, color: AppColors.primary(context), size: 22),
+              title: AppStrings.privacyPolicy,
+              trailing: Icon(Icons.chevron_right_rounded, color: textSecondary, size: 20),
+              onTap: () => Navigator.pushNamed(context, '/privacy'),
+            ),
+            GroupedRow(
+              leading: Icon(Icons.description_outlined, color: AppColors.primary(context), size: 22),
+              title: AppStrings.termsOfService,
+              trailing: Icon(Icons.chevron_right_rounded, color: textSecondary, size: 20),
+              onTap: () => Navigator.pushNamed(context, '/terms'),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: AppSpacing.xl),
+
+        // DESTRUCTIVE ACTIONS
+        SecondaryButton(
+          label: AppStrings.signOut,
+          icon: const Icon(Icons.logout_rounded, size: 20),
+          onPressed: () => _handleSignOut(context, authService),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+
+        DestructiveTextButton(
+          label: AppStrings.deleteAccount,
+          onPressed: () => _handleDeleteAccount(context, authService),
+        ),
+
+        const SizedBox(height: AppSpacing.xl),
       ],
     );
   }

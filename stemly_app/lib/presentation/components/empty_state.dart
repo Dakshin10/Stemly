@@ -12,6 +12,7 @@ class EmptyState extends StatelessWidget {
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final Widget? action;
 
   const EmptyState({
     super.key,
@@ -20,6 +21,7 @@ class EmptyState extends StatelessWidget {
     required this.message,
     this.actionLabel,
     this.onAction,
+    this.action,
   });
 
   @override
@@ -47,7 +49,7 @@ class EmptyState extends StatelessWidget {
               title,
               style: AppTypography.title2(context),
               textAlign: TextAlign.center,
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: AppSpacing.space8),
@@ -55,10 +57,13 @@ class EmptyState extends StatelessWidget {
               message,
               style: AppTypography.subhead(context),
               textAlign: TextAlign.center,
-              maxLines: 2,
+              maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
-            if (actionLabel != null && onAction != null) ...[
+            if (action != null) ...[
+              const SizedBox(height: AppSpacing.space24),
+              action!,
+            ] else if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: AppSpacing.space24),
               PrimaryButton(
                 label: actionLabel!,
