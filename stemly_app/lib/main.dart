@@ -37,7 +37,11 @@ Future<void> bootstrapApp(AppFlavorConfig flavorConfig) async {
 
     // Initialize Auth service
     final authService = FirebaseAuthService();
-    await authService.initialize();
+    try {
+      await authService.initialize();
+    } catch (e) {
+      debugPrint("Warning during FirebaseAuthService.initialize(): $e");
+    }
 
     // Initialize History persistence & Offline Storage
     await HistoryStore.init();

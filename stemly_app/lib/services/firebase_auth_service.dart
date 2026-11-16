@@ -50,7 +50,11 @@ class FirebaseAuthService extends ChangeNotifier {
     _user = _auth.currentUser;
 
     if (_user != null) {
-      await _cacheAuthState(_user!);
+      try {
+        await _cacheAuthState(_user!);
+      } catch (e) {
+        debugPrint("Warning caching initial auth state: $e");
+      }
     } else {
       _cachedIdToken = await _secureStorage.read(key: _tokenStorageKey);
     }
@@ -58,7 +62,11 @@ class FirebaseAuthService extends ChangeNotifier {
     _authSubscription = _auth.idTokenChanges().listen((user) async {
       _user = user;
       if (user != null) {
-        await _cacheAuthState(user);
+        try {
+          await _cacheAuthState(user);
+        } catch (e) {
+          debugPrint("Warning caching auth state in listener: $e");
+        }
       } else {
         _cachedIdToken = null;
         await _secureStorage.delete(key: _tokenStorageKey);
@@ -205,10 +213,16 @@ class FirebaseAuthService extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   Future<String?> getIdToken({bool forceRefresh = false}) async {
     if (_user != null) {
-      final token = await _user!.getIdToken(forceRefresh);
-      _cachedIdToken = token;
-      await _secureStorage.write(key: _tokenStorageKey, value: token);
-      return token;
+      try {
+        final token = await _user!.getIdToken(forceRefresh);
+        if (token != null) {
+          _cachedIdToken = token;
+          await _secureStorage.write(key: _tokenStorageKey, value: token);
+          return token;
+        }
+      } catch (e) {
+        debugPrint("Warning retrieving fresh ID token: $e");
+      }
     }
 
     _cachedIdToken ??= await _secureStorage.read(key: _tokenStorageKey);
@@ -228,10 +242,17 @@ class FirebaseAuthService extends ChangeNotifier {
   Future<void> _cacheAuthState(User? user) async {
     if (user == null) return;
 
-    final token = await user.getIdToken();
-    _cachedIdToken = token;
+    try {
+      final token = await user.getIdToken();
+      _cachedIdToken = token;
 
-    await _secureStorage.write(key: _tokenStorageKey, value: token);
+      if (token != null) {
+        await _secureStorage.write(key: _tokenStorageKey, value: token);
+      }
+    } catch (e) {
+      debugPrint("Warning fetching ID token during auth cache: $e");
+      _cachedIdToken ??= await _secureStorage.read(key: _tokenStorageKey);
+    }
 
     final payload = {
       "uid": user.uid,
