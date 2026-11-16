@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
+
+import '../presentation/components/components.dart';
+import '../strings.dart';
+import '../theme/theme.dart';
 import 'quiz_result_screen.dart';
 
+/// HIG-compliant Quiz Play Screen for STEMLY.
+/// Minimal chrome, clear question presentation, 56+ dp option tiles with letter badges & radio indicators,
+/// safe exit confirmation, and disabled next button until an option is selected.
 class QuizPlayScreen extends StatefulWidget {
   final Map<String, dynamic> quizData;
 
@@ -11,358 +18,301 @@ class QuizPlayScreen extends StatefulWidget {
 }
 
 class _QuizPlayScreenState extends State<QuizPlayScreen> {
-  int current = 0;
-  Map<int, int> answers = {};
+  int _currentIndex = 0;
+  final Map<int, int> _answers = {};
 
-  // Colors
-  static const Color primaryBlue = Color(0xFF4A6FA5);
-  static const Color successGreen = Color(0xFF2ECC71);
-  static const Color bgLight = Color(0xFFF8F9FA);
+  Future<void> _handleExit() async {
+    final leave = await AppDialogs.confirm(
+      context: context,
+      title: AppStrings.exitQuizTitle,
+      message: AppStrings.exitQuizMessage,
+      confirmLabel: AppStrings.leave,
+      cancelLabel: AppStrings.keepGoing,
+      isDestructive: true,
+    );
+
+    if (leave == true && mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  void _handleNext(int total) {
+    if (_currentIndex < total - 1) {
+      setState(() => _currentIndex++);
+    } else {
+      // Completed quiz
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => QuizResultScreen(
+            quizData: widget.quizData,
+            answers: _answers,
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final questions = widget.quizData["questions"] as List<dynamic>?;
-    
-    // Handle error or empty questions
+    final textPrimary = AppColors.textPrimary(context);
+    final textSecondary = AppColors.textSecondary(context);
+    final surface = AppColors.surface(context);
+    final divider = AppColors.divider(context);
+
     if (questions == null || questions.isEmpty) {
-      final errorMsg = widget.quizData["error"]?.toString() ?? "No questions available";
       return Scaffold(
-        backgroundColor: bgLight,
+        backgroundColor: AppColors.background(context),
         appBar: AppBar(
-          backgroundColor: Colors.red.shade400,
-          title: const Text("Quiz Error", style: TextStyle(color: Colors.white)),
-          iconTheme: const IconThemeData(color: Colors.white),
+          title: Text(AppStrings.error, style: AppTypography.headline(context)),
+          centerTitle: true,
         ),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  errorMsg,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 18, height: 1.5),
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back),
-                  label: const Text("Go Back"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryBlue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.all(AppSpacing.screenMargin),
+            child: EmptyState(
+              icon: Icons.error_outline_rounded,
+              title: "No quiz questions",
+              message: widget.quizData["error"]?.toString() ??
+                  "Quiz questions could not be prepared for this topic.",
+              action: PrimaryButton(
+                label: AppStrings.back,
+                onPressed: () => Navigator.pop(context),
+              ),
             ),
           ),
         ),
       );
     }
 
-    final q = questions[current] as Map<String, dynamic>;
     final total = questions.length;
+    final q = questions[_currentIndex] as Map<String, dynamic>;
     final options = (q["options"] as List<dynamic>?) ?? [];
-    final progress = (current + 1) / total;
-    final topic = widget.quizData["topic"]?.toString() ?? "Quiz";
+    final questionText = q["question"]?.toString() ?? "";
+    final hasSelected = _answers.containsKey(_currentIndex);
+    final isLast = _currentIndex == total - 1;
+    final progress = (_currentIndex + 1) / total;
 
-    return Scaffold(
-      backgroundColor: bgLight,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header with progress
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: primaryBlue,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _handleExit();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background(context),
+        appBar: AppBar(
+          backgroundColor: surface,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.close_rounded, color: textPrimary, size: 24),
+            onPressed: _handleExit,
+            tooltip: AppStrings.close,
+          ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Question ${_currentIndex + 1}",
+                style: AppTypography.headline(context),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant(context),
+                  borderRadius: BorderRadius.circular(AppRadii.chip),
+                ),
+                child: Text(
+                  "${_currentIndex + 1}/$total",
+                  style: AppTypography.caption(context).copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-              child: Column(
-                children: [
-                  // Top row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            ],
+          ),
+          centerTitle: true,
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: divider,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary(context)),
+              minHeight: 3,
+            ),
+          ),
+        ),
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(AppSpacing.screenMargin),
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      IconButton(
-                        onPressed: () => _showExitDialog(),
-                        icon: const Icon(Icons.close, color: Colors.white),
-                      ),
-                      Text(
-                        topic,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      const SizedBox(height: AppSpacing.sm),
+
+                      // QUESTION CARD
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(20),
+                          color: surface,
+                          borderRadius: BorderRadius.circular(AppRadii.card),
+                          border: Border.all(color: divider),
                         ),
                         child: Text(
-                          "${current + 1}/$total",
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          questionText,
+                          style: AppTypography.title2(context).copyWith(
+                            color: textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  // Progress bar
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 8,
-                      backgroundColor: Colors.white.withValues(alpha: 0.3),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
-            // Question & Options
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 10),
-                    // Question Card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: primaryBlue.withValues(alpha: 0.1),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // OPTIONS LIST (>= 56 dp height each)
+                      ...List.generate(options.length, (optIndex) {
+                        final optionText = options[optIndex]?.toString() ?? "";
+                        final isSelected = _answers[_currentIndex] == optIndex;
+                        final letter = String.fromCharCode(65 + optIndex); // A, B, C, D
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: Semantics(
+                            selected: isSelected,
+                            button: true,
+                            label: "$letter: $optionText",
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _answers[_currentIndex] = optIndex;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(AppRadii.card),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                constraints: const BoxConstraints(
+                                  minHeight: AppSpacing.groupedRowMinHeight,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.md,
+                                  vertical: AppSpacing.sm + 4,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: primaryBlue.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  "Question ${current + 1}",
-                                  style: TextStyle(
-                                    color: primaryBlue,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
+                                  color: isSelected
+                                      ? AppColors.primary(context).withValues(alpha: 0.08)
+                                      : surface,
+                                  borderRadius: BorderRadius.circular(AppRadii.card),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.primary(context)
+                                        : divider,
+                                    width: isSelected ? 2.0 : 1.0,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            q["question"]?.toString() ?? "Question not available",
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              height: 1.5,
-                              color: Color(0xFF2D3436),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Options
-                    ...List.generate(
-                      options.length,
-                      (i) {
-                        final isSelected = answers[current] == i;
-                        final optionLetter = String.fromCharCode(65 + i); // A, B, C, D
-                        
-                        return GestureDetector(
-                          onTap: () => setState(() => answers[current] = i),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: isSelected ? primaryBlue : Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isSelected ? primaryBlue : Colors.grey.shade300,
-                                width: 2,
-                              ),
-                              boxShadow: isSelected
-                                  ? [
-                                      BoxShadow(
-                                        color: primaryBlue.withValues(alpha: 0.3),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 4),
+                                child: Row(
+                                  children: [
+                                    // Letter badge
+                                    Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? AppColors.primary(context)
+                                            : AppColors.surfaceVariant(context),
+                                        shape: BoxShape.circle,
                                       ),
-                                    ]
-                                  : [],
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: isSelected ? Colors.white : primaryBlue.withValues(alpha: 0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      optionLetter,
-                                      style: TextStyle(
-                                        color: isSelected ? primaryBlue : primaryBlue,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        letter,
+                                        style: AppTypography.headline(context).copyWith(
+                                          color: isSelected
+                                              ? AppColors.onPrimary(context)
+                                              : textPrimary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Text(
-                                    options[i]?.toString() ?? "",
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w500,
-                                      color: isSelected ? Colors.white : const Color(0xFF2D3436),
+                                    const SizedBox(width: AppSpacing.md),
+
+                                    // Option Text
+                                    Expanded(
+                                      child: Text(
+                                        optionText,
+                                        style: AppTypography.body(context).copyWith(
+                                          color: textPrimary,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+
+                                    const SizedBox(width: AppSpacing.sm),
+
+                                    // Radio Indicator
+                                    Icon(
+                                      isSelected
+                                          ? Icons.radio_button_checked_rounded
+                                          : Icons.radio_button_off_rounded,
+                                      color: isSelected
+                                          ? AppColors.primary(context)
+                                          : textSecondary,
+                                      size: 22,
+                                    ),
+                                  ],
                                 ),
-                                if (isSelected)
-                                  const Icon(Icons.check_circle, color: Colors.white, size: 24),
-                              ],
+                              ),
                             ),
                           ),
                         );
-                      },
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+
+              // BOTTOM ACTION BAR
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.screenMargin),
+                decoration: BoxDecoration(
+                  color: surface,
+                  border: Border(top: BorderSide(color: divider)),
+                ),
+                child: Row(
+                  children: [
+                    if (_currentIndex > 0) ...[
+                      Expanded(
+                        child: SecondaryButton(
+                          label: AppStrings.back,
+                          icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                          onPressed: () => setState(() => _currentIndex--),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                    ],
+                    Expanded(
+                      flex: 2,
+                      child: PrimaryButton(
+                        label: isLast ? "Finish Quiz" : AppStrings.nextQuestion,
+                        icon: isLast
+                            ? const Icon(Icons.check_rounded, size: 20)
+                            : const Icon(Icons.arrow_forward_rounded, size: 20),
+                        onPressed: hasSelected ? () => _handleNext(total) : null,
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-
-            // Bottom Navigation
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  if (current > 0)
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => setState(() => current--),
-                        icon: const Icon(Icons.arrow_back),
-                        label: const Text("Previous"),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: primaryBlue,
-                          side: BorderSide(color: primaryBlue),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                    ),
-                  if (current > 0) const SizedBox(width: 12),
-                  Expanded(
-                    flex: current > 0 ? 1 : 2,
-                    child: ElevatedButton.icon(
-                      onPressed: answers[current] != null ? _handleNext : null,
-                      icon: Icon(current == total - 1 ? Icons.check : Icons.arrow_forward),
-                      label: Text(current == total - 1 ? "Finish Quiz" : "Next"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: current == total - 1 ? successGreen : primaryBlue,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.grey.shade300,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _handleNext() {
-    final questions = widget.quizData["questions"] as List<dynamic>;
-    if (current == questions.length - 1) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => QuizResultScreen(quizData: widget.quizData, answers: answers),
-        ),
-      );
-    } else {
-      setState(() => current++);
-    }
-  }
-
-  void _showExitDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Exit Quiz?"),
-        content: const Text("Your progress will be lost. Are you sure you want to exit?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel"),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text("Exit", style: TextStyle(color: Colors.white)),
-          ),
-        ],
+        ),
       ),
     );
   }

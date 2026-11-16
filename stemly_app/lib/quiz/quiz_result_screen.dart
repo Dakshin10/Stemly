@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../presentation/components/components.dart';
+import '../strings.dart';
+import '../theme/theme.dart';
+import 'quiz_play_screen.dart';
+
+/// HIG-compliant Quiz Result Screen for STEMLY.
+/// Displays a clean circular score ring, score rating StatusPill,
+/// structured answer review without emoji, key takeaway callouts,
+/// and primary/secondary actions.
 class QuizResultScreen extends StatelessWidget {
   final Map<String, dynamic> quizData;
   final Map<int, int> answers;
@@ -12,16 +21,26 @@ class QuizResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    // Null safety
     final questions = quizData["questions"] as List<dynamic>?;
-    
+    final textPrimary = AppColors.textPrimary(context);
+    final textSecondary = AppColors.textSecondary(context);
+    final surface = AppColors.surface(context);
+    final divider = AppColors.divider(context);
+
     if (questions == null || questions.isEmpty) {
       return Scaffold(
+        backgroundColor: AppColors.background(context),
         appBar: AppBar(title: const Text("Quiz Results")),
-        body: const Center(
-          child: Text("No results to display"),
+        body: Center(
+          child: EmptyState(
+            icon: Icons.quiz_outlined,
+            title: "No results to display",
+            message: "Quiz answer details are unavailable.",
+            action: PrimaryButton(
+              label: AppStrings.back,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
         ),
       );
     }
@@ -36,307 +55,330 @@ class QuizResultScreen extends StatelessWidget {
       }
     }
 
-    final percentage = (score / questions.length * 100).round();
-    final Color scoreColor = percentage >= 80 
-        ? Colors.green 
-        : percentage >= 50 
-            ? Colors.orange 
-            : Colors.red;
+    final total = questions.length;
+    final percentage = ((score / total) * 100).round();
+
+    // Determine performance tier & status pill
+    final StatusPill statusPill;
+    if (percentage >= 80) {
+      statusPill = StatusPill.success(label: AppStrings.mastery);
+    } else if (percentage >= 50) {
+      statusPill = StatusPill.warning(label: AppStrings.proficient);
+    } else {
+      statusPill = StatusPill.error(label: AppStrings.needsReview);
+    }
 
     return Scaffold(
+      backgroundColor: AppColors.background(context),
       appBar: AppBar(
-        title: const Text("Quiz Results"),
+        title: Text("Quiz Results", style: AppTypography.headline(context)),
+        centerTitle: true,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: surface,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Score Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [scoreColor.withValues(alpha: 0.8), scoreColor],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: scoreColor.withValues(alpha: 0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
+                physics: const BouncingScrollPhysics(),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      "$score / ${questions.length}",
-                      style: const TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "$percentage% Score",
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _getScoreMessage(percentage),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                    const SizedBox(height: AppSpacing.md),
 
-              const SizedBox(height: 30),
-
-              // Detailed breakdown
-              const Text(
-                "📝 Answer Review",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              ...List.generate(
-                questions.length,
-                (i) {
-                  final q = questions[i] as Map<String, dynamic>?;
-                  if (q == null) return const SizedBox.shrink();
-                  
-                  final questionText = q["question"]?.toString() ?? "Question unavailable";
-                  final options = (q["options"] as List<dynamic>?) ?? [];
-                  final correct = (q["correct_index"] as int?) ?? 0;
-                  final selected = answers[i];
-                  final explanation = q["explanation"]?.toString() ?? "No explanation provided.";
-                  final takeaway = q["takeaway"]?.toString() ?? "";
-                  final isCorrect = selected == correct;
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 18),
-                    decoration: BoxDecoration(
-                      color: isDark ? cs.surfaceContainerHighest : Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isCorrect ? Colors.green.withValues(alpha: 0.3) : Colors.red.withValues(alpha: 0.3),
-                        width: 2,
+                    // SCORE RING & SUMMARY CARD
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.lg,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 10,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Question Header
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: isCorrect 
-                                ? Colors.green.withValues(alpha: 0.1) 
-                                : Colors.red.withValues(alpha: 0.1),
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                isCorrect ? Icons.check_circle : Icons.cancel,
-                                color: isCorrect ? Colors.green : Colors.red,
-                                size: 24,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  "Q${i + 1}. $questionText",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: cs.onSurface,
+                      decoration: BoxDecoration(
+                        color: surface,
+                        borderRadius: BorderRadius.circular(AppRadii.card),
+                        border: Border.all(color: divider),
+                      ),
+                      child: Column(
+                        children: [
+                          // Circular score ring
+                          SizedBox(
+                            width: 100,
+                            height: 100,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                CircularProgressIndicator(
+                                  value: percentage / 100.0,
+                                  strokeWidth: 8,
+                                  backgroundColor: divider,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    percentage >= 80
+                                        ? AppColors.success(context)
+                                        : percentage >= 50
+                                            ? AppColors.warning(context)
+                                            : AppColors.error(context),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        
-                        // Answer Details
-                        Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Your Answer
-                              Row(
-                                children: [
-                                  Text(
-                                    "Your Answer: ",
-                                    style: TextStyle(
-                                      color: isDark ? cs.onSurfaceVariant : Colors.grey.shade600,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      selected != null && selected < options.length
-                                          ? options[selected]?.toString() ?? "N/A"
-                                          : "Not answered",
-                                      style: TextStyle(
-                                        color: isCorrect ? Colors.green : Colors.red,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              
-                              // Correct Answer
-                              Row(
-                                children: [
-                                  Text(
-                                    "Correct Answer: ",
-                                    style: TextStyle(
-                                      color: isDark ? cs.onSurfaceVariant : Colors.grey.shade600,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      correct < options.length 
-                                          ? options[correct]?.toString() ?? "N/A"
-                                          : "N/A",
-                                      style: const TextStyle(
-                                        color: Colors.green,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: 14),
-                              const Divider(height: 1),
-                              const SizedBox(height: 14),
-
-                              // Explanation
-                              const Text(
-                                "💡 Explanation",
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.blueGrey,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                explanation,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: cs.onSurface,
-                                  height: 1.5,
-                                ),
-                              ),
-                              
-                              // Takeaway (if available)
-                              if (takeaway.isNotEmpty) ...[
-                                const SizedBox(height: 12),
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.withValues(alpha: 0.08),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Text("🎯 ", style: TextStyle(fontSize: 14)),
-                                      Expanded(
-                                        child: Text(
-                                          takeaway,
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.blueGrey,
-                                          ),
+                                      Text(
+                                        "$score / $total",
+                                        style: AppTypography.headline(context).copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: textPrimary,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
                               ],
-                            ],
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+
+                          Text(
+                            "$percentage% Score",
+                            style: AppTypography.title2(context).copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+
+                          statusPill,
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // SECTION HEADER: ANSWER REVIEW
+                    Text(
+                      AppStrings.answerReview,
+                      style: AppTypography.headline(context),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // REVIEW QUESTIONS LIST
+                    ...List.generate(total, (i) {
+                      final q = questions[i] as Map<String, dynamic>?;
+                      if (q == null) return const SizedBox.shrink();
+
+                      final questionText = q["question"]?.toString() ?? "";
+                      final options = (q["options"] as List<dynamic>?) ?? [];
+                      final correctIndex = (q["correct_index"] as int?) ?? 0;
+                      final userIndex = answers[i];
+                      final isCorrect = userIndex == correctIndex;
+                      final explanation = q["explanation"]?.toString();
+                      final takeaway = q["takeaway"]?.toString();
+
+                      final userAnswerText = userIndex != null && userIndex < options.length
+                          ? options[userIndex]?.toString() ?? ""
+                          : "Not answered";
+                      final correctAnswerText = correctIndex < options.length
+                          ? options[correctIndex]?.toString() ?? ""
+                          : "";
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: surface,
+                          borderRadius: BorderRadius.circular(AppRadii.card),
+                          border: Border.all(
+                            color: isCorrect
+                                ? AppColors.success(context).withValues(alpha: 0.3)
+                                : AppColors.error(context).withValues(alpha: 0.3),
                           ),
                         ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Done Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  onPressed: () {
-                    // Return the score and total to the previous screen
-                    Navigator.pop(context, {
-                      "score": score,
-                      "total": questions.length,
-                      "percentage": percentage,
-                      "timestamp": DateTime.now().toIso8601String(),
-                      "quizData": quizData,
-                      "answers": answers,
-                    });
-                  },
-                  child: const Text(
-                    "Done",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Status row
+                            Row(
+                              children: [
+                                Icon(
+                                  isCorrect
+                                      ? Icons.check_circle_rounded
+                                      : Icons.cancel_rounded,
+                                  color: isCorrect
+                                      ? AppColors.success(context)
+                                      : AppColors.error(context),
+                                  size: 20,
+                                ),
+                                const SizedBox(width: AppSpacing.xs),
+                                Text(
+                                  isCorrect ? AppStrings.correct : AppStrings.incorrect,
+                                  style: AppTypography.subhead(context).copyWith(
+                                    color: isCorrect
+                                        ? AppColors.success(context)
+                                        : AppColors.error(context),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  "${AppStrings.question} ${i + 1}",
+                                  style: AppTypography.footnote(context),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+
+                            // Question prompt
+                            Text(
+                              "Q${i + 1}. $questionText",
+                              style: AppTypography.headline(context),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+
+                            // Your answer
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "${AppStrings.yourAnswer}: ",
+                                  style: AppTypography.subhead(context).copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: isCorrect
+                                        ? AppColors.success(context)
+                                        : AppColors.error(context),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    userAnswerText,
+                                    style: AppTypography.subhead(context).copyWith(
+                                      color: textPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            // Correct answer (if user was wrong)
+                            if (!isCorrect) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "${AppStrings.correctAnswer}: ",
+                                    style: AppTypography.subhead(context).copyWith(
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.success(context),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      correctAnswerText,
+                                      style: AppTypography.subhead(context).copyWith(
+                                        color: textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+
+                            // Explanation
+                            if (explanation != null && explanation.isNotEmpty) ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              Text(
+                                explanation,
+                                style: AppTypography.footnote(context).copyWith(
+                                  color: textSecondary,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+
+                            // Key Takeaway callout
+                            if (takeaway != null && takeaway.isNotEmpty) ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              Container(
+                                padding: const EdgeInsets.all(AppSpacing.sm),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary(context).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(AppRadii.input),
+                                  border: Border.all(
+                                    color: AppColors.primary(context).withValues(alpha: 0.2),
+                                  ),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      Icons.lightbulb_outline_rounded,
+                                      size: 18,
+                                      color: AppColors.primary(context),
+                                    ),
+                                    const SizedBox(width: AppSpacing.xs),
+                                    Expanded(
+                                      child: Text(
+                                        "${AppStrings.keyTakeaway}: $takeaway",
+                                        style: AppTypography.footnote(context).copyWith(
+                                          color: textPrimary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }),
+
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
                 ),
               ),
-              const SizedBox(height: 30),
-            ],
-          ),
+            ),
+
+            // BOTTOM ACTIONS (RETAKE & BACK TO NOTES)
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.screenMargin),
+              decoration: BoxDecoration(
+                color: surface,
+                border: Border(top: BorderSide(color: divider)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SecondaryButton(
+                      label: AppStrings.backToNotes,
+                      icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: PrimaryButton(
+                      label: AppStrings.retakeQuiz,
+                      icon: const Icon(Icons.refresh_rounded, size: 20),
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => QuizPlayScreen(quizData: quizData),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
-  }
-  
-  String _getScoreMessage(int percentage) {
-    if (percentage >= 90) return "🏆 Excellent! You've mastered this topic!";
-    if (percentage >= 70) return "👏 Great job! Keep practicing!";
-    if (percentage >= 50) return "💪 Good effort! Review the explanations.";
-    return "📚 Keep learning! Focus on the concepts below.";
   }
 }
