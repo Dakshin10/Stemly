@@ -22,21 +22,32 @@ if not MONGO_URI:
     logger.info("MONGO_URI not configured in .env - database persistence disabled")
 else:
     try:
+        is_atlas_or_tls = (
+            "mongodb+srv://" in MONGO_URI
+            or "ssl=true" in MONGO_URI.lower()
+            or "tls=true" in MONGO_URI.lower()
+        )
         if MONGO_ALLOW_INVALID_CERTS:
             logger.warning("MongoDB running with invalid TLS certs allowed (development only).")
         max_pool = int(os.getenv("MONGO_MAX_POOL_SIZE", "25"))
         min_pool = int(os.getenv("MONGO_MIN_POOL_SIZE", "5"))
+
+        client_kwargs: dict[str, Any] = {
+            "maxPoolSize": max_pool,
+            "minPoolSize": min_pool,
+            "maxIdleTimeMS": 45000,
+            "connectTimeoutMS": 10000,
+            "socketTimeoutMS": 20000,
+            "retryWrites": True,
+        }
+        if is_atlas_or_tls:
+            client_kwargs["tlsCAFile"] = certifi.where()
+            client_kwargs["server_api"] = ServerApi("1")
+            client_kwargs["tlsAllowInvalidCertificates"] = MONGO_ALLOW_INVALID_CERTS
+
         client = AsyncIOMotorClient(
             MONGO_URI,
-            tlsCAFile=certifi.where(),
-            server_api=ServerApi("1"),
-            maxPoolSize=max_pool,
-            minPoolSize=min_pool,
-            maxIdleTimeMS=45000,
-            connectTimeoutMS=10000,
-            socketTimeoutMS=20000,
-            retryWrites=True,
-            tlsAllowInvalidCertificates=MONGO_ALLOW_INVALID_CERTS,
+            **client_kwargs,
         )
         db = client["stemly_db"]
     except Exception as e:
