@@ -149,7 +149,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           visualiserWidget = VisualiserFactory.create(
             template,
             onSimulationUpdate: (stats) {
-              setState(() => _simulationStats = stats);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _simulationStats = stats);
+              });
             },
           );
           loadingVisualiser = false;
@@ -222,7 +224,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       visualiserWidget = VisualiserFactory.create(
         visualiserTemplate!,
         onSimulationUpdate: (stats) {
-          setState(() => _simulationStats = stats);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _simulationStats = stats);
+          });
         },
       );
     });
@@ -395,24 +399,21 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 0. EQUATION & PROBLEM TARGET CARD
-          _buildEquationAndVariablesCard(deepBlue),
-
-          // 1. VISUALISER CARD
+          // 1. TOP HERO: INTERACTIVE VISUALISER CANVAS
           Container(
-            height: 340,
+            height: 350,
             width: double.infinity,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: deepBlue.withValues(alpha: 0.08),
-                  blurRadius: 20,
+                  color: deepBlue.withValues(alpha: 0.10),
+                  blurRadius: 22,
                   offset: const Offset(0, 8),
                 ),
               ],
@@ -421,40 +422,27 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               borderRadius: BorderRadius.circular(24),
               child: Stack(
                 children: [
-                  // The Interactive Widget
+                  // The Interactive Simulation Widget
                   Positioned.fill(child: visualiserWidget!),
-                  
-                  // Overlay Gradient for better visibility of controls (optional)
-                  // Positioned(
-                  //   top: 0, left: 0, right: 0, height: 60,
-                  //   child: Container(
-                  //     decoration: BoxDecoration(
-                  //       gradient: LinearGradient(
-                  //         colors: [Colors.black12, Colors.transparent],
-                  //         begin: Alignment.topCenter,
-                  //         end: Alignment.bottomCenter
-                  //       )
-                  //     ),
-                  //   ),
-                  // ),
                 ],
               ),
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
-          // 2. CONTROLS & STATUS CARD
+          // 2. LIVE CONTROLS & STATUS CARD
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: deepBlue.withValues(alpha: 0.08)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 16,
+                  blurRadius: 14,
                   offset: const Offset(0, 4),
                 ),
               ],
@@ -477,7 +465,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                     Text(
                       "Simulation Parameters",
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 17,
                         fontWeight: FontWeight.bold,
                         color: deepBlue,
                       ),
@@ -485,20 +473,20 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                   ],
                 ),
                 
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-                // Live Stats (Chips)
+                // Live Stats / Telemetry Chips
                 if (_simulationStats.isNotEmpty) ...[
                    Wrap(
-                    spacing: 12,
-                    runSpacing: 10,
+                    spacing: 10,
+                    runSpacing: 8,
                     children: _simulationStats.entries.map((e) {
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
                           color: Colors.orange.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
+                          border: Border.all(color: Colors.orange.withValues(alpha: 0.25)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,51 +494,80 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                           children: [
                             Text(e.key, style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
                             const SizedBox(height: 2),
-                            Text(e.value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                            Text(e.value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
                           ],
                         ),
                       );
                     }).toList(),
                   ),
-                  const SizedBox(height: 24),
-                  Divider(height: 1, color: Colors.grey.withValues(alpha: 0.1)),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+                  Divider(height: 1, color: Colors.grey.withValues(alpha: 0.12)),
+                  const SizedBox(height: 14),
                 ],
 
-                // Parameters List
+                // Interactive Sliders List
                 if (visualiserTemplate != null && visualiserTemplate!.parameters.isNotEmpty)
                   ...visualiserTemplate!.parameters.entries.map((e) {
-                      final v = e.value.value;
-                      // Determine if we can show a slider (if range is known)
-                      // For now, simpler robust list
+                      final param = e.value;
+                      final double val = param.value;
+                      final double minVal = param.min;
+                      final double maxVal = param.max > param.min ? param.max : (val > 0 ? val * 2 : 100.0);
+                      final String label = param.label.isNotEmpty ? param.label : e.key;
+
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              e.key, 
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: deepBlue.withValues(alpha: 0.8),
-                              ),
-                            ),
-                            const Spacer(),
-                            Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: deepBlue.withValues(alpha: 0.06),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  v.toStringAsFixed(2),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  label, 
                                   style: TextStyle(
-                                    fontFamily: 'monospace',
-                                    fontWeight: FontWeight.bold,
-                                    color: deepBlue,
-                                    fontSize: 15
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: deepBlue.withValues(alpha: 0.85),
                                   ),
                                 ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: deepBlue.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    "${val.toStringAsFixed(1)} ${param.unit}".trim(),
+                                    style: TextStyle(
+                                      fontFamily: 'monospace',
+                                      fontWeight: FontWeight.bold,
+                                      color: deepBlue,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: deepBlue,
+                                inactiveTrackColor: deepBlue.withValues(alpha: 0.15),
+                                thumbColor: deepBlue,
+                                overlayColor: deepBlue.withValues(alpha: 0.12),
+                                trackHeight: 4,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                              ),
+                              child: Slider(
+                                value: val.clamp(minVal, maxVal),
+                                min: minVal,
+                                max: maxVal,
+                                onChanged: (newVal) {
+                                  setState(() {
+                                    param.value = newVal;
+                                    _updateWidgetFromTemplate();
+                                  });
+                                },
+                              ),
                             ),
                           ],
                         ),
@@ -565,12 +582,71 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             ),
           ),
 
-          // 3. AI CHAT SECTION (Managed in separate method/widget potentially, but kept inline or below)
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+
+          // 3. COLLAPSIBLE PROBLEM OBJECTIVE & FORMULAS CARD
+          _buildCollapsibleProblemCard(deepBlue),
+
+          const SizedBox(height: 16),
+
+          // 4. AI CHAT ASSISTANT
           _buildAiAssistantCard(deepBlue),
           
-          // Bottom spacer for scrolling
           const SizedBox(height: 80), 
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCollapsibleProblemCard(Color deepBlue) {
+    final target = widget.targetQuestion ?? widget.historyItem?.targetQuestion;
+    final formula = widget.latexFormula ?? widget.historyItem?.latexFormula;
+    final structured = widget.structuredVariables.isNotEmpty
+        ? widget.structuredVariables
+        : (widget.historyItem?.structuredVariables ?? []);
+
+    if (target == null && formula == null && structured.isEmpty && widget.variables.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      elevation: 0,
+      color: Theme.of(context).cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: Colors.grey.shade200, width: 1),
+      ),
+      child: ExpansionTile(
+        initiallyExpanded: false,
+        shape: const Border(),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.amber.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+          ),
+          child: const Text("🎯", style: TextStyle(fontSize: 16)),
+        ),
+        title: Text(
+          "Problem Target & Formulas",
+          style: TextStyle(
+            color: deepBlue,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        subtitle: target != null && target.isNotEmpty
+            ? Text(
+                target,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              )
+            : null,
+        children: [
+          _buildEquationAndVariablesCard(deepBlue),
         ],
       ),
     );

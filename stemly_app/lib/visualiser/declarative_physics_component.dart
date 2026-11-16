@@ -73,58 +73,62 @@ class _DeclarativePhysicsWidgetState extends State<DeclarativePhysicsWidget>
   void _updateStats() {
     if (widget.onSimulationUpdate == null) return;
 
-    final g = _getParam("g", 9.81);
-    switch (sceneType) {
-      case MechanicsSceneType.inclinedPlane:
-        final thetaRad = _getParam("theta", 30.0) * pi / 180.0;
-        final mu = _getParam("mu", 0.15);
-        final a = max(0.0, g * (sin(thetaRad) - mu * cos(thetaRad)));
-        widget.onSimulationUpdate!({
-          "Acceleration": "${a.toStringAsFixed(2)} m/s²",
-          "Normal Force": "${(cos(thetaRad) * _getParam("m", 5.0) * g).toStringAsFixed(1)} N",
-          "Friction": "${(mu * cos(thetaRad) * _getParam("m", 5.0) * g).toStringAsFixed(1)} N",
-        });
-        break;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
 
-      case MechanicsSceneType.pulley:
-        final m1 = _getParam("m1", 6.0);
-        final m2 = _getParam("m2", 4.0);
-        final a = ((m1 - m2).abs() / (m1 + m2)) * g;
-        final T = (2 * m1 * m2 / (m1 + m2)) * g;
-        widget.onSimulationUpdate!({
-          "Acceleration": "${a.toStringAsFixed(2)} m/s²",
-          "String Tension": "${T.toStringAsFixed(1)} N",
-          "Mass Difference": "${(m1 - m2).abs().toStringAsFixed(1)} kg",
-        });
-        break;
+      final g = _getParam("g", 9.81);
+      switch (sceneType) {
+        case MechanicsSceneType.inclinedPlane:
+          final thetaRad = _getParam("theta", 30.0) * pi / 180.0;
+          final mu = _getParam("mu", 0.15);
+          final a = max(0.0, g * (sin(thetaRad) - mu * cos(thetaRad)));
+          widget.onSimulationUpdate!({
+            "Acceleration": "${a.toStringAsFixed(2)} m/s²",
+            "Normal Force": "${(cos(thetaRad) * _getParam("m", 5.0) * g).toStringAsFixed(1)} N",
+            "Friction": "${(mu * cos(thetaRad) * _getParam("m", 5.0) * g).toStringAsFixed(1)} N",
+          });
+          break;
 
-      case MechanicsSceneType.collision:
-        final m1 = _getParam("m1", 3.0);
-        final m2 = _getParam("m2", 2.0);
-        final u1 = _getParam("u1", 10.0);
-        final u2 = _getParam("u2", -5.0);
-        final pTotal = m1 * u1 + m2 * u2;
-        widget.onSimulationUpdate!({
-          "Total Momentum": "${pTotal.toStringAsFixed(1)} kg·m/s",
-          "Restitution (e)": _getParam("e", 1.0).toStringAsFixed(2),
-        });
-        break;
+        case MechanicsSceneType.pulley:
+          final m1 = _getParam("m1", 6.0);
+          final m2 = _getParam("m2", 4.0);
+          final a = ((m1 - m2).abs() / (m1 + m2)) * g;
+          final T = (2 * m1 * m2 / (m1 + m2)) * g;
+          widget.onSimulationUpdate!({
+            "Acceleration": "${a.toStringAsFixed(2)} m/s²",
+            "String Tension": "${T.toStringAsFixed(1)} N",
+            "Mass Difference": "${(m1 - m2).abs().toStringAsFixed(1)} kg",
+          });
+          break;
 
-      case MechanicsSceneType.forceBlock:
-        final F = _getParam("F", 25.0);
-        final thetaRad = _getParam("theta", 20.0) * pi / 180.0;
-        final m = _getParam("m", 5.0);
-        final mu = _getParam("mu", 0.2);
-        final normal = max(0.0, m * g - F * sin(thetaRad));
-        final fK = mu * normal;
-        final a = max(0.0, (F * cos(thetaRad) - fK) / m);
-        widget.onSimulationUpdate!({
-          "Acceleration": "${a.toStringAsFixed(2)} m/s²",
-          "Normal Force": "${normal.toStringAsFixed(1)} N",
-          "Friction": "${fK.toStringAsFixed(1)} N",
-        });
-        break;
-    }
+        case MechanicsSceneType.collision:
+          final m1 = _getParam("m1", 3.0);
+          final m2 = _getParam("m2", 2.0);
+          final u1 = _getParam("u1", 10.0);
+          final u2 = _getParam("u2", -5.0);
+          final pTotal = m1 * u1 + m2 * u2;
+          widget.onSimulationUpdate!({
+            "Total Momentum": "${pTotal.toStringAsFixed(1)} kg·m/s",
+            "Restitution (e)": _getParam("e", 1.0).toStringAsFixed(2),
+          });
+          break;
+
+        case MechanicsSceneType.forceBlock:
+          final F = _getParam("F", 25.0);
+          final thetaRad = _getParam("theta", 20.0) * pi / 180.0;
+          final m = _getParam("m", 5.0);
+          final mu = _getParam("mu", 0.2);
+          final normal = max(0.0, m * g - F * sin(thetaRad));
+          final fK = mu * normal;
+          final a = max(0.0, (F * cos(thetaRad) - fK) / m);
+          widget.onSimulationUpdate!({
+            "Acceleration": "${a.toStringAsFixed(2)} m/s²",
+            "Normal Force": "${normal.toStringAsFixed(1)} N",
+            "Friction": "${fK.toStringAsFixed(1)} N",
+          });
+          break;
+      }
+    });
   }
 
   void _togglePause() {

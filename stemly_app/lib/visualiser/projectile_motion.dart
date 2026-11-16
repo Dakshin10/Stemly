@@ -68,10 +68,14 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
     final maxHeight = (_safeU * _safeU * sin(thetaRad) * sin(thetaRad)) / (2.0 * _safeG);
 
     if (widget.onSimulationUpdate != null) {
-      widget.onSimulationUpdate!({
-        "Range": "${range.toStringAsFixed(1)} m",
-        "Max Height": "${maxHeight.toStringAsFixed(1)} m",
-        "Flight Time": "${_totalFlightTime.toStringAsFixed(1)} s",
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          widget.onSimulationUpdate!({
+            "Range": "${range.toStringAsFixed(1)} m",
+            "Max Height": "${maxHeight.toStringAsFixed(1)} m",
+            "Flight Time": "${_totalFlightTime.toStringAsFixed(1)} s",
+          });
+        }
       });
     }
 
