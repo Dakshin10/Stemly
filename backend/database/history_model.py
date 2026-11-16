@@ -23,9 +23,9 @@ async def get_scan_by_content_hash(user_id: str, content_hash: str) -> Optional[
     if not user_id or not content_hash:
         return None
 
-    # 1. Check in-memory tier
+    # 1. Check in-memory tier (ignore degraded/unclassified scans)
     mem_hit = _MEMORY_SCAN_HASH_CACHE.get((user_id, content_hash))
-    if mem_hit:
+    if mem_hit and mem_hit.get("topic") and mem_hit.get("topic") != "General Science":
         return mem_hit
 
     # 2. Check MongoDB collection
@@ -37,7 +37,7 @@ async def get_scan_by_content_hash(user_id: str, content_hash: str) -> Optional[
                     "content_hash": content_hash,
                 }
             )
-            if doc:
+            if doc and doc.get("topic") and doc.get("topic") != "General Science":
                 doc["_id"] = str(doc["_id"])
                 _MEMORY_SCAN_HASH_CACHE[(user_id, content_hash)] = doc
                 return doc

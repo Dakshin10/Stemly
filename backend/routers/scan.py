@@ -61,9 +61,9 @@ async def upload_scan(
     # 1. Validate file (magic bytes, 5MB limit, 4096px bounds, decompression bomb, strip EXIF, compute hash)
     saved_path, clean_bytes, content_hash = await save_scan_image(file)
 
-    # 2. Deduplication check: Has this user already scanned an identical image?
+    # 2. Deduplication check: Has this user already scanned an identical image with a valid topic?
     existing_scan = await get_scan_by_content_hash(user_id=user_id, content_hash=content_hash)
-    if existing_scan:
+    if existing_scan and existing_scan.get("topic") and existing_scan.get("topic") != "General Science":
         return ScanUploadResponse(
             status="success",
             topic=existing_scan["topic"],

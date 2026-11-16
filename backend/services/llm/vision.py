@@ -15,9 +15,9 @@ from PIL import Image
 from pydantic import BaseModel, Field, model_validator
 
 from config import settings
-from prompts.vision_prompts import VISION_TOPIC_DETECTION_PROMPT_V1
+from prompts.vision_prompts import OCR_TOPIC_DETECTION_PROMPT_V1, VISION_TOPIC_DETECTION_PROMPT_V1
 
-from .client import get_vision_client
+from .client import get_text_client, get_vision_client
 from .engine import call_groq_structured
 from .fallback import detect_topic_from_keywords
 
@@ -192,61 +192,87 @@ def prepare_image_data_url(image_bytes: bytes) -> str:
 
 async def analyze_image(image_bytes: bytes, ocr_text: str = "") -> TopicAnalysis:
     """
-    Analyze scanned STEM image using Groq Vision model.
-    Falls back gracefully to local regex engine if Groq fails or keys are unavailable.
+    Analyze scanned STEM image using multi-tier strategy:
+    1. If ocr_text is empty, extract text locally from image via native OCR (winocr/pytesseract).
+    2. Attempt Groq Vision (if model is supported/online).
+    3. If vision is unavailable or decommissioned, attempt Groq Text model using the extracted OCR text.
+    4. Attempt Gemini Flash Vision fallback.
+    5. Fall back to local regex keyword heuristic.
     """
-    client = get_vision_client()
+    # Step 0: Ensure OCR text is populated via local OCR if client provided none
+    if not ocr_text or not ocr_text.strip():
+        try:
+            from services.ocr import extract_text_from_image_bytes
 
-    # If vision key is not set or empty, jump straight to local fallback
-    if not settings.GROQ_VISION_API_KEY:
-        logger.warning("GROQ_VISION_API_KEY missing. Using local keyword fallback.")
-        fallback_topic, fallback_vars = detect_topic_from_keywords(ocr_text)
-        struct_vars, target_q, latex = get_fallback_structured_data(fallback_topic)
-        return TopicAnalysis(
-            topic=fallback_topic,
-            variables=fallback_vars,
-            structured_variables=struct_vars,
-            target_question=target_q,
-            latex_formula=latex,
-            confidence=0.4,
-            degraded=True,
-        )
+            extracted = await extract_text_from_image_bytes(image_bytes)
+            if extracted and extracted.strip():
+                ocr_text = extracted.strip()
+                logger.info("Auto-extracted OCR text (%d chars) for image scan.", len(ocr_text))
+        except Exception as ocr_err:
+            logger.warning("Local OCR auto-extraction failed: %s", ocr_err)
 
-    try:
-        data_url = prepare_image_data_url(image_bytes)
-
-        user_content = [
-            {"type": "text", "text": VISION_TOPIC_DETECTION_PROMPT_V1},
-            {"type": "image_url", "image_url": {"url": data_url}},
-        ]
-
-        if ocr_text and ocr_text.strip():
-            user_content.append(
-                {
-                    "type": "text",
-                    "text": f"Supplementary OCR text detected from scan:\n<untrusted_ocr_text>\n{ocr_text[:800]}\n</untrusted_ocr_text>",
-                }
+    # Step 1: Groq Vision (primary if model is active and keys configured)
+    if settings.GROQ_VISION_API_KEY:
+        try:
+            data_url = prepare_image_data_url(image_bytes)
+            user_content = [
+                {"type": "text", "text": VISION_TOPIC_DETECTION_PROMPT_V1},
+                {"type": "image_url", "image_url": {"url": data_url}},
+            ]
+            if ocr_text and ocr_text.strip():
+                user_content.append(
+                    {
+                        "type": "text",
+                        "text": f"Supplementary OCR text detected from scan:\n<untrusted_ocr_text>\n{ocr_text[:800]}\n</untrusted_ocr_text>",
+                    }
+                )
+            messages = [{"role": "user", "content": user_content}]
+            vision_client = get_vision_client()
+            result = await call_groq_structured(
+                client=vision_client,
+                model=settings.GROQ_VISION_MODEL,
+                messages=messages,
+                schema=TopicAnalysis,
+                temperature=0.1,
+                max_tokens=1000,
             )
+            if result:
+                result.degraded = False
+                if not result.extracted_text and ocr_text:
+                    result.extracted_text = ocr_text
+                return result
+        except Exception as exc:
+            logger.warning("Groq vision analysis failed: %s. Attempting Groq Text LLM + OCR fallback...", exc)
 
-        messages = [{"role": "user", "content": user_content}]
+    # Step 2: Groq Text Model with OCR text (fast, highly accurate on text diagrams & problems)
+    if settings.GROQ_TEXT_API_KEY and ocr_text and ocr_text.strip():
+        try:
+            text_client = get_text_client()
+            text_messages = [
+                {"role": "system", "content": OCR_TOPIC_DETECTION_PROMPT_V1},
+                {
+                    "role": "user",
+                    "content": f"Analyze this OCR text extracted from a STEM problem or textbook image:\n\n<ocr_text>\n{ocr_text[:3000]}\n</ocr_text>",
+                },
+            ]
+            result = await call_groq_structured(
+                client=text_client,
+                model=settings.GROQ_TEXT_MODEL,
+                messages=text_messages,
+                schema=TopicAnalysis,
+                temperature=0.1,
+                max_tokens=1000,
+            )
+            if result and result.topic:
+                result.degraded = False
+                if not result.extracted_text:
+                    result.extracted_text = ocr_text
+                logger.info("Successfully classified STEM topic via Groq Text LLM + OCR: topic=%s", result.topic)
+                return result
+        except Exception as exc:
+            logger.warning("Groq Text LLM analysis from OCR failed: %s. Attempting Gemini Flash failover...", exc)
 
-        result = await call_groq_structured(
-            client=client,
-            model=settings.GROQ_VISION_MODEL,
-            messages=messages,
-            schema=TopicAnalysis,
-            temperature=0.1,
-            max_tokens=1000,
-        )
-
-        if result:
-            result.degraded = False
-            return result
-
-    except Exception as exc:
-        logger.warning("Groq vision analysis failed: %s. Attempting Gemini Flash failover...", exc)
-
-    # Secondary Cloud Fallback: Google Gemini Flash
+    # Step 3: Google Gemini Flash Vision Fallback
     try:
         from .gemini_fallback import call_gemini_vision
 
@@ -267,14 +293,14 @@ async def analyze_image(image_bytes: bytes, ocr_text: str = "") -> TopicAnalysis
                 structured_variables=parsed_struct_vars,
                 target_question=gemini_data.get("target_question"),
                 latex_formula=gemini_data.get("latex_formula"),
-                extracted_text=gemini_data.get("extracted_text", ""),
+                extracted_text=gemini_data.get("extracted_text", ocr_text),
                 confidence=float(gemini_data.get("confidence", 0.85)),
                 degraded=False,
             )
     except Exception as gemini_exc:
         logger.warning("Gemini Flash fallback also failed: %s. Reverting to local heuristic fallback.", gemini_exc)
 
-    # Tertiary Fallback: Local Regex Keyword Engine
+    # Step 4: Local Regex Keyword Engine
     fallback_topic, fallback_vars = detect_topic_from_keywords(ocr_text)
     struct_vars, target_q, latex = get_fallback_structured_data(fallback_topic)
     return TopicAnalysis(
@@ -283,6 +309,7 @@ async def analyze_image(image_bytes: bytes, ocr_text: str = "") -> TopicAnalysis
         structured_variables=struct_vars,
         target_question=target_q,
         latex_formula=latex,
+        extracted_text=ocr_text,
         confidence=0.4,
         degraded=True,
     )

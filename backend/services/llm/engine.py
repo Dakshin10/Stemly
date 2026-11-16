@@ -121,6 +121,17 @@ async def execute_groq_request_with_backoff(
                 groq_circuit_breaker.record_failure()
                 return None, None, latency_ms
 
+            # Client errors (400, 401, 404, etc.): do not retry, fail fast
+            if 400 <= response.status_code < 500:
+                err_text = response.text[:200]
+                logger.error(
+                    "Groq client error (status=%d, latency=%.1fms): %s",
+                    response.status_code,
+                    latency_ms,
+                    err_text,
+                )
+                return None, None, latency_ms
+
             response.raise_for_status()
             groq_circuit_breaker.record_success()
             data = response.json()
