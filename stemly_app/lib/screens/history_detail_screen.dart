@@ -118,7 +118,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    final deepBlue = cs.primary;
+    final accentColor = cs.primary;
     final primaryColor = cs.primaryContainer;
     final background = theme.scaffoldBackgroundColor;
     final cardColor = theme.cardColor;
@@ -133,12 +133,12 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         appBar: AppBar(
           backgroundColor: primaryColor,
           elevation: 0,
-          iconTheme: IconThemeData(color: deepBlue),
+          iconTheme: IconThemeData(color: accentColor),
 
           title: Text(
             "Scan Details",
             style: TextStyle(
-              color: deepBlue,
+              color: accentColor,
               fontWeight: FontWeight.w600,
               fontSize: 20,
             ),
@@ -164,18 +164,18 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
               child: Container(
                 decoration: BoxDecoration(
-                  color: deepBlue.withValues(alpha: 0.12),
+                  color: accentColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: TabBar(
                   dividerColor: Colors.transparent,
                   indicator: BoxDecoration(
-                    color: deepBlue,
+                    color: accentColor,
                     borderRadius: BorderRadius.circular(30),
                   ),
                   indicatorSize: TabBarIndicatorSize.tab,
                   labelColor: cs.onPrimary,
-                  unselectedLabelColor: deepBlue,
+                  unselectedLabelColor: accentColor,
                   labelStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
@@ -194,9 +194,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         // ---------------- BODY ----------------
         body: TabBarView(
           children: [
-            _visualiserTab(h, deepBlue),
-            _quizTab(deepBlue),
-            _notesTab(h, cardColor, deepBlue),
+            _visualiserTab(h, accentColor),
+            _quizTab(accentColor),
+            _notesTab(h, cardColor, accentColor),
           ],
         ),
       ),
@@ -204,16 +204,16 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 
   // ---------------- VISUAL TAB ----------------
-  Widget _visualiserTab(ScanHistory h, Color deepBlue) {
+  Widget _visualiserTab(ScanHistory h, Color accentColor) {
     if (loading) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: deepBlue),
+            CircularProgressIndicator(color: accentColor),
             const SizedBox(height: 16),
             Text("Loading Visualisation...", 
-              style: TextStyle(color: deepBlue, fontWeight: FontWeight.w600, fontSize: 16)),
+              style: TextStyle(color: accentColor, fontWeight: FontWeight.w600, fontSize: 16)),
           ],
         ),
       );
@@ -239,7 +239,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: deepBlue.withValues(alpha: 0.08),
+                  color: accentColor.withValues(alpha: 0.08),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -281,7 +281,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: deepBlue,
+              color: accentColor,
             ),
           ),
           const SizedBox(height: 16),
@@ -332,13 +332,13 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                 _detailRow("Topic", h.topic, deepBlue, Icons.topic_rounded),
+                 _detailRow("Topic", h.topic, accentColor, Icons.topic_rounded),
                  const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1)),
-                 _detailRow("Variables", h.variables.join(", "), deepBlue, Icons.functions_rounded),
+                 _detailRow("Variables", h.variables.join(", "), accentColor, Icons.functions_rounded),
                  const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1)),
                  _detailRow("Date", 
                     "${h.timestamp.day}/${h.timestamp.month}/${h.timestamp.year}  ${h.timestamp.hour}:${h.timestamp.minute.toString().padLeft(2, '0')}", 
-                    deepBlue, Icons.calendar_today_rounded),
+                    accentColor, Icons.calendar_today_rounded),
               ],
             ),
           ),
@@ -370,7 +370,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 
   // ---------------- NOTES TAB ----------------
-  Widget _notesTab(ScanHistory h, Color cardColor, Color deepBlue) {
+  Widget _notesTab(ScanHistory h, Color cardColor, Color accentColor) {
     if (h.notesJson.containsKey("error")) {
       return ErrorStateView(
         title: "Notes Error",
@@ -402,8 +402,8 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               title: _formatKey(key),
               expanded: expanded[key]!,
               onTap: () => setState(() => expanded[key] = !expanded[key]!),
-              child: _contentBuilder(entry.value, deepBlue),
-              deepBlue: deepBlue,
+              child: _contentBuilder(entry.value, accentColor),
+              accentColor: accentColor,
               cardColor: cardColor,
             );
           }),
@@ -418,7 +418,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     required VoidCallback onTap,
     required Widget child,
     required Color cardColor,
-    required Color deepBlue,
+    required Color accentColor,
   }) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 240),
@@ -447,14 +447,14 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                   Text(title,
                       style: TextStyle(
                           fontSize: 18,
-                          color: deepBlue,
+                          color: accentColor,
                           fontWeight: FontWeight.w700)),
                   Icon(
                     expanded
                         ? Icons.keyboard_arrow_up
                         : Icons.keyboard_arrow_down,
                     size: 28,
-                    color: deepBlue,
+                    color: accentColor,
                   ),
                 ],
               ),
@@ -474,9 +474,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 
   // ---------------- HELPERS ----------------
-  Widget _contentBuilder(dynamic value, Color deepBlue) {
+  Widget _contentBuilder(dynamic value, Color accentColor) {
     if (value is String) {
-      return Text(value, style: TextStyle(color: deepBlue, fontSize: 15));
+      return Text(value, style: TextStyle(color: accentColor, fontSize: 15));
     }
     if (value is List) {
       return Column(
@@ -485,7 +485,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
             .map((e) => Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Text("• $e",
-                      style: TextStyle(color: deepBlue, fontSize: 15)),
+                      style: TextStyle(color: accentColor, fontSize: 15)),
                 ))
             .toList(),
       );
@@ -497,7 +497,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
             .map((e) => Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Text("${e.key}: ${e.value}",
-                      style: TextStyle(color: deepBlue, fontSize: 15)),
+                      style: TextStyle(color: accentColor, fontSize: 15)),
                 ))
             .toList(),
       );
@@ -515,7 +515,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   // ==========================================================
   // QUIZ TAB
   // ==========================================================
-  Widget _quizTab(Color deepBlue) {
+  Widget _quizTab(Color accentColor) {
     double count = 5;
 
     return StatefulBuilder(
@@ -529,11 +529,11 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: deepBlue,
+                  color: accentColor,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: deepBlue.withValues(alpha: 0.3),
+                      color: accentColor.withValues(alpha: 0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -588,10 +588,10 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: deepBlue.withValues(alpha: 0.1),
+                            color: accentColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(Icons.tune, color: deepBlue, size: 24),
+                          child: Icon(Icons.tune, color: accentColor, size: 24),
                         ),
                         const SizedBox(width: 14),
                         const Text(
@@ -616,7 +616,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
-                            color: deepBlue,
+                            color: accentColor,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -633,10 +633,10 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                     const SizedBox(height: 12),
                     SliderTheme(
                       data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: deepBlue,
-                        inactiveTrackColor: deepBlue.withValues(alpha: 0.2),
-                        thumbColor: deepBlue,
-                        overlayColor: deepBlue.withValues(alpha: 0.2),
+                        activeTrackColor: accentColor,
+                        inactiveTrackColor: accentColor.withValues(alpha: 0.2),
+                        thumbColor: accentColor,
+                        overlayColor: accentColor.withValues(alpha: 0.2),
                         trackHeight: 6,
                         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
                       ),
@@ -677,13 +677,13 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: deepBlue,
+                    backgroundColor: accentColor,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                     elevation: 4,
-                    shadowColor: deepBlue.withValues(alpha: 0.4),
+                    shadowColor: accentColor.withValues(alpha: 0.4),
                   ),
                 ),
               ),
@@ -794,7 +794,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                              child: Column(
                                crossAxisAlignment: CrossAxisAlignment.start,
                                children: [
-                                 Text("Score: $score / $total", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: deepBlue)),
+                                 Text("Score: $score / $total", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: accentColor)),
                                  const SizedBox(height: 4),
                                  Text(
                                    "${date.day}/${date.month}/${date.year} • ${date.hour}:${date.minute.toString().padLeft(2, '0')}",

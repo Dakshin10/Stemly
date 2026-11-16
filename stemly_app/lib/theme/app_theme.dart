@@ -4,22 +4,23 @@ import 'app_colors.dart';
 import 'app_radii.dart';
 
 /// Full ThemeData definitions for Light and Dark modes conforming to Apple HIG & Material 3.
+/// Neutrals are 80-85% of visible surfaces; Orange is the interactive accent (15-20% rule).
 class AppTheme {
   AppTheme._();
 
   // ---------------------------------------------------------------------------
-  // LIGHT THEME
+  // LIGHT THEME (White / Surface #F5F5F7 / Orange Accent)
   // ---------------------------------------------------------------------------
   static ThemeData get lightTheme {
     final colorScheme = const ColorScheme.light(
-      primary: AppColors.primaryLight,
-      onPrimary: AppColors.onPrimaryLight,
+      primary: AppColors.orangeFillLight,
+      onPrimary: AppColors.onOrange,
       surface: AppColors.surfaceLight,
       onSurface: AppColors.textPrimaryLight,
       surfaceContainerHighest: AppColors.surfaceVariantLight,
       onSurfaceVariant: AppColors.textSecondaryLight,
       error: AppColors.errorLight,
-      onError: AppColors.onPrimaryLight,
+      onError: Colors.white,
       outline: AppColors.dividerLight,
     );
 
@@ -33,7 +34,7 @@ class AppTheme {
 
       // App Bar Theme
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.surfaceLight,
+        backgroundColor: Colors.transparent,
         foregroundColor: AppColors.textPrimaryLight,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -66,7 +67,7 @@ class AppTheme {
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: AppColors.surfaceLight,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: AppRadii.modalRadius),
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.sheetRadius),
       ),
 
       // Input Decoration Theme
@@ -84,17 +85,17 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppRadii.inputRadius,
-          borderSide: const BorderSide(color: AppColors.primaryLight, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.orangeFillLight, width: 1.5),
         ),
         hintStyle: const TextStyle(color: AppColors.textSecondaryLight),
       ),
 
-      // Slider Theme
+      // Slider Theme (Orange active track & thumb)
       sliderTheme: const SliderThemeData(
-        activeTrackColor: AppColors.primaryLight,
+        activeTrackColor: AppColors.orangeFillLight,
         inactiveTrackColor: AppColors.surfaceVariantLight,
-        thumbColor: AppColors.primaryLight,
-        overlayColor: Color(0x1F36618E),
+        thumbColor: AppColors.orangeFillLight,
+        overlayColor: Color(0x26FF6B00), // 15% orange overlay
         trackHeight: 4,
         thumbShape: RoundSliderThumbShape(enabledThumbRadius: 10),
       ),
@@ -109,18 +110,18 @@ class AppTheme {
   }
 
   // ---------------------------------------------------------------------------
-  // DARK THEME
+  // DARK THEME (Black #000000 / Surface #1C1C1E / Orange #FF8A3D)
   // ---------------------------------------------------------------------------
   static ThemeData get darkTheme {
     final colorScheme = const ColorScheme.dark(
-      primary: AppColors.primaryDark,
-      onPrimary: AppColors.onPrimaryDark,
+      primary: AppColors.orangeFillDark,
+      onPrimary: AppColors.onOrange,
       surface: AppColors.surfaceDark,
       onSurface: AppColors.textPrimaryDark,
       surfaceContainerHighest: AppColors.surfaceVariantDark,
       onSurfaceVariant: AppColors.textSecondaryDark,
       error: AppColors.errorDark,
-      onError: AppColors.onPrimaryDark,
+      onError: Colors.black,
       outline: AppColors.dividerDark,
     );
 
@@ -134,7 +135,7 @@ class AppTheme {
 
       // App Bar Theme
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.surfaceDark,
+        backgroundColor: Colors.transparent,
         foregroundColor: AppColors.textPrimaryDark,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -167,7 +168,7 @@ class AppTheme {
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: AppColors.surfaceDark,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: AppRadii.modalRadius),
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.sheetRadius),
       ),
 
       // Input Decoration Theme
@@ -185,17 +186,17 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppRadii.inputRadius,
-          borderSide: const BorderSide(color: AppColors.primaryDark, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.orangeFillDark, width: 1.5),
         ),
         hintStyle: const TextStyle(color: AppColors.textSecondaryDark),
       ),
 
-      // Slider Theme
+      // Slider Theme (Orange active track & thumb)
       sliderTheme: const SliderThemeData(
-        activeTrackColor: AppColors.primaryDark,
+        activeTrackColor: AppColors.orangeFillDark,
         inactiveTrackColor: AppColors.surfaceVariantDark,
-        thumbColor: AppColors.primaryDark,
-        overlayColor: Color(0x339CC2F0),
+        thumbColor: AppColors.orangeFillDark,
+        overlayColor: Color(0x33FF8A3D),
         trackHeight: 4,
         thumbShape: RoundSliderThumbShape(enabledThumbRadius: 10),
       ),

@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_colors.dart';
-import '../../theme/app_radii.dart';
-import '../../theme/app_spacing.dart';
-import '../../theme/app_typography.dart';
+import '../../theme/theme.dart';
 
-/// Primary action button (52 dp tall, brand primary fill, WCAG AA contrast).
-class PrimaryButton extends StatelessWidget {
+/// Apple Gloss Orange Primary Button.
+///
+/// Follows the Apple HIG Liquid Glass & Gloss specification:
+/// - Subtle vertical gradient (top +8% lightness to base orange fill)
+/// - 1 dp inner top highlight (White 35%)
+/// - Soft orange shadow (Orange 25%, blur 20, offset 0, 6)
+/// - Always BLACK text/icon on orange (7:1 contrast)
+/// - 52 dp tall, 16 dp superellipse or capsule
+/// - Pressed: scale 0.97, shadow shrinks, 120 ms spring, light impact haptic
+/// - Disabled: neutral surface2 with textSecondary, no gloss
+class PrimaryButton extends StatefulWidget {
   final String label;
   final VoidCallback? onPressed;
   final Widget? icon;
   final bool isLoading;
   final double? width;
+  final bool isCapsule;
 
   const PrimaryButton({
     super.key,
@@ -20,53 +27,60 @@ class PrimaryButton extends StatelessWidget {
     this.icon,
     this.isLoading = false,
     this.width,
+    this.isCapsule = false,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final primaryColor = AppColors.primary(context);
-    final onPrimaryColor = AppColors.onPrimary(context);
+  State<PrimaryButton> createState() => _PrimaryButtonState();
+}
 
-    return Semantics(
-      button: true,
-      enabled: onPressed != null && !isLoading,
-      label: label,
-      child: SizedBox(
-        width: width ?? double.infinity,
+class _PrimaryButtonState extends State<PrimaryButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isEnabled = widget.onPressed != null && !widget.isLoading;
+    final isDark = AppColors.isDark(context);
+    final isReducedMotion = AppMotion.isReducedMotion(context);
+
+    final BorderRadius radius = widget.isCapsule
+        ? BorderRadius.circular(100)
+        : AppRadii.buttonRadius;
+
+    // Disabled styling (neutral surface2, no gloss)
+    if (!isEnabled) {
+      return SizedBox(
+        width: widget.width ?? double.infinity,
         height: AppSpacing.buttonHeight,
-        child: FilledButton(
-          onPressed: isLoading ? null : onPressed,
-          style: FilledButton.styleFrom(
-            backgroundColor: primaryColor,
-            foregroundColor: onPrimaryColor,
-            disabledBackgroundColor: primaryColor.withValues(alpha: 0.38),
-            disabledForegroundColor: onPrimaryColor.withValues(alpha: 0.38),
-            shape: RoundedRectangleBorder(borderRadius: AppRadii.buttonRadius),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space16),
-            elevation: 0,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceVariant(context),
+            borderRadius: radius,
           ),
-          child: isLoading
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space16),
+          child: widget.isLoading
               ? SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(onPrimaryColor),
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.textSecondary(context)),
                   ),
                 )
               : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (icon != null) ...[
-                      icon!,
+                    if (widget.icon != null) ...[
+                      widget.icon!,
                       const SizedBox(width: AppSpacing.space8),
                     ],
                     Flexible(
                       child: Text(
-                        label,
+                        widget.label,
                         style: AppTypography.headline(context).copyWith(
-                          color: onPrimaryColor,
+                          color: AppColors.textSecondary(context),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -75,12 +89,110 @@ class PrimaryButton extends StatelessWidget {
                   ],
                 ),
         ),
+      );
+    }
+
+    // Active Gloss styling
+    final Color baseColor = AppColors.primary(context);
+    final Color topColor = isDark
+        ? AppColors.orangeGlossTopDark
+        : AppColors.orangeGlossTopLight;
+
+    return Semantics(
+      button: true,
+      enabled: true,
+      label: widget.label,
+      child: SizedBox(
+        width: widget.width ?? double.infinity,
+        height: AppSpacing.buttonHeight,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (_) => setState(() => _isPressed = true),
+          onTapUp: (_) => setState(() => _isPressed = false),
+          onTapCancel: () => setState(() => _isPressed = false),
+          onTap: () {
+            AppHaptics.buttonPress();
+            widget.onPressed!();
+          },
+          child: AnimatedScale(
+            scale: isReducedMotion ? 1.0 : (_isPressed ? 0.97 : 1.0),
+            duration: AppMotion.pressDuration,
+            curve: AppMotion.curve,
+            child: AnimatedContainer(
+              duration: AppMotion.pressDuration,
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [topColor, baseColor],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: baseColor.withValues(alpha: _isPressed ? 0.12 : 0.25),
+                    blurRadius: _isPressed ? 10 : 20,
+                    offset: _isPressed ? const Offset(0, 2) : const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Stack(
+                fit: StackFit.passthrough,
+                children: [
+                  // 1 dp inner top highlight
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 1.0,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.vertical(top: radius.topLeft),
+                      ),
+                    ),
+                  ),
+
+                  // Button Content (Always BLACK text on orange for 7:1 contrast)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (widget.icon != null) ...[
+                            IconTheme(
+                              data: const IconThemeData(color: AppColors.onOrange, size: 20),
+                              child: widget.icon!,
+                            ),
+                            const SizedBox(width: AppSpacing.space8),
+                          ],
+                          Flexible(
+                            child: Text(
+                              widget.label,
+                              style: AppTypography.headline(context).copyWith(
+                                color: AppColors.onOrange,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-/// Secondary action button (52 dp tall, outlined in divider color).
+/// Secondary action button (52 dp tall, outlined in divider color, solid surface).
 class SecondaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -98,6 +210,7 @@ class SecondaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dividerColor = AppColors.divider(context);
+    final surfaceColor = AppColors.surface(context);
     final textColor = AppColors.textPrimary(context);
 
     return Semantics(
@@ -110,6 +223,7 @@ class SecondaryButton extends StatelessWidget {
         child: OutlinedButton(
           onPressed: onPressed,
           style: OutlinedButton.styleFrom(
+            backgroundColor: surfaceColor,
             foregroundColor: textColor,
             side: BorderSide(color: dividerColor, width: 1.0),
             shape: RoundedRectangleBorder(borderRadius: AppRadii.buttonRadius),
@@ -128,7 +242,7 @@ class SecondaryButton extends StatelessWidget {
                 child: Text(
                   label,
                   style: AppTypography.headline(context).copyWith(
-                    color: textColor,
+                    fontWeight: FontWeight.w600,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -142,55 +256,31 @@ class SecondaryButton extends StatelessWidget {
   }
 }
 
-/// Destructive text action button (minimum 44x44 dp target, error token).
+/// Destructive text button (e.g. Delete, Clear).
 class DestructiveTextButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
-  final Widget? icon;
 
   const DestructiveTextButton({
     super.key,
     required this.label,
     required this.onPressed,
-    this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    final errorColor = AppColors.error(context);
-
-    return Semantics(
-      button: true,
-      enabled: onPressed != null,
-      label: label,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          minHeight: AppSpacing.minTouchTarget,
-          minWidth: AppSpacing.minTouchTarget,
-        ),
-        child: TextButton(
-          onPressed: onPressed,
-          style: TextButton.styleFrom(
-            foregroundColor: errorColor,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.space16,
-              vertical: AppSpacing.space8,
-            ),
-            shape: RoundedRectangleBorder(borderRadius: AppRadii.buttonRadius),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                icon!,
-                const SizedBox(width: AppSpacing.space8),
-              ],
-              Text(
-                label,
-                style: AppTypography.headline(context).copyWith(color: errorColor),
-              ),
-            ],
-          ),
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: AppColors.error(context),
+        minimumSize: const Size(AppSpacing.minTouchTarget, AppSpacing.minTouchTarget),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space12),
+      ),
+      child: Text(
+        label,
+        style: AppTypography.headline(context).copyWith(
+          color: AppColors.error(context),
+          fontWeight: FontWeight.w500,
         ),
       ),
     );

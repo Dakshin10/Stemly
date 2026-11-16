@@ -486,7 +486,7 @@ class _DeclarativePhysicsPainter extends CustomPainter {
 
     // Block 2
     final b2Rect = Rect.fromCenter(center: Offset(m2X, m2CenterY), width: r2 * 2, height: r2 * 1.6);
-    canvas.drawRRect(RRect.fromRectAndRadius(b2Rect, const Radius.circular(6)), Paint()..color = const Color(0xFF2563EB));
+    canvas.drawRRect(RRect.fromRectAndRadius(b2Rect, const Radius.circular(6)), Paint()..color = const Color(0xFF2C2C2E));
     _drawText(canvas, "m2=${m2.toStringAsFixed(1)}", m2X - 16, m2CenterY - 6, size: 9, bold: true, color: Colors.white);
 
     if (showVectors) {
@@ -558,7 +558,7 @@ class _DeclarativePhysicsPainter extends CustomPainter {
     _drawText(canvas, "m1", x1 - 6, y1 - 5, size: 9, bold: true, color: Colors.white);
 
     // Ball 2
-    canvas.drawCircle(Offset(x2, y2), r2, Paint()..color = const Color(0xFF2563EB));
+    canvas.drawCircle(Offset(x2, y2), r2, Paint()..color = const Color(0xFF2C2C2E));
     _drawText(canvas, "m2", x2 - 6, y2 - 5, size: 9, bold: true, color: Colors.white);
 
     if (showVectors) {

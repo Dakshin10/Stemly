@@ -1,4 +1,6 @@
 export 'app_colors.dart';
+export 'app_glass.dart';
+export 'app_haptics.dart';
 export 'app_motion.dart';
 export 'app_radii.dart';
 export 'app_spacing.dart';

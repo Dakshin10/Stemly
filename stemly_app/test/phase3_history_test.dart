@@ -67,6 +67,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap Starred chip
+      await tester.ensureVisible(find.text(AppStrings.filterStarred));
       await tester.tap(find.text(AppStrings.filterStarred));
       await tester.pumpAndSettle();
 

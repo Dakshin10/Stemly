@@ -80,7 +80,7 @@ class StatusPill extends StatelessWidget {
       key: key,
       icon: icon,
       label: label,
-      color: color ?? AppColors.primaryLight,
+      color: color ?? AppColors.orangeTextLight,
       backgroundColor: backgroundColor,
     );
   }

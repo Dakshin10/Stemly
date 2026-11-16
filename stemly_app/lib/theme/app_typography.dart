@@ -97,6 +97,16 @@ class AppTypography {
     );
   }
 
+  /// Tabular system font for numbers in telemetry, sliders, and scores so they do not jitter
+  static TextStyle tabular(BuildContext context, {double fontSize = 15, FontWeight fontWeight = FontWeight.w600, Color? color}) {
+    return TextStyle(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color ?? AppColors.textPrimary(context),
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+  }
+
   /// Monospace variant for numeric parameters & telemetry readouts
   static TextStyle numeric(BuildContext context, {double fontSize = 14, FontWeight fontWeight = FontWeight.w600}) {
     return TextStyle(
