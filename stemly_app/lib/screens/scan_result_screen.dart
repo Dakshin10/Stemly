@@ -846,7 +846,23 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
     // Fallback if no simulation available
     if (_generatedImageUrl != null) {
-      return Image.network(_generatedImageUrl!, fit: BoxFit.contain);
+      return Image.network(
+        _generatedImageUrl!,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.broken_image_outlined, size: 48, color: AppColors.textSecondary(context)),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                "Could not load diagram",
+                style: AppTypography.subhead(context),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return Center(

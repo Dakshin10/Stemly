@@ -124,14 +124,32 @@ class AccountScreen extends StatelessWidget {
         Center(
           child: Column(
             children: [
-              CircleAvatar(
-                radius: 40,
-                backgroundColor: AppColors.surfaceVariant(context),
-                backgroundImage:
-                    user.photoURL != null ? NetworkImage(user.photoURL!) : null,
-                child: user.photoURL == null
-                    ? Icon(Icons.person_rounded, size: 40, color: AppColors.primary(context))
-                    : null,
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.surfaceVariant(context),
+                ),
+                child: ClipOval(
+                  child: user.photoURL != null && user.photoURL!.isNotEmpty
+                      ? Image.network(
+                          user.photoURL!,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (ctx, err, stackTrace) => Icon(
+                            Icons.person_rounded,
+                            size: 40,
+                            color: AppColors.primary(context),
+                          ),
+                        )
+                      : Icon(
+                          Icons.person_rounded,
+                          size: 40,
+                          color: AppColors.primary(context),
+                        ),
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
