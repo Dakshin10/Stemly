@@ -2,6 +2,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 
+import '../presentation/components/glass_surface.dart';
+import '../theme/theme.dart';
+
 enum MechanicsSceneType { inclinedPlane, pulley, collision, forceBlock }
 
 /// Declarative 2D Physics Simulator for diverse mechanics problems:
@@ -168,24 +171,18 @@ class _DeclarativePhysicsWidgetState extends State<DeclarativePhysicsWidget>
             ),
           ),
 
-          // Interactive Overlay Controls (Top Left)
+          // Interactive Overlay Controls (Liquid Glass Capsule)
           Positioned(
             top: 10,
             left: 10,
-            child: Container(
+            child: GlassSurface.capsule(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.65),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
-                ],
-              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   InkWell(
                     onTap: _togglePause,
+                    borderRadius: BorderRadius.circular(16),
                     child: Padding(
                       padding: const EdgeInsets.all(4.0),
                       child: Icon(
@@ -200,19 +197,16 @@ class _DeclarativePhysicsWidgetState extends State<DeclarativePhysicsWidget>
                   const SizedBox(width: 4),
                   _controlChip(
                     label: "Vectors",
-                    color: const Color(0xFF10B981),
                     isActive: _showVectors,
                     onTap: () => setState(() => _showVectors = !_showVectors),
                   ),
                   _controlChip(
                     label: "Trail",
-                    color: const Color(0xFFF59E0B),
                     isActive: _showTrail,
                     onTap: () => setState(() => _showTrail = !_showTrail),
                   ),
                   _controlChip(
                     label: "HUD",
-                    color: const Color(0xFF8B5CF6),
                     isActive: _showHud,
                     onTap: () => setState(() => _showHud = !_showHud),
                   ),
@@ -227,7 +221,6 @@ class _DeclarativePhysicsWidgetState extends State<DeclarativePhysicsWidget>
 
   Widget _controlChip({
     required String label,
-    required Color color,
     required bool isActive,
     required VoidCallback onTap,
   }) {
@@ -236,19 +229,19 @@ class _DeclarativePhysicsWidgetState extends State<DeclarativePhysicsWidget>
       borderRadius: BorderRadius.circular(12),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          color: isActive ? color.withValues(alpha: 0.85) : Colors.transparent,
+          color: isActive ? AppColors.orangeFillLight : Colors.white.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isActive ? color : Colors.white24,
+            color: isActive ? AppColors.orangeFillLight : Colors.white24,
             width: 1.0,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isActive ? Colors.white : Colors.white60,
+            color: isActive ? AppColors.onOrange : Colors.white,
             fontSize: 10,
             fontWeight: FontWeight.bold,
           ),
@@ -304,12 +297,12 @@ class _DeclarativePhysicsPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Sky/lab background
+    // Clean Apple surface background
     final bgRect = Rect.fromLTWH(0, 0, size.width, size.height);
     final bgShader = const LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: [Color(0xFFF8FAFC), Color(0xFFEFF6FF)],
+      colors: [Color(0xFFFFFFFF), Color(0xFFF9F9FA)],
     ).createShader(bgRect);
     canvas.drawRect(bgRect, Paint()..shader = bgShader);
 

@@ -2,6 +2,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 
+import '../presentation/components/glass_surface.dart';
+import '../theme/theme.dart';
+
 class FreeFallWidget extends StatefulWidget {
   final double h;
   final double g;
@@ -102,24 +105,18 @@ class _FreeFallWidgetState extends State<FreeFallWidget>
             ),
           ),
 
-          // Interactive Overlay Controls
+          // Interactive Overlay Controls (Liquid Glass Capsule)
           Positioned(
             top: 10,
             left: 10,
-            child: Container(
+            child: GlassSurface.capsule(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.65),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
-                ],
-              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   InkWell(
                     onTap: _togglePause,
+                    borderRadius: BorderRadius.circular(16),
                     child: Padding(
                       padding: const EdgeInsets.all(4.0),
                       child: Icon(
@@ -134,25 +131,21 @@ class _FreeFallWidgetState extends State<FreeFallWidget>
                   const SizedBox(width: 4),
                   _controlChip(
                     label: "v⃗",
-                    color: const Color(0xFF10B981),
                     isActive: _showVelocityVector,
                     onTap: () => setState(() => _showVelocityVector = !_showVelocityVector),
                   ),
                   _controlChip(
                     label: "g⃗",
-                    color: const Color(0xFFEF4444),
                     isActive: _showGravityVector,
                     onTap: () => setState(() => _showGravityVector = !_showGravityVector),
                   ),
                   _controlChip(
                     label: "Trail",
-                    color: const Color(0xFFF59E0B),
                     isActive: _showTrail,
                     onTap: () => setState(() => _showTrail = !_showTrail),
                   ),
                   _controlChip(
                     label: "HUD",
-                    color: const Color(0xFF8B5CF6),
                     isActive: _showTelemetryHud,
                     onTap: () => setState(() => _showTelemetryHud = !_showTelemetryHud),
                   ),
@@ -167,7 +160,6 @@ class _FreeFallWidgetState extends State<FreeFallWidget>
 
   Widget _controlChip({
     required String label,
-    required Color color,
     required bool isActive,
     required VoidCallback onTap,
   }) {
@@ -176,19 +168,19 @@ class _FreeFallWidgetState extends State<FreeFallWidget>
       borderRadius: BorderRadius.circular(12),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          color: isActive ? color.withValues(alpha: 0.85) : Colors.transparent,
+          color: isActive ? AppColors.orangeFillLight : Colors.white.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isActive ? color : Colors.white24,
+            color: isActive ? AppColors.orangeFillLight : Colors.white24,
             width: 1.0,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isActive ? Colors.white : Colors.white60,
+            color: isActive ? AppColors.onOrange : Colors.white,
             fontSize: 10,
             fontWeight: FontWeight.bold,
           ),
@@ -208,41 +200,43 @@ class FreeFallPainter extends CustomPainter {
   final bool showTrail;
   final bool showTelemetryHud;
 
-  // Cached Paint objects for smooth 60 FPS rendering
-  static final Paint _groundPaint = Paint()..color = const Color(0xFF4CAF50);
-  static final Paint _groundUnderPaint = Paint()..color = const Color(0xFF388E3C);
+  // Cached Paint objects (Apple HIG White/Black/Orange palette - ZERO neon/green)
+  static final Paint _groundPaint = Paint()
+    ..color = const Color(0xFFD2D2D7)
+    ..strokeWidth = 2.0;
+  static final Paint _groundUnderPaint = Paint()..color = const Color(0xFFF5F5F7);
   static final Paint _rulerPaint = Paint()
     ..color = const Color(0x61000000)
     ..strokeWidth = 1.5;
   static final Paint _rulerMarkPaint = Paint()
     ..color = const Color(0x61000000)
     ..strokeWidth = 1.0;
-  static final Paint _ballPaint = Paint()..color = const Color(0xFFE65100);
+  static final Paint _ballPaint = Paint()..color = const Color(0xFFFF6B00);
   static final Paint _ballShadowPaint = Paint()
-    ..color = const Color(0x40000000)
+    ..color = const Color(0x33000000)
     ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
   static final Paint _ballHighlightPaint = Paint()..color = const Color(0xB3FFFFFF);
   static final Paint _trailDotPaint = Paint()
-    ..color = const Color(0x80FF7043)
+    ..color = const Color(0xFFFF8A3D)
     ..style = PaintingStyle.fill;
 
   static final Paint _velocityVectorPaint = Paint()
-    ..color = const Color(0xFF10B981)
+    ..color = const Color(0xFFFF6B00)
     ..strokeWidth = 2.5
     ..style = PaintingStyle.stroke;
-  static final Paint _velocityArrowHeadPaint = Paint()..color = const Color(0xFF10B981);
+  static final Paint _velocityArrowHeadPaint = Paint()..color = const Color(0xFFFF6B00);
 
   static final Paint _gravityVectorPaint = Paint()
-    ..color = const Color(0xFFEF4444)
+    ..color = const Color(0xFF636366)
     ..strokeWidth = 2.2
     ..style = PaintingStyle.stroke;
-  static final Paint _gravityArrowHeadPaint = Paint()..color = const Color(0xFFEF4444);
+  static final Paint _gravityArrowHeadPaint = Paint()..color = const Color(0xFF636366);
 
   static final Paint _hudBgPaint = Paint()
-    ..color = const Color(0xCC0F172A)
+    ..color = const Color(0xEE1C1C1E)
     ..style = PaintingStyle.fill;
   static final Paint _hudBorderPaint = Paint()
-    ..color = const Color(0x4038BDF8)
+    ..color = const Color(0x28FFFFFF)
     ..strokeWidth = 1.0
     ..style = PaintingStyle.stroke;
 
@@ -275,18 +269,18 @@ class FreeFallPainter extends CustomPainter {
     final groundY = size.height - marginY;
     final centerX = size.width * 0.38;
 
-    // Background gradient
+    // Background gradient (clean neutral)
     final bgRect = Rect.fromLTWH(0, 0, size.width, size.height);
     final bgShader = const LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: [Color(0xFFF0FDF4), Color(0xFFF8FAFC)],
+      colors: [Color(0xFFFFFFFF), Color(0xFFF9F9FA)],
     ).createShader(bgRect);
     canvas.drawRect(bgRect, Paint()..shader = bgShader);
 
-    // Ground
-    canvas.drawRect(Rect.fromLTWH(0, groundY, size.width, 4), _groundPaint);
-    canvas.drawRect(Rect.fromLTWH(0, groundY + 4, size.width, size.height - groundY - 4), _groundUnderPaint);
+    // Ground (Clean neutral line and subtle underfill, NO green grass)
+    canvas.drawLine(Offset(0, groundY), Offset(size.width, groundY), _groundPaint);
+    canvas.drawRect(Rect.fromLTWH(0, groundY + 1, size.width, size.height - groundY - 1), _groundUnderPaint);
 
     // Ruler
     _drawRuler(canvas, groundY, scale, marginY);
@@ -413,10 +407,10 @@ class FreeFallPainter extends CustomPainter {
     canvas.drawRRect(hudRRect, _hudBgPaint);
     canvas.drawRRect(hudRRect, _hudBorderPaint);
 
-    _drawText(canvas, 'TELEMETRY HUD', hudX + 16, hudY + 6, size: 8.5, bold: true, color: const Color(0xFF38BDF8));
+    _drawText(canvas, 'TELEMETRY HUD', hudX + 16, hudY + 6, size: 8.5, bold: true, color: const Color(0xFFFF8A3D));
     _drawText(canvas, 't  : ${t.toStringAsFixed(2)} s', hudX + 8, hudY + 20, size: 9, color: Colors.white70);
     _drawText(canvas, 'h  : ${currentH.toStringAsFixed(1)} m', hudX + 8, hudY + 33, size: 9, color: Colors.white70);
-    _drawText(canvas, 'v  : ${currentV.toStringAsFixed(1)} m/s', hudX + 8, hudY + 46, size: 9, color: const Color(0xFF4ADE80));
+    _drawText(canvas, 'v  : ${currentV.toStringAsFixed(1)} m/s', hudX + 8, hudY + 46, size: 9, bold: true, color: const Color(0xFFFF8A3D));
     _drawText(canvas, 'g  : ${g.toStringAsFixed(2)} m/s²', hudX + 8, hudY + 59, size: 9, color: Colors.white70);
   }
 

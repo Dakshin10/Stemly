@@ -295,7 +295,7 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
                             horizontal: AppSpacing.screenMargin,
                             vertical: AppSpacing.sm,
                           ),
-                          color: const Color(0xFF14171A),
+                          color: AppColors.surfaceDark,
                           child: SafeArea(
                             top: false,
                             child: Column(
@@ -409,13 +409,13 @@ class _CropperPainter extends CustomPainter {
   final Rect cropRect;
   final int rotation;
 
-  static final Paint _dimPaint = Paint()..color = const Color(0xB3000000);
+  static final Paint _dimPaint = Paint()..color = AppColors.scrimDark;
   static final Paint _borderPaint = Paint()
     ..color = Colors.white
     ..strokeWidth = 1.5
     ..style = PaintingStyle.stroke;
   static final Paint _gridPaint = Paint()
-    ..color = const Color(0x33FFFFFF)
+    ..color = Colors.white.withValues(alpha: 0.2)
     ..strokeWidth = 1.0;
   static final Paint _cornerPaint = Paint()
     ..color = Colors.white

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/theme.dart';
 import 'visualiser_models.dart';
 
 // Components
@@ -124,10 +125,23 @@ class VisualiserFactory {
     }
 
     // Default Fallback
-    return const Center(
-      child: Text(
-        "No interactive visualiser available for this topic",
-        style: TextStyle(fontSize: 16, color: Colors.grey),
+    return Builder(
+      builder: (context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.science_outlined, size: 40, color: AppColors.textSecondary(context)),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                "Interactive simulation unavailable for this topic",
+                style: AppTypography.subhead(context),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -2,6 +2,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 
+import '../presentation/components/glass_surface.dart';
+import '../theme/theme.dart';
+
 class ProjectileMotionWidget extends StatefulWidget {
   final double U;
   final double theta;
@@ -147,25 +150,19 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
             ),
           ),
 
-          // 2. Interactive Overlay Vector & HUD Controls (Top Left / Right)
+          // 2. Interactive Overlay Vector & HUD Controls (Liquid Glass Toolbar)
           Positioned(
             top: 10,
             left: 10,
-            child: Container(
+            child: GlassSurface.capsule(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.65),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
-                ],
-              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Play/Pause button
                   InkWell(
                     onTap: _togglePause,
+                    borderRadius: BorderRadius.circular(16),
                     child: Padding(
                       padding: const EdgeInsets.all(4.0),
                       child: Icon(
@@ -181,35 +178,30 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
                   // Toggle Velocity Vector
                   _controlChip(
                     label: "v⃗",
-                    color: const Color(0xFF10B981),
                     isActive: _showVelocityVector,
                     onTap: () => setState(() => _showVelocityVector = !_showVelocityVector),
                   ),
                   // Toggle Decomposed Components
                   _controlChip(
                     label: "vx/vy",
-                    color: const Color(0xFF06B6D4),
                     isActive: _showComponents,
                     onTap: () => setState(() => _showComponents = !_showComponents),
                   ),
                   // Toggle Gravity Vector
                   _controlChip(
                     label: "g⃗",
-                    color: const Color(0xFFEF4444),
                     isActive: _showGravityVector,
                     onTap: () => setState(() => _showGravityVector = !_showGravityVector),
                   ),
                   // Toggle Ghost Trail
                   _controlChip(
                     label: "Trail",
-                    color: const Color(0xFFF59E0B),
                     isActive: _showTrajectoryTrail,
                     onTap: () => setState(() => _showTrajectoryTrail = !_showTrajectoryTrail),
                   ),
                   // Toggle Telemetry HUD
                   _controlChip(
                     label: "HUD",
-                    color: const Color(0xFF8B5CF6),
                     isActive: _showTelemetryHud,
                     onTap: () => setState(() => _showTelemetryHud = !_showTelemetryHud),
                   ),
@@ -224,7 +216,6 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
 
   Widget _controlChip({
     required String label,
-    required Color color,
     required bool isActive,
     required VoidCallback onTap,
   }) {
@@ -233,19 +224,19 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
       borderRadius: BorderRadius.circular(12),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          color: isActive ? color.withValues(alpha: 0.85) : Colors.transparent,
+          color: isActive ? AppColors.orangeFillLight : Colors.white.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isActive ? color : Colors.white24,
+            color: isActive ? AppColors.orangeFillLight : Colors.white24,
             width: 1.0,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isActive ? Colors.white : Colors.white60,
+            color: isActive ? AppColors.onOrange : Colors.white,
             fontSize: 10,
             fontWeight: FontWeight.bold,
           ),
@@ -267,64 +258,66 @@ class ProjectileMotionPainter extends CustomPainter {
   final bool showTrajectoryTrail;
   final bool showTelemetryHud;
 
-  // Cached Paint objects to avoid allocations during 60 FPS animation
-  static final Paint _groundPaint = Paint()..color = const Color(0xFF4CAF50);
-  static final Paint _groundUnderPaint = Paint()..color = const Color(0xFF388E3C);
+  // Cached Paint objects (Apple HIG White/Black/Orange palette - ZERO neon/green ground)
+  static final Paint _groundPaint = Paint()
+    ..color = const Color(0xFFD2D2D7)
+    ..strokeWidth = 2.0;
+  static final Paint _groundUnderPaint = Paint()..color = const Color(0xFFF5F5F7);
   static final Paint _gridPaint = Paint()
-    ..color = const Color(0x259E9E9E)
+    ..color = const Color(0x1F000000)
     ..strokeWidth = 1.0;
   static final Paint _axisPaint = Paint()
-    ..color = const Color(0xDE1E293B)
+    ..color = const Color(0xDE1C1C1E)
     ..strokeWidth = 2.0;
   static final Paint _trajectoryPaint = Paint()
-    ..color = const Color(0x60FF6B35)
+    ..color = const Color(0x60FF6B00)
     ..strokeWidth = 2.5
     ..style = PaintingStyle.stroke;
   static final Paint _trailDotPaint = Paint()
-    ..color = const Color(0xFFFF8A65)
+    ..color = const Color(0xFFFF8A3D)
     ..style = PaintingStyle.fill;
-  static final Paint _ballPaint = Paint()..color = const Color(0xFFFF6B35);
+  static final Paint _ballPaint = Paint()..color = const Color(0xFFFF6B00);
   static final Paint _shadowPaint = Paint()
-    ..color = const Color(0x40000000)
+    ..color = const Color(0x33000000)
     ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
   static final Paint _highlightPaint = Paint()..color = const Color(0xB3FFFFFF);
 
-  // Vector Paints
+  // Vector Paints (Solid orange v, dark neutral components vx/vy, slate gravity g)
   static final Paint _velocityVectorPaint = Paint()
-    ..color = const Color(0xFF10B981)
+    ..color = const Color(0xFFFF6B00)
     ..strokeWidth = 2.5
     ..style = PaintingStyle.stroke;
-  static final Paint _velocityArrowHeadPaint = Paint()..color = const Color(0xFF10B981);
+  static final Paint _velocityArrowHeadPaint = Paint()..color = const Color(0xFFFF6B00);
 
   static final Paint _vxPaint = Paint()
-    ..color = const Color(0xFF06B6D4)
-    ..strokeWidth = 2.0
+    ..color = const Color(0xFF1C1C1E)
+    ..strokeWidth = 1.8
     ..style = PaintingStyle.stroke;
-  static final Paint _vxArrowPaint = Paint()..color = const Color(0xFF06B6D4);
+  static final Paint _vxArrowPaint = Paint()..color = const Color(0xFF1C1C1E);
 
   static final Paint _vyPaint = Paint()
-    ..color = const Color(0xFFF59E0B)
-    ..strokeWidth = 2.0
+    ..color = const Color(0xFF1C1C1E)
+    ..strokeWidth = 1.8
     ..style = PaintingStyle.stroke;
-  static final Paint _vyArrowPaint = Paint()..color = const Color(0xFFF59E0B);
+  static final Paint _vyArrowPaint = Paint()..color = const Color(0xFF1C1C1E);
 
   static final Paint _componentDashedPaint = Paint()
-    ..color = const Color(0x6694A3B8)
+    ..color = const Color(0x401C1C1E)
     ..strokeWidth = 1.0
     ..style = PaintingStyle.stroke;
 
   static final Paint _gravityVectorPaint = Paint()
-    ..color = const Color(0xFFEF4444)
-    ..strokeWidth = 2.2
+    ..color = const Color(0xFF636366)
+    ..strokeWidth = 2.0
     ..style = PaintingStyle.stroke;
-  static final Paint _gravityArrowHeadPaint = Paint()..color = const Color(0xFFEF4444);
+  static final Paint _gravityArrowHeadPaint = Paint()..color = const Color(0xFF636366);
 
-  // HUD Paints
+  // HUD Paints (Apple Liquid Glass dark HUD)
   static final Paint _hudBgPaint = Paint()
-    ..color = const Color(0xCC0F172A)
+    ..color = const Color(0xEE1C1C1E)
     ..style = PaintingStyle.fill;
   static final Paint _hudBorderPaint = Paint()
-    ..color = const Color(0x4038BDF8)
+    ..color = const Color(0x28FFFFFF)
     ..strokeWidth = 1.0
     ..style = PaintingStyle.stroke;
 
@@ -364,18 +357,18 @@ class ProjectileMotionPainter extends CustomPainter {
     final originX = marginX;
     final originY = size.height - marginY;
 
-    // Sky background
+    // Canvas background (Clean Apple surface)
     final bgRect = Rect.fromLTWH(0, 0, size.width, size.height);
     final bgShader = const LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: [Color(0xFFF0FDF4), Color(0xFFF8FAFC)],
+      colors: [Color(0xFFFFFFFF), Color(0xFFF9F9FA)],
     ).createShader(bgRect);
     canvas.drawRect(bgRect, Paint()..shader = bgShader);
 
-    // Ground
-    canvas.drawRect(Rect.fromLTWH(0, originY, size.width, 4), _groundPaint);
-    canvas.drawRect(Rect.fromLTWH(0, originY + 4, size.width, size.height - originY - 4), _groundUnderPaint);
+    // Ground (Clean neutral line and subtle underfill, NO green grass)
+    canvas.drawLine(Offset(0, originY), Offset(size.width, originY), _groundPaint);
+    canvas.drawRect(Rect.fromLTWH(0, originY + 1, size.width, size.height - originY - 1), _groundUnderPaint);
 
     // Grid & Axes
     _drawGrid(canvas, originX, originY, scale, displayRange, displayHeight);
@@ -526,24 +519,24 @@ class ProjectileMotionPainter extends CustomPainter {
     final endX = px + vx * vectorScale;
     final endY = py - vy * vectorScale;
 
-    // 1. Decomposed Components (vx in cyan, vy in amber)
+    // 1. Decomposed Components (vx/vy in dark neutral)
     if (showComponents) {
       // Horizontal component (vx)
       canvas.drawLine(Offset(px, py), Offset(endVxX, py), _vxPaint);
       _drawArrowHead(canvas, Offset(px, py), Offset(endVxX, py), _vxArrowPaint, 7);
-      _drawText(canvas, 'vx=${vx.toStringAsFixed(1)}', endVxX + 3, py - 12, size: 9, bold: true, color: const Color(0xFF0891B2));
+      _drawText(canvas, 'vx=${vx.toStringAsFixed(1)}', endVxX + 3, py - 12, size: 9, bold: true, color: const Color(0xFF1C1C1E));
 
       // Vertical component (vy)
       canvas.drawLine(Offset(px, py), Offset(px, endVyY), _vyPaint);
       _drawArrowHead(canvas, Offset(px, py), Offset(px, endVyY), _vyArrowPaint, 7);
-      _drawText(canvas, 'vy=${vy.toStringAsFixed(1)}', px - 46, endVyY - 6, size: 9, bold: true, color: const Color(0xFFD97706));
+      _drawText(canvas, 'vy=${vy.toStringAsFixed(1)}', px - 46, endVyY - 6, size: 9, bold: true, color: const Color(0xFF1C1C1E));
 
-      // Dashed parallelogram guide lines
+      // Dashed guide lines
       canvas.drawLine(Offset(endVxX, py), Offset(endX, endY), _componentDashedPaint);
       canvas.drawLine(Offset(px, endVyY), Offset(endX, endY), _componentDashedPaint);
     }
 
-    // 2. Velocity Resultant Vector (v in emerald green)
+    // 2. Velocity Resultant Vector (v in orange)
     if (showVelocityVector) {
       canvas.drawLine(Offset(px, py), Offset(endX, endY), _velocityVectorPaint);
       _drawArrowHead(canvas, Offset(px, py), Offset(endX, endY), _velocityArrowHeadPaint, 9);
@@ -556,17 +549,17 @@ class ProjectileMotionPainter extends CustomPainter {
         endY - 6,
         size: 10,
         bold: true,
-        color: const Color(0xFF059669),
+        color: const Color(0xFFFF6B00),
       );
     }
 
-    // 3. Gravity Vector (downward in crimson red)
+    // 3. Gravity Vector (downward in slate)
     if (showGravityVector) {
       const gVectorLen = 28.0;
       final gEndY = py + gVectorLen;
       canvas.drawLine(Offset(px, py), Offset(px, gEndY), _gravityVectorPaint);
       _drawArrowHead(canvas, Offset(px, py), Offset(px, gEndY), _gravityArrowHeadPaint, 7);
-      _drawText(canvas, 'g=${g.toStringAsFixed(1)}', px + 4, gEndY - 4, size: 9, bold: true, color: const Color(0xFFDC2626));
+      _drawText(canvas, 'g=${g.toStringAsFixed(1)}', px + 4, gEndY - 4, size: 9, bold: true, color: const Color(0xFF636366));
     }
   }
 
@@ -604,11 +597,11 @@ class ProjectileMotionPainter extends CustomPainter {
     final vy = U * sin(thetaRad) - g * t;
     final speed = sqrt(vx * vx + vy * vy);
 
-    _drawText(canvas, 'TELEMETRY HUD', hudX + 16, hudY + 6, size: 8.5, bold: true, color: const Color(0xFF38BDF8));
+    _drawText(canvas, 'TELEMETRY HUD', hudX + 16, hudY + 6, size: 8.5, bold: true, color: const Color(0xFFFF8A3D));
     _drawText(canvas, 't  : ${t.toStringAsFixed(2)} s', hudX + 8, hudY + 20, size: 9, color: Colors.white70);
     _drawText(canvas, 'x  : ${pos.dx.toStringAsFixed(1)} m', hudX + 8, hudY + 33, size: 9, color: Colors.white70);
     _drawText(canvas, 'y  : ${pos.dy.toStringAsFixed(1)} m', hudX + 8, hudY + 46, size: 9, color: Colors.white70);
-    _drawText(canvas, '|v|: ${speed.toStringAsFixed(1)} m/s', hudX + 8, hudY + 59, size: 9, bold: true, color: const Color(0xFF4ADE80));
+    _drawText(canvas, '|v|: ${speed.toStringAsFixed(1)} m/s', hudX + 8, hudY + 59, size: 9, bold: true, color: const Color(0xFFFF8A3D));
   }
 
   void _drawText(

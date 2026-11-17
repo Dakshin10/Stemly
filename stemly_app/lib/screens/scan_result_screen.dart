@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -80,7 +79,12 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       _notesExpanded[key] = false;
     }
 
-    _loadVisualiser();
+    _loadingVisualiser = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadVisualiser();
+      }
+    });
   }
 
   @override
@@ -94,7 +98,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   // VISUALISER LOADER (ZERO BUILD-PHASE SETSTATE)
   // ==========================================================
   Future<void> _loadVisualiser() async {
-    setState(() => _loadingVisualiser = true);
+    if (mounted) {
+      setState(() => _loadingVisualiser = true);
+    } else {
+      _loadingVisualiser = true;
+    }
 
     try {
       final auth = context.read<FirebaseAuthService>();
@@ -298,7 +306,6 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     final bg = AppColors.background(context);
     final surface = AppColors.surface(context);
     final textPrimary = AppColors.textPrimary(context);
-    final primary = AppColors.primary(context);
 
     return DefaultTabController(
       length: 3,
@@ -321,26 +328,49 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             overflow: TextOverflow.ellipsis,
           ),
           centerTitle: true,
-          bottom: TabBar(
-            indicatorColor: primary,
-            labelColor: primary,
-            unselectedLabelColor: AppColors.textSecondary(context),
-            labelStyle: AppTypography.headline(context).copyWith(fontWeight: FontWeight.bold),
-            unselectedLabelStyle: AppTypography.headline(context),
-            tabs: const [
-              Tab(
-                text: AppStrings.tabNotes,
-                icon: Icon(Icons.description_outlined, size: 20),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(56),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant(context),
+                borderRadius: BorderRadius.circular(AppRadii.capsule),
               ),
-              Tab(
-                text: AppStrings.tabVisualiser,
-                icon: Icon(Icons.play_circle_outline_rounded, size: 20),
+              child: TabBar(
+                indicator: BoxDecoration(
+                  color: AppColors.surface(context),
+                  borderRadius: BorderRadius.circular(AppRadii.capsule),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                labelColor: textPrimary,
+                unselectedLabelColor: AppColors.textSecondary(context),
+                labelStyle: AppTypography.caption(context).copyWith(fontWeight: FontWeight.bold),
+                unselectedLabelStyle: AppTypography.caption(context),
+                padding: const EdgeInsets.all(3),
+                tabs: const [
+                  Tab(
+                    text: AppStrings.tabNotes,
+                    icon: Icon(Icons.description_outlined, size: 18),
+                  ),
+                  Tab(
+                    text: AppStrings.tabVisualiser,
+                    icon: Icon(Icons.play_circle_outline_rounded, size: 18),
+                  ),
+                  Tab(
+                    text: AppStrings.tabQuiz,
+                    icon: Icon(Icons.quiz_outlined, size: 18),
+                  ),
+                ],
               ),
-              Tab(
-                text: AppStrings.tabQuiz,
-                icon: Icon(Icons.quiz_outlined, size: 20),
-              ),
-            ],
+            ),
           ),
         ),
         body: TabBarView(
@@ -536,7 +566,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
           const SizedBox(height: AppSpacing.md),
 
-          // 2. TELEMETRY STAT TILES (RANGE, MAX HEIGHT, FLIGHT TIME)
+          // 2. TELEMETRY STAT TILES (RANGE, MAX HEIGHT, FLIGHT TIME - Whitelist #6: accentText)
           if (_simulationStats.isNotEmpty) ...[
             Row(
               children: _simulationStats.entries.take(3).map((e) {
@@ -562,9 +592,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                         const SizedBox(height: 2),
                         Text(
                           e.value,
-                          style: AppTypography.headline(context).copyWith(
-                            color: AppColors.primary(context),
-                            fontWeight: FontWeight.bold,
+                          style: AppTypography.title2(context).copyWith(
+                            color: AppColors.accentText(context),
+                            fontWeight: FontWeight.w600,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -595,7 +625,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.tune_rounded, color: AppColors.primary(context), size: 20),
+                          Icon(Icons.tune_rounded, color: textPrimary, size: 20),
                           const SizedBox(width: AppSpacing.sm),
                           Text(
                             AppStrings.simulationParameters,
@@ -614,7 +644,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                         child: Text(
                           AppStrings.resetCrop,
                           style: AppTypography.footnote(context).copyWith(
-                            color: AppColors.primary(context),
+                            color: AppColors.accentText(context),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -651,6 +681,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                             min: minVal,
                             max: maxVal,
                             activeColor: AppColors.primary(context),
+                            inactiveColor: AppColors.surface2(context),
                             onChanged: (newVal) {
                               setState(() {
                                 param.value = newVal;
@@ -673,7 +704,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
           const SizedBox(height: AppSpacing.md),
 
-          // 5. AI ASSISTANT CARD
+          // 5. AI ASSISTANT CARD (HIG Neutral: black/white user bubble, surface assistant bubble)
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
@@ -686,7 +717,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.auto_awesome, color: AppColors.primary(context), size: 20),
+                    Icon(Icons.auto_awesome, color: textPrimary, size: 20),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
                       AppStrings.aiAssistant,
@@ -701,24 +732,18 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
 
-                // Suggestion chips
+                // Suggestion chips (neutral surface2)
                 Wrap(
                   spacing: AppSpacing.xs,
                   runSpacing: AppSpacing.xs,
                   children: [
-                    ActionChip(
-                      label: Text(
-                        AppStrings.chipExplainGravity,
-                        style: AppTypography.caption(context),
-                      ),
-                      onPressed: () => _sendChatMessage("Explain gravity in this problem"),
+                    AppChip(
+                      label: AppStrings.chipExplainGravity,
+                      onTap: () => _sendChatMessage("Explain gravity in this problem"),
                     ),
-                    ActionChip(
-                      label: Text(
-                        AppStrings.chipSetVelocity,
-                        style: AppTypography.caption(context),
-                      ),
-                      onPressed: () => _sendChatMessage("Set velocity to 50"),
+                    AppChip(
+                      label: AppStrings.chipSetVelocity,
+                      onTap: () => _sendChatMessage("Set velocity to 50"),
                     ),
                   ],
                 ),
@@ -746,6 +771,13 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                           itemBuilder: (context, idx) {
                             final msg = _chatMessages[idx];
                             final isUser = msg["isUser"] == true;
+                            final isDark = AppColors.isDark(context);
+                            final bubbleBg = isUser
+                                ? (isDark ? Colors.white : Colors.black)
+                                : surface;
+                            final bubbleFg = isUser
+                                ? (isDark ? Colors.black : Colors.white)
+                                : textPrimary;
 
                             return Align(
                               alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -756,15 +788,15 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                                   maxWidth: MediaQuery.of(context).size.width * 0.72,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: isUser
-                                      ? AppColors.primary(context)
-                                      : surface,
+                                  color: bubbleBg,
                                   borderRadius: BorderRadius.circular(AppRadii.button),
+                                  border: isUser ? null : Border.all(color: divider),
                                 ),
                                 child: Text(
                                   msg["text"] ?? "",
                                   style: AppTypography.subhead(context).copyWith(
-                                    color: isUser ? Colors.white : textPrimary,
+                                    color: bubbleFg,
+                                    fontWeight: isUser ? FontWeight.w600 : FontWeight.normal,
                                   ),
                                 ),
                               ),
@@ -775,40 +807,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
                 const SizedBox(height: AppSpacing.sm),
 
-                // Chat Input Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _chatController,
-                        style: AppTypography.body(context),
-                        decoration: InputDecoration(
-                          hintText: "Ask AI assistant...",
-                          hintStyle: AppTypography.subhead(context),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppRadii.input),
-                            borderSide: BorderSide(color: divider),
-                          ),
-                        ),
-                        onSubmitted: _sendChatMessage,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    IconButton(
-                      icon: _isSendingChat
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primary(context),
-                              ),
-                            )
-                          : Icon(Icons.send_rounded, color: AppColors.primary(context)),
-                      onPressed: _isSendingChat ? null : () => _sendChatMessage(_chatController.text),
-                    ),
-                  ],
+                // Glass AI Composer
+                GlassComposer(
+                  controller: _chatController,
+                  isSending: _isSendingChat,
+                  onSend: () => _sendChatMessage(_chatController.text),
                 ),
               ],
             ),
@@ -910,6 +913,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
     final surface = AppColors.surface(context);
     final divider = AppColors.divider(context);
+    final textPrimary = AppColors.textPrimary(context);
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -921,21 +925,21 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Target Objective
+          // Target Objective (Calm neutral surface2 with divider)
           if (target != null && target.isNotEmpty) ...[
             Container(
               padding: const EdgeInsets.all(AppSpacing.sm),
               decoration: BoxDecoration(
-                color: AppColors.primary(context).withValues(alpha: 0.08),
+                color: AppColors.surface2(context),
                 borderRadius: BorderRadius.circular(AppRadii.input),
-                border: Border.all(color: AppColors.primary(context).withValues(alpha: 0.2)),
+                border: Border.all(color: divider),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(
                     Icons.track_changes_rounded,
-                    color: AppColors.primary(context),
+                    color: textPrimary,
                     size: 20,
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -946,7 +950,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                         Text(
                           AppStrings.targetObjective,
                           style: AppTypography.footnote(context).copyWith(
-                            color: AppColors.primary(context),
+                            color: AppColors.textSecondary(context),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -955,6 +959,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                           target,
                           style: AppTypography.subhead(context).copyWith(
                             fontWeight: FontWeight.w600,
+                            color: textPrimary,
                           ),
                         ),
                       ],
@@ -980,12 +985,12 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.functions_rounded, size: 16, color: AppColors.primary(context)),
+                      Icon(Icons.functions_rounded, size: 16, color: textPrimary),
                       const SizedBox(width: 6),
                       Text(
                         AppStrings.governingEquation,
                         style: AppTypography.caption(context).copyWith(
-                          color: AppColors.primary(context),
+                          color: textPrimary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1005,7 +1010,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             const SizedBox(height: AppSpacing.md),
           ],
 
-          // Extracted Physical Variables
+          // Extracted Physical Variables (HIG surface2 badges, subtle border for "to find")
           if (structured.isNotEmpty) ...[
             Text(
               AppStrings.physicalVariables,
@@ -1023,52 +1028,13 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 final isTarget = v["is_target"] == true;
 
                 final displayVal = val != null ? "$val $unit".trim() : AppStrings.toFind;
+                final label = symbol.isNotEmpty && symbol != name
+                    ? "$symbol ($name): $displayVal"
+                    : "$name: $displayVal";
 
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isTarget
-                        ? AppColors.warning(context).withValues(alpha: 0.1)
-                        : AppColors.surfaceVariant(context),
-                    borderRadius: BorderRadius.circular(AppRadii.button),
-                    border: Border.all(
-                      color: isTarget
-                          ? AppColors.warning(context).withValues(alpha: 0.4)
-                          : divider,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isTarget
-                              ? AppColors.warning(context)
-                              : AppColors.primary(context),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          symbol.isNotEmpty ? symbol : name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        "$name: $displayVal",
-                        style: AppTypography.footnote(context).copyWith(
-                          color: isTarget
-                              ? AppColors.warning(context)
-                              : AppColors.textPrimary(context),
-                          fontWeight: isTarget ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                      ),
-                    ],
-                  ),
+                return AppChip(
+                  label: label,
+                  isToFind: isTarget,
                 );
               }).toList(),
             ),
@@ -1087,6 +1053,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   Widget _buildQuizSetupTab(BuildContext context) {
     final surface = AppColors.surface(context);
     final divider = AppColors.divider(context);
+    final textPrimary = AppColors.textPrimary(context);
 
     return StatefulBuilder(
       builder: (context, setQuizState) {
@@ -1132,7 +1099,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 title: "Quiz configuration",
                 children: [
                   GroupedRow(
-                    leading: Icon(Icons.format_list_numbered_rounded, color: AppColors.primary(context), size: 22),
+                    leading: Icon(Icons.format_list_numbered_rounded, color: textPrimary, size: 22),
                     title: AppStrings.questionCount,
                     trailing: Text(
                       "${_quizQuestionCount.toInt()}",
@@ -1147,17 +1114,18 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                       divisions: 7,
                       value: _quizQuestionCount,
                       activeColor: AppColors.primary(context),
+                      inactiveColor: AppColors.surface2(context),
                       onChanged: (v) => setQuizState(() => _quizQuestionCount = v),
                     ),
                   ),
                   GroupedRow(
-                    leading: Icon(Icons.speed_rounded, color: AppColors.primary(context), size: 22),
+                    leading: Icon(Icons.speed_rounded, color: textPrimary, size: 22),
                     title: AppStrings.difficulty,
-                    trailing: CupertinoSegmentedControl<int>(
+                    trailing: AppSegmentedControl<int>(
                       children: const {
-                        0: Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text(AppStrings.difficultyEasy)),
-                        1: Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text(AppStrings.difficultyMedium)),
-                        2: Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text(AppStrings.difficultyHard)),
+                        0: AppStrings.difficultyEasy,
+                        1: AppStrings.difficultyMedium,
+                        2: AppStrings.difficultyHard,
                       },
                       groupValue: _selectedDifficulty,
                       onValueChanged: (val) => setQuizState(() => _selectedDifficulty = val),

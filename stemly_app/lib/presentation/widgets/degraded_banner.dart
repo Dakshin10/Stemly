@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/theme.dart';
+
 /// Non-intrusive notification banner displayed when backend AI is running in degraded mode.
+/// Follows Apple HIG calm styling with neutral surface, subtle warning badge, and secondary text.
 class DegradedModeBanner extends StatelessWidget {
   final String? message;
   final VoidCallback? onDismiss;
@@ -13,31 +16,44 @@ class DegradedModeBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    final bgColor = isDark ? const Color(0xFF3E2723) : const Color(0xFFFFF3E0);
-    final borderColor = isDark ? const Color(0xFFFFB74D) : const Color(0xFFFF9800);
-    final textColor = isDark ? const Color(0xFFFFE0B2) : const Color(0xFFE65100);
+    final surface = AppColors.surface(context);
+    final divider = AppColors.divider(context);
+    final textPrimary = AppColors.textPrimary(context);
+    final textSecondary = AppColors.textSecondary(context);
+    final warningColor = AppColors.warning(context);
 
     return Semantics(
       label: "Degraded AI Mode Warning",
       hint: message ?? "Operating in fallback AI mode. Standard explanations are provided.",
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor.withValues(alpha: 0.5), width: 1.2),
+          color: surface,
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          border: Border.all(color: divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(
-              Icons.warning_amber_rounded,
-              color: borderColor,
-              size: 24,
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: warningColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.warning_amber_rounded,
+                color: warningColor,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -47,18 +63,16 @@ class DegradedModeBanner extends StatelessWidget {
                 children: [
                   Text(
                     "Fallback AI Mode",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: textColor,
+                    style: AppTypography.subhead(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     message ?? "Standard curriculum content provided. Generative AI will resume when service load normalizes.",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: textColor.withValues(alpha: 0.9),
+                    style: AppTypography.footnote(context).copyWith(
+                      color: textSecondary,
                     ),
                   ),
                 ],
@@ -67,7 +81,7 @@ class DegradedModeBanner extends StatelessWidget {
             if (onDismiss != null) ...[
               const SizedBox(width: 8),
               IconButton(
-                icon: Icon(Icons.close, size: 18, color: textColor),
+                icon: Icon(Icons.close, size: 18, color: textSecondary),
                 onPressed: onDismiss,
                 tooltip: "Dismiss notice",
                 padding: EdgeInsets.zero,
