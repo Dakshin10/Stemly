@@ -141,13 +141,13 @@ class AccountScreen extends StatelessWidget {
                           errorBuilder: (ctx, err, stackTrace) => Icon(
                             Icons.person_rounded,
                             size: 40,
-                            color: AppColors.primary(context),
+                            color: textSecondary,
                           ),
                         )
                       : Icon(
                           Icons.person_rounded,
                           size: 40,
-                          color: AppColors.primary(context),
+                          color: textSecondary,
                         ),
                 ),
               ),
@@ -191,13 +191,13 @@ class AccountScreen extends StatelessWidget {
           title: "Legal",
           children: [
             GroupedRow(
-              leading: Icon(Icons.lock_outline_rounded, color: AppColors.primary(context), size: 22),
+              leading: Icon(Icons.lock_outline_rounded, color: textPrimary, size: 22),
               title: AppStrings.privacyPolicy,
               trailing: Icon(Icons.chevron_right_rounded, color: textSecondary, size: 20),
               onTap: () => Navigator.pushNamed(context, '/privacy'),
             ),
             GroupedRow(
-              leading: Icon(Icons.description_outlined, color: AppColors.primary(context), size: 22),
+              leading: Icon(Icons.description_outlined, color: textPrimary, size: 22),
               title: AppStrings.termsOfService,
               trailing: Icon(Icons.chevron_right_rounded, color: textSecondary, size: 20),
               onTap: () => Navigator.pushNamed(context, '/terms'),

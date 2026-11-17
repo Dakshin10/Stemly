@@ -92,7 +92,11 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
+    final isDark = AppColors.isDark(context);
+    final textPrimary = AppColors.textPrimary(context);
     final textSecondary = AppColors.textSecondary(context);
+    final switchActiveTrack = isDark ? Colors.white : Colors.black;
+    final switchActiveThumb = isDark ? Colors.black : Colors.white;
 
     return AppScaffold(
       title: AppStrings.settingsTitle,
@@ -112,7 +116,7 @@ class SettingsScreen extends StatelessWidget {
                 GroupedRow(
                   leading: Icon(
                     Icons.palette_outlined,
-                    color: AppColors.primary(context),
+                    color: textPrimary,
                     size: 22,
                   ),
                   title: AppStrings.theme,
@@ -145,14 +149,15 @@ class SettingsScreen extends StatelessWidget {
                 GroupedRow(
                   leading: Icon(
                     Icons.notifications_none_rounded,
-                    color: AppColors.primary(context),
+                    color: textPrimary,
                     size: 22,
                   ),
                   title: "Study reminders",
                   subtitle: AppStrings.notificationExplanation,
                   trailing: CupertinoSwitch(
                     value: themeProvider.notifications,
-                    activeTrackColor: AppColors.primary(context),
+                    activeTrackColor: switchActiveTrack,
+                    thumbColor: themeProvider.notifications ? switchActiveThumb : null,
                     onChanged: (val) => themeProvider.toggleNotifications(val),
                   ),
                 ),
@@ -168,14 +173,15 @@ class SettingsScreen extends StatelessWidget {
                 GroupedRow(
                   leading: Icon(
                     Icons.wifi_rounded,
-                    color: AppColors.primary(context),
+                    color: textPrimary,
                     size: 22,
                   ),
                   title: AppStrings.wifiOnly,
                   subtitle: AppStrings.wifiOnlyExplanation,
                   trailing: CupertinoSwitch(
                     value: themeProvider.wifiOnly,
-                    activeTrackColor: AppColors.primary(context),
+                    activeTrackColor: switchActiveTrack,
+                    thumbColor: themeProvider.wifiOnly ? switchActiveThumb : null,
                     onChanged: (val) => themeProvider.toggleWifiOnly(val),
                   ),
                 ),
@@ -191,7 +197,7 @@ class SettingsScreen extends StatelessWidget {
                 GroupedRow(
                   leading: Icon(
                     Icons.auto_awesome,
-                    color: AppColors.primary(context),
+                    color: textPrimary,
                     size: 22,
                   ),
                   title: AppStrings.stemlyCloudAI,
@@ -211,7 +217,7 @@ class SettingsScreen extends StatelessWidget {
                 GroupedRow(
                   leading: Icon(
                     Icons.lock_outline_rounded,
-                    color: AppColors.primary(context),
+                    color: textPrimary,
                     size: 22,
                   ),
                   title: AppStrings.privacyPolicy,
@@ -225,7 +231,7 @@ class SettingsScreen extends StatelessWidget {
                 GroupedRow(
                   leading: Icon(
                     Icons.description_outlined,
-                    color: AppColors.primary(context),
+                    color: textPrimary,
                     size: 22,
                   ),
                   title: AppStrings.termsOfService,
@@ -257,7 +263,7 @@ class SettingsScreen extends StatelessWidget {
                 GroupedRow(
                   leading: Icon(
                     Icons.info_outline_rounded,
-                    color: AppColors.primary(context),
+                    color: textPrimary,
                     size: 22,
                   ),
                   title: AppStrings.version,
@@ -269,7 +275,7 @@ class SettingsScreen extends StatelessWidget {
                 GroupedRow(
                   leading: Icon(
                     Icons.article_outlined,
-                    color: AppColors.primary(context),
+                    color: textPrimary,
                     size: 22,
                   ),
                   title: AppStrings.licenses,

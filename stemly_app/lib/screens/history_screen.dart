@@ -94,7 +94,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final allHistory = HistoryStore.history;
     final filteredHistory = _getFilteredHistory();
-    final textPrimary = AppColors.textPrimary(context);
     final textSecondary = AppColors.textSecondary(context);
 
     return AppScaffold(
@@ -124,9 +123,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
           children: [
             const SizedBox(height: AppSpacing.sm),
 
-            // FILTER CHIPS ROW
+            // FILTER CHIPS ROW (HIG Neutral: surface2, black/white selected)
             SizedBox(
-              height: 40,
+              height: 36,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -136,30 +135,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   final filter = _filters[index];
                   final isSelected = filter == _selectedFilter;
 
-                  return FilterChip(
-                    label: Text(
-                      filter,
-                      style: AppTypography.footnote(context).copyWith(
-                        color: isSelected
-                            ? AppColors.onPrimary(context)
-                            : textPrimary,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                    ),
-                    selected: isSelected,
-                    showCheckmark: false,
-                    selectedColor: AppColors.primary(context),
-                    backgroundColor: AppColors.surface(context),
-                    side: BorderSide(
-                      color: isSelected
-                          ? AppColors.primary(context)
-                          : AppColors.divider(context),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadii.chip),
-                    ),
-                    onSelected: (val) {
-                      if (val) setState(() => _selectedFilter = filter);
+                  return AppChip(
+                    label: filter,
+                    isSelected: isSelected,
+                    onTap: () {
+                      setState(() => _selectedFilter = filter);
                     },
                   );
                 },
@@ -215,7 +195,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           duration: const Duration(seconds: 6),
                           action: SnackBarAction(
                             label: AppStrings.undo,
-                            textColor: AppColors.primary(context),
+                            textColor: AppColors.accentText(context),
                             onPressed: () {
                               HistoryStore.history.insert(removedIndex, removedItem);
                               HistoryStore.setHistory(HistoryStore.history);
@@ -240,7 +220,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               : null,
                         ),
                         child: !hasImage
-                            ? Icon(Icons.science_outlined, color: AppColors.primary(context), size: 26)
+                            ? Icon(Icons.science_outlined, color: textSecondary, size: 26)
                             : null,
                       ),
                       title: item.topic,
