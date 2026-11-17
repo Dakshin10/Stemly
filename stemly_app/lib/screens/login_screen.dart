@@ -82,113 +82,130 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final bg = AppColors.background(context);
     final textSecondary = AppColors.textSecondary(context);
-    final surface = AppColors.surface(context);
-    final divider = AppColors.divider(context);
+
+    final isReducedMotion = AppMotion.isReducedMotion(context);
 
     return Scaffold(
       backgroundColor: bg,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: AppSpacing.xl),
+      body: Stack(
+        children: [
+          // Soft ambient orange orb (max 15-20% area, blurred)
+          if (!isReducedMotion)
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.20,
+              right: -40,
+              child: Container(
+                width: 240,
+                height: 240,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.primary(context).withValues(alpha: 0.16),
+                      AppColors.primary(context).withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
-                      // TOP HEADER
-                      Semantics(
-                        header: true,
-                        child: Text(
-                          AppStrings.loginTitle,
-                          style: AppTypography.largeTitle(context),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        AppStrings.loginSubtitle,
-                        style: AppTypography.body(context).copyWith(color: textSecondary),
-                      ),
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: IntrinsicHeight(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: AppSpacing.xl),
 
-                      const SizedBox(height: AppSpacing.lg),
-
-                      // INLINE ERROR BANNER (only shown on failure)
-                      if (_errorMessage != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          decoration: BoxDecoration(
-                            color: AppColors.error(context).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(AppRadii.card),
-                            border: Border.all(color: AppColors.error(context).withValues(alpha: 0.3)),
+                          // TOP HEADER
+                          Semantics(
+                            header: true,
+                            child: Text(
+                              AppStrings.loginTitle,
+                              style: AppTypography.largeTitle(context),
+                            ),
                           ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.error_outline_rounded, color: AppColors.error(context)),
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: Text(
-                                  _errorMessage!,
-                                  style: AppTypography.subhead(context).copyWith(
-                                    color: AppColors.error(context),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: _handleGoogleSignIn,
-                                child: Text(
-                                  AppStrings.retry,
-                                  style: AppTypography.headline(context).copyWith(
-                                    color: AppColors.primary(context),
-                                  ),
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            AppStrings.loginSubtitle,
+                            style: AppTypography.body(context).copyWith(color: textSecondary),
                           ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                      ],
 
-                      // WHY SIGN IN CARD
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        decoration: BoxDecoration(
-                          color: surface,
-                          borderRadius: BorderRadius.circular(AppRadii.card),
-                          border: Border.all(color: divider),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              AppStrings.whySignInTitle,
-                              style: AppTypography.headline(context),
+                          const SizedBox(height: AppSpacing.lg),
+
+                          // INLINE ERROR BANNER (only shown on failure)
+                          if (_errorMessage != null) ...[
+                            Container(
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              decoration: BoxDecoration(
+                                color: AppColors.error(context).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(AppRadii.card),
+                                border: Border.all(color: AppColors.error(context).withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.error_outline_rounded, color: AppColors.error(context)),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Expanded(
+                                    child: Text(
+                                      _errorMessage!,
+                                      style: AppTypography.subhead(context).copyWith(
+                                        color: AppColors.error(context),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: _handleGoogleSignIn,
+                                    child: Text(
+                                      AppStrings.retry,
+                                      style: AppTypography.headline(context).copyWith(
+                                        color: AppColors.primary(context),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                             const SizedBox(height: AppSpacing.md),
-                            _buildBenefitRow(
-                              context,
-                              icon: Icons.devices_rounded,
-                              text: AppStrings.benefitSync,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            _buildBenefitRow(
-                              context,
-                              icon: Icons.lock_outline_rounded,
-                              text: AppStrings.benefitPasswordFree,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            _buildBenefitRow(
-                              context,
-                              icon: Icons.history_rounded,
-                              text: AppStrings.benefitHistory,
-                            ),
                           ],
-                        ),
-                      ),
+
+                          // WHY SIGN IN CARD (GLASS SHEET)
+                          GlassSurface.sheet(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  AppStrings.whySignInTitle,
+                                  style: AppTypography.headline(context),
+                                ),
+                                const SizedBox(height: AppSpacing.md),
+                                _buildBenefitRow(
+                                  context,
+                                  icon: Icons.devices_rounded,
+                                  text: AppStrings.benefitSync,
+                                ),
+                                const SizedBox(height: AppSpacing.sm),
+                                _buildBenefitRow(
+                                  context,
+                                  icon: Icons.lock_outline_rounded,
+                                  text: AppStrings.benefitPasswordFree,
+                                ),
+                                const SizedBox(height: AppSpacing.sm),
+                                _buildBenefitRow(
+                                  context,
+                                  icon: Icons.history_rounded,
+                                  text: AppStrings.benefitHistory,
+                                ),
+                              ],
+                            ),
+                          ),
 
                       const Spacer(),
                       const SizedBox(height: AppSpacing.lg),
@@ -289,7 +306,9 @@ class _LoginScreenState extends State<LoginScreen> {
           },
         ),
       ),
-    );
+    ],
+  ),
+);
   }
 
   Widget _buildBenefitRow(BuildContext context, {required IconData icon, required String text}) {
