@@ -173,7 +173,7 @@ class AccountScreen extends StatelessWidget {
           title: "Usage & Status",
           children: [
             GroupedRow(
-              leading: Icon(Icons.bolt_rounded, color: AppColors.warning(context), size: 22),
+              leading: Icon(Icons.bolt_rounded, color: textPrimary, size: 22),
               title: AppStrings.dailyAIUsage,
               subtitle: "42 of 50 ${AppStrings.leftToday} • ${AppStrings.resetsAtMidnight}",
             ),

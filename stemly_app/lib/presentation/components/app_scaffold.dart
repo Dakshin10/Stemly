@@ -51,6 +51,7 @@ class AppScaffold extends StatelessWidget {
         extendBody: hasBottomBar,
         floatingActionButton: floatingActionButton,
         body: SafeArea(
+          top: false,
           bottom: false,
           child: Stack(
             children: [
@@ -59,18 +60,15 @@ class AppScaffold extends StatelessWidget {
                   parent: BouncingScrollPhysics(),
                 ),
                 slivers: [
-                  SliverAppBar.large(
-                    title: Text(
-                      title,
-                      style: AppTypography.largeTitle(context),
-                    ),
-                    backgroundColor: Colors.transparent,
-                    scrolledUnderElevation: 0,
-                    elevation: 0,
-                    automaticallyImplyLeading: shouldImplyLeading,
-                    leading: leading,
-                    actions: actions,
+                  SliverPersistentHeader(
                     pinned: true,
+                    delegate: _LargeTitleHeaderDelegate(
+                      title: title,
+                      leading: leading ?? (shouldImplyLeading ? _buildDefaultLeading(context) : null),
+                      actions: actions,
+                      backgroundColor: bg,
+                      topPadding: MediaQuery.paddingOf(context).top,
+                    ),
                   ),
                   SliverPadding(
                     padding: EdgeInsets.only(bottom: extraBottomPadding),
@@ -208,3 +206,138 @@ class AppScaffold extends StatelessWidget {
     );
   }
 }
+
+/// Custom HIG-compliant Large Title Header Delegate.
+/// - Eliminates excessive Material 3 empty padding above the title.
+/// - Positions large title tightly under the status bar (~8-12 dp).
+/// - Gracefully cross-fades large title into compact pinned navigation bar on scroll.
+/// - Preserves leading and action buttons in a pinned 44 dp bar.
+class _LargeTitleHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final String title;
+  final Widget? leading;
+  final List<Widget>? actions;
+  final Color backgroundColor;
+  final double topPadding;
+
+  _LargeTitleHeaderDelegate({
+    required this.title,
+    this.leading,
+    this.actions,
+    required this.backgroundColor,
+    required this.topPadding,
+  });
+
+  bool get hasTopBar => (actions != null && actions!.isNotEmpty) || leading != null;
+
+  @override
+  double get minExtent => topPadding + 44.0;
+
+  @override
+  double get maxExtent => topPadding + (hasTopBar ? 96.0 : 60.0);
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final double collapseRange = maxExtent - minExtent;
+    final double progress = collapseRange > 0.0
+        ? (shrinkOffset / collapseRange).clamp(0.0, 1.0)
+        : 1.0;
+
+    final isScrolled = shrinkOffset > 4.0 || overlapsContent;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Background with subtle glass/surface tint when scrolled
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              color: isScrolled
+                  ? backgroundColor.withValues(alpha: 0.94)
+                  : Colors.transparent,
+              border: isScrolled
+                  ? Border(
+                      bottom: BorderSide(
+                        color: AppColors.divider(context).withValues(alpha: progress),
+                        width: 0.5,
+                      ),
+                    )
+                  : null,
+            ),
+          ),
+        ),
+
+        // Large title: seated right below status bar (or below top action bar if present)
+        Positioned(
+          left: AppSpacing.screenMargin,
+          right: AppSpacing.screenMargin,
+          top: topPadding + (hasTopBar ? 44.0 : 8.0) - (shrinkOffset * 0.4),
+          child: Opacity(
+            opacity: (1.0 - progress * 1.6).clamp(0.0, 1.0),
+            child: Text(
+              title,
+              style: AppTypography.largeTitle(context),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+
+        // Pinned compact 44 dp top bar
+        Positioned(
+          left: 0,
+          right: 0,
+          top: topPadding,
+          height: 44.0,
+          child: Row(
+            children: [
+              // Leading slot
+              if (leading != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.sm),
+                  child: leading!,
+                )
+              else
+                const SizedBox(width: AppSpacing.screenMargin),
+
+              // Compact inline title: fades in as large title scrolls away
+              Expanded(
+                child: Opacity(
+                  opacity: progress,
+                  child: Text(
+                    title,
+                    textAlign: hasTopBar ? TextAlign.center : TextAlign.start,
+                    style: AppTypography.headline(context),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+
+              // Actions slot
+              if (actions != null && actions!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.sm),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: actions!,
+                  ),
+                )
+              else
+                const SizedBox(width: AppSpacing.screenMargin),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _LargeTitleHeaderDelegate oldDelegate) {
+    return oldDelegate.title != title ||
+        oldDelegate.leading != leading ||
+        oldDelegate.actions != actions ||
+        oldDelegate.backgroundColor != backgroundColor ||
+        oldDelegate.topPadding != topPadding;
+  }
+}
+
