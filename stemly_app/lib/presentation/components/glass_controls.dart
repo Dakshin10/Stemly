@@ -57,11 +57,11 @@ class GlassTabBar extends StatelessWidget {
 
                 return Stack(
                   children: [
-                    // Sliding Glass Lens Indicator
+                    // Sliding Neutral Glass Lens Indicator (12-16% opacity, NO orange)
                     AnimatedPositioned(
                       duration: AppMotion.getEffectiveDuration(
                         context,
-                        const Duration(milliseconds: 350),
+                        const Duration(milliseconds: 320),
                       ),
                       curve: Curves.easeOutCubic,
                       left: selectedIndex * tabWidth,
@@ -70,10 +70,11 @@ class GlassTabBar extends StatelessWidget {
                       height: constraints.maxHeight,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: AppColors.primary(context).withValues(alpha: 0.14),
+                          color: (AppColors.isDark(context) ? Colors.white : Colors.black)
+                              .withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(100),
                           border: Border.all(
-                            color: AppColors.primary(context).withValues(alpha: 0.28),
+                            color: AppColors.divider(context).withValues(alpha: 0.4),
                             width: 1.0,
                           ),
                         ),
@@ -131,7 +132,7 @@ class _GlassTabButtonState extends State<_GlassTabButton> {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = AppColors.primary(context);
+    final activeColor = AppColors.textPrimary(context);
     final inactiveColor = AppColors.textSecondary(context);
     final isReducedMotion = AppMotion.isReducedMotion(context);
 
@@ -153,10 +154,23 @@ class _GlassTabButtonState extends State<_GlassTabButton> {
             children: [
               Icon(
                 widget.item.icon,
-                size: 22,
+                size: 20,
                 color: widget.isSelected ? activeColor : inactiveColor,
               ),
               const SizedBox(height: 2),
+              // Whitelist #5: 6 dp dot in accentFill under selected tab icon
+              if (widget.isSelected)
+                Container(
+                  width: 5,
+                  height: 5,
+                  margin: const EdgeInsets.only(bottom: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentFill(context),
+                    shape: BoxShape.circle,
+                  ),
+                )
+              else
+                const SizedBox(height: 7),
               Text(
                 widget.item.label,
                 style: AppTypography.caption(context).copyWith(

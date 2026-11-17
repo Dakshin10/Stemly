@@ -27,7 +27,7 @@ class PrimaryButton extends StatefulWidget {
     this.icon,
     this.isLoading = false,
     this.width,
-    this.isCapsule = false,
+    this.isCapsule = true,
   });
 
   @override
@@ -130,15 +130,15 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                 boxShadow: [
                   BoxShadow(
                     color: baseColor.withValues(alpha: _isPressed ? 0.12 : 0.25),
-                    blurRadius: _isPressed ? 10 : 20,
-                    offset: _isPressed ? const Offset(0, 2) : const Offset(0, 6),
+                    blurRadius: _isPressed ? 8 : 16,
+                    offset: _isPressed ? const Offset(0, 2) : const Offset(0, 4),
                   ),
                 ],
               ),
               child: Stack(
                 fit: StackFit.passthrough,
                 children: [
-                  // 1 dp inner top highlight
+                  // 1 dp inner top highlight (white 30%)
                   Positioned(
                     top: 0,
                     left: 0,
@@ -146,7 +146,7 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                     child: Container(
                       height: 1.0,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.35),
+                        color: Colors.white.withValues(alpha: 0.30),
                         borderRadius: BorderRadius.vertical(top: radius.topLeft),
                       ),
                     ),
@@ -209,8 +209,9 @@ class SecondaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
     final dividerColor = AppColors.divider(context);
-    final surfaceColor = AppColors.surface(context);
+    final surfaceColor = isDark ? AppColors.surface2Dark : Colors.white;
     final textColor = AppColors.textPrimary(context);
 
     return Semantics(
@@ -226,7 +227,7 @@ class SecondaryButton extends StatelessWidget {
             backgroundColor: surfaceColor,
             foregroundColor: textColor,
             side: BorderSide(color: dividerColor, width: 1.0),
-            shape: RoundedRectangleBorder(borderRadius: AppRadii.buttonRadius),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.capsule)),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space16),
             elevation: 0,
           ),

@@ -1,4 +1,6 @@
+export 'app_chip.dart';
 export 'app_scaffold.dart';
+export 'app_segmented_control.dart';
 export 'buttons.dart';
 export 'dialogs.dart';
 export 'empty_state.dart';

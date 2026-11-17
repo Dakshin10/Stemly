@@ -100,6 +100,23 @@ class AppTheme {
         thumbShape: RoundSliderThumbShape(enabledThumbRadius: 10),
       ),
 
+      // Switch Theme (On: black track with white thumb in Light; Off: surface2)
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.white;
+          }
+          return AppColors.textSecondaryLight;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.textPrimaryLight;
+          }
+          return AppColors.surface2Light;
+        }),
+        trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+      ),
+
       // Divider Theme
       dividerTheme: const DividerThemeData(
         color: AppColors.dividerLight,
@@ -199,6 +216,23 @@ class AppTheme {
         overlayColor: Color(0x33FF8A3D),
         trackHeight: 4,
         thumbShape: RoundSliderThumbShape(enabledThumbRadius: 10),
+      ),
+
+      // Switch Theme (On: white track with black thumb in Dark; Off: surface2)
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.black;
+          }
+          return AppColors.textSecondaryDark;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.textPrimaryDark;
+          }
+          return AppColors.surface2Dark;
+        }),
+        trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
       ),
 
       // Divider Theme

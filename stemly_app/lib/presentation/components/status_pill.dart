@@ -48,7 +48,7 @@ class StatusPill extends StatelessWidget {
       key: key,
       icon: icon,
       label: label,
-      color: color ?? AppColors.warningLight,
+      color: color ?? AppColors.textSecondaryLight,
       backgroundColor: backgroundColor,
     );
   }
@@ -80,7 +80,7 @@ class StatusPill extends StatelessWidget {
       key: key,
       icon: icon,
       label: label,
-      color: color ?? AppColors.orangeTextLight,
+      color: color ?? AppColors.textSecondaryLight,
       backgroundColor: backgroundColor,
     );
   }
