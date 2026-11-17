@@ -25,9 +25,10 @@ String get _apiBaseUrl => AppConfig.baseUrl;
 
 class FirebaseAuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
+
   // Google OAuth client ID for desktop/web authentication
-  static const String _googleClientId = "75140432972-ua4tbeh27rbejd55q03htq91dt2ig1bd.apps.googleusercontent.com";
+  static const String _googleClientId =
+      "75140432972-ua4tbeh27rbejd55q03htq91dt2ig1bd.apps.googleusercontent.com";
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ["email"],
@@ -93,7 +94,7 @@ class FirebaseAuthService extends ChangeNotifier {
           "1. Firebase Android app package: com.example.stemly_app\n"
           "2. SHA-1 & SHA-256 added in Firebase Console\n"
           "3. google-services.json exists in android/app/\n"
-          "4. Run: cd android && ./gradlew signingReport\n"
+          "4. Run: cd android && ./gradlew signingReport\n",
         );
       }
 
@@ -133,8 +134,7 @@ class FirebaseAuthService extends ChangeNotifier {
 
       final err = error.toString();
 
-      if (err.contains('ApiException: 10') ||
-          err.contains('DEVELOPER_ERROR')) {
+      if (err.contains('ApiException: 10') || err.contains('DEVELOPER_ERROR')) {
         throw Exception(
           "Google Sign-In failed with ApiException: 10.\n\n"
           "This means Firebase is NOT configured properly.\n\n"
@@ -144,7 +144,7 @@ class FirebaseAuthService extends ChangeNotifier {
           "3. Add SHA-1 & SHA-256\n"
           "4. Download google-services.json\n"
           "5. Run: flutterfire configure\n"
-          "6. flutter clean && flutter run"
+          "6. flutter clean && flutter run",
         );
       }
 

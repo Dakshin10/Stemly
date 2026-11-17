@@ -67,7 +67,8 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
 
     // Calculate Physical Stats
     final range = (_safeU * _safeU * sin(2.0 * thetaRad)) / _safeG;
-    final maxHeight = (_safeU * _safeU * sin(thetaRad) * sin(thetaRad)) / (2.0 * _safeG);
+    final maxHeight =
+        (_safeU * _safeU * sin(thetaRad) * sin(thetaRad)) / (2.0 * _safeG);
 
     if (widget.onSimulationUpdate != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -166,7 +167,9 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
                     child: Padding(
                       padding: const EdgeInsets.all(4.0),
                       child: Icon(
-                        _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                        _isPaused
+                            ? Icons.play_arrow_rounded
+                            : Icons.pause_rounded,
                         color: Colors.white,
                         size: 20,
                       ),
@@ -179,31 +182,39 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
                   _controlChip(
                     label: "v⃗",
                     isActive: _showVelocityVector,
-                    onTap: () => setState(() => _showVelocityVector = !_showVelocityVector),
+                    onTap: () => setState(
+                      () => _showVelocityVector = !_showVelocityVector,
+                    ),
                   ),
                   // Toggle Decomposed Components
                   _controlChip(
                     label: "vx/vy",
                     isActive: _showComponents,
-                    onTap: () => setState(() => _showComponents = !_showComponents),
+                    onTap: () =>
+                        setState(() => _showComponents = !_showComponents),
                   ),
                   // Toggle Gravity Vector
                   _controlChip(
                     label: "g⃗",
                     isActive: _showGravityVector,
-                    onTap: () => setState(() => _showGravityVector = !_showGravityVector),
+                    onTap: () => setState(
+                      () => _showGravityVector = !_showGravityVector,
+                    ),
                   ),
                   // Toggle Ghost Trail
                   _controlChip(
                     label: "Trail",
                     isActive: _showTrajectoryTrail,
-                    onTap: () => setState(() => _showTrajectoryTrail = !_showTrajectoryTrail),
+                    onTap: () => setState(
+                      () => _showTrajectoryTrail = !_showTrajectoryTrail,
+                    ),
                   ),
                   // Toggle Telemetry HUD
                   _controlChip(
                     label: "HUD",
                     isActive: _showTelemetryHud,
-                    onTap: () => setState(() => _showTelemetryHud = !_showTelemetryHud),
+                    onTap: () =>
+                        setState(() => _showTelemetryHud = !_showTelemetryHud),
                   ),
                 ],
               ),
@@ -226,7 +237,9 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
         margin: const EdgeInsets.symmetric(horizontal: 2),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.orangeFillLight : Colors.white.withValues(alpha: 0.12),
+          color: isActive
+              ? AppColors.orangeFillLight
+              : Colors.white.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isActive ? AppColors.orangeFillLight : Colors.white24,
@@ -262,7 +275,8 @@ class ProjectileMotionPainter extends CustomPainter {
   static final Paint _groundPaint = Paint()
     ..color = const Color(0xFFD2D2D7)
     ..strokeWidth = 2.0;
-  static final Paint _groundUnderPaint = Paint()..color = const Color(0xFFF5F5F7);
+  static final Paint _groundUnderPaint = Paint()
+    ..color = const Color(0xFFF5F5F7);
   static final Paint _gridPaint = Paint()
     ..color = const Color(0x1F000000)
     ..strokeWidth = 1.0;
@@ -287,7 +301,8 @@ class ProjectileMotionPainter extends CustomPainter {
     ..color = const Color(0xFFFF6B00)
     ..strokeWidth = 2.5
     ..style = PaintingStyle.stroke;
-  static final Paint _velocityArrowHeadPaint = Paint()..color = const Color(0xFFFF6B00);
+  static final Paint _velocityArrowHeadPaint = Paint()
+    ..color = const Color(0xFFFF6B00);
 
   static final Paint _vxPaint = Paint()
     ..color = const Color(0xFF1C1C1E)
@@ -310,7 +325,8 @@ class ProjectileMotionPainter extends CustomPainter {
     ..color = const Color(0xFF636366)
     ..strokeWidth = 2.0
     ..style = PaintingStyle.stroke;
-  static final Paint _gravityArrowHeadPaint = Paint()..color = const Color(0xFF636366);
+  static final Paint _gravityArrowHeadPaint = Paint()
+    ..color = const Color(0xFF636366);
 
   // HUD Paints (Apple Liquid Glass dark HUD)
   static final Paint _hudBgPaint = Paint()
@@ -367,8 +383,15 @@ class ProjectileMotionPainter extends CustomPainter {
     canvas.drawRect(bgRect, Paint()..shader = bgShader);
 
     // Ground (Clean neutral line and subtle underfill, NO green grass)
-    canvas.drawLine(Offset(0, originY), Offset(size.width, originY), _groundPaint);
-    canvas.drawRect(Rect.fromLTWH(0, originY + 1, size.width, size.height - originY - 1), _groundUnderPaint);
+    canvas.drawLine(
+      Offset(0, originY),
+      Offset(size.width, originY),
+      _groundPaint,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(0, originY + 1, size.width, size.height - originY - 1),
+      _groundUnderPaint,
+    );
 
     // Grid & Axes
     _drawGrid(canvas, originX, originY, scale, displayRange, displayHeight);
@@ -447,14 +470,42 @@ class ProjectileMotionPainter extends CustomPainter {
     double displayRange,
     double displayHeight,
   ) {
-    canvas.drawLine(Offset(originX, originY), Offset(originX + displayRange * scale, originY), _axisPaint);
-    canvas.drawLine(Offset(originX, originY), Offset(originX, originY - displayHeight * 1.30 * scale), _axisPaint);
+    canvas.drawLine(
+      Offset(originX, originY),
+      Offset(originX + displayRange * scale, originY),
+      _axisPaint,
+    );
+    canvas.drawLine(
+      Offset(originX, originY),
+      Offset(originX, originY - displayHeight * 1.30 * scale),
+      _axisPaint,
+    );
 
-    _drawText(canvas, 'Distance (m)', originX + displayRange * scale / 2 - 35, originY + 12, size: 10, bold: true);
-    _drawText(canvas, 'Height (m)', originX - 10, originY - displayHeight * 1.30 * scale - 16, size: 10, bold: true);
+    _drawText(
+      canvas,
+      'Distance (m)',
+      originX + displayRange * scale / 2 - 35,
+      originY + 12,
+      size: 10,
+      bold: true,
+    );
+    _drawText(
+      canvas,
+      'Height (m)',
+      originX - 10,
+      originY - displayHeight * 1.30 * scale - 16,
+      size: 10,
+      bold: true,
+    );
   }
 
-  void _drawTrajectory(Canvas canvas, double originX, double originY, double scale, double thetaRad) {
+  void _drawTrajectory(
+    Canvas canvas,
+    double originX,
+    double originY,
+    double scale,
+    double thetaRad,
+  ) {
     if (totalFlightTime <= 0) return;
 
     final path = Path();
@@ -476,7 +527,14 @@ class ProjectileMotionPainter extends CustomPainter {
     canvas.drawPath(path, _trajectoryPaint);
   }
 
-  void _drawGhostTrail(Canvas canvas, double originX, double originY, double scale, double thetaRad, double currentT) {
+  void _drawGhostTrail(
+    Canvas canvas,
+    double originX,
+    double originY,
+    double scale,
+    double thetaRad,
+    double currentT,
+  ) {
     const int dotCount = 18;
     for (int i = 0; i <= dotCount; i++) {
       final dotT = (i / dotCount) * currentT;
@@ -489,7 +547,13 @@ class ProjectileMotionPainter extends CustomPainter {
     }
   }
 
-  void _drawBall(Canvas canvas, double originX, double originY, double scale, Offset pos) {
+  void _drawBall(
+    Canvas canvas,
+    double originX,
+    double originY,
+    double scale,
+    Offset pos,
+  ) {
     final px = originX + pos.dx * scale;
     final py = originY - pos.dy * scale;
 
@@ -523,23 +587,65 @@ class ProjectileMotionPainter extends CustomPainter {
     if (showComponents) {
       // Horizontal component (vx)
       canvas.drawLine(Offset(px, py), Offset(endVxX, py), _vxPaint);
-      _drawArrowHead(canvas, Offset(px, py), Offset(endVxX, py), _vxArrowPaint, 7);
-      _drawText(canvas, 'vx=${vx.toStringAsFixed(1)}', endVxX + 3, py - 12, size: 9, bold: true, color: const Color(0xFF1C1C1E));
+      _drawArrowHead(
+        canvas,
+        Offset(px, py),
+        Offset(endVxX, py),
+        _vxArrowPaint,
+        7,
+      );
+      _drawText(
+        canvas,
+        'vx=${vx.toStringAsFixed(1)}',
+        endVxX + 3,
+        py - 12,
+        size: 9,
+        bold: true,
+        color: const Color(0xFF1C1C1E),
+      );
 
       // Vertical component (vy)
       canvas.drawLine(Offset(px, py), Offset(px, endVyY), _vyPaint);
-      _drawArrowHead(canvas, Offset(px, py), Offset(px, endVyY), _vyArrowPaint, 7);
-      _drawText(canvas, 'vy=${vy.toStringAsFixed(1)}', px - 46, endVyY - 6, size: 9, bold: true, color: const Color(0xFF1C1C1E));
+      _drawArrowHead(
+        canvas,
+        Offset(px, py),
+        Offset(px, endVyY),
+        _vyArrowPaint,
+        7,
+      );
+      _drawText(
+        canvas,
+        'vy=${vy.toStringAsFixed(1)}',
+        px - 46,
+        endVyY - 6,
+        size: 9,
+        bold: true,
+        color: const Color(0xFF1C1C1E),
+      );
 
       // Dashed guide lines
-      canvas.drawLine(Offset(endVxX, py), Offset(endX, endY), _componentDashedPaint);
-      canvas.drawLine(Offset(px, endVyY), Offset(endX, endY), _componentDashedPaint);
+      canvas.drawLine(
+        Offset(endVxX, py),
+        Offset(endX, endY),
+        _componentDashedPaint,
+      );
+      canvas.drawLine(
+        Offset(px, endVyY),
+        Offset(endX, endY),
+        _componentDashedPaint,
+      );
     }
 
     // 2. Velocity Resultant Vector (v in orange)
     if (showVelocityVector) {
       canvas.drawLine(Offset(px, py), Offset(endX, endY), _velocityVectorPaint);
-      _drawArrowHead(canvas, Offset(px, py), Offset(endX, endY), _velocityArrowHeadPaint, 9);
+      _drawArrowHead(
+        canvas,
+        Offset(px, py),
+        Offset(endX, endY),
+        _velocityArrowHeadPaint,
+        9,
+      );
 
       final speed = sqrt(vx * vx + vy * vy);
       _drawText(
@@ -558,12 +664,32 @@ class ProjectileMotionPainter extends CustomPainter {
       const gVectorLen = 28.0;
       final gEndY = py + gVectorLen;
       canvas.drawLine(Offset(px, py), Offset(px, gEndY), _gravityVectorPaint);
-      _drawArrowHead(canvas, Offset(px, py), Offset(px, gEndY), _gravityArrowHeadPaint, 7);
-      _drawText(canvas, 'g=${g.toStringAsFixed(1)}', px + 4, gEndY - 4, size: 9, bold: true, color: const Color(0xFF636366));
+      _drawArrowHead(
+        canvas,
+        Offset(px, py),
+        Offset(px, gEndY),
+        _gravityArrowHeadPaint,
+        7,
+      );
+      _drawText(
+        canvas,
+        'g=${g.toStringAsFixed(1)}',
+        px + 4,
+        gEndY - 4,
+        size: 9,
+        bold: true,
+        color: const Color(0xFF636366),
+      );
     }
   }
 
-  void _drawArrowHead(Canvas canvas, Offset start, Offset end, Paint paint, double arrowSize) {
+  void _drawArrowHead(
+    Canvas canvas,
+    Offset start,
+    Offset end,
+    Paint paint,
+    double arrowSize,
+  ) {
     final angle = atan2(end.dy - start.dy, end.dx - start.dx);
     final path = Path()
       ..moveTo(end.dx, end.dy)
@@ -579,7 +705,13 @@ class ProjectileMotionPainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
-  void _drawTelemetryHud(Canvas canvas, Size size, double t, Offset pos, double thetaRad) {
+  void _drawTelemetryHud(
+    Canvas canvas,
+    Size size,
+    double t,
+    Offset pos,
+    double thetaRad,
+  ) {
     const hudW = 120.0;
     const hudH = 75.0;
     final hudX = size.width - hudW - 12.0;
@@ -597,11 +729,48 @@ class ProjectileMotionPainter extends CustomPainter {
     final vy = U * sin(thetaRad) - g * t;
     final speed = sqrt(vx * vx + vy * vy);
 
-    _drawText(canvas, 'TELEMETRY HUD', hudX + 16, hudY + 6, size: 8.5, bold: true, color: const Color(0xFFFF8A3D));
-    _drawText(canvas, 't  : ${t.toStringAsFixed(2)} s', hudX + 8, hudY + 20, size: 9, color: Colors.white70);
-    _drawText(canvas, 'x  : ${pos.dx.toStringAsFixed(1)} m', hudX + 8, hudY + 33, size: 9, color: Colors.white70);
-    _drawText(canvas, 'y  : ${pos.dy.toStringAsFixed(1)} m', hudX + 8, hudY + 46, size: 9, color: Colors.white70);
-    _drawText(canvas, '|v|: ${speed.toStringAsFixed(1)} m/s', hudX + 8, hudY + 59, size: 9, bold: true, color: const Color(0xFFFF8A3D));
+    _drawText(
+      canvas,
+      'TELEMETRY HUD',
+      hudX + 16,
+      hudY + 6,
+      size: 8.5,
+      bold: true,
+      color: const Color(0xFFFF8A3D),
+    );
+    _drawText(
+      canvas,
+      't  : ${t.toStringAsFixed(2)} s',
+      hudX + 8,
+      hudY + 20,
+      size: 9,
+      color: Colors.white70,
+    );
+    _drawText(
+      canvas,
+      'x  : ${pos.dx.toStringAsFixed(1)} m',
+      hudX + 8,
+      hudY + 33,
+      size: 9,
+      color: Colors.white70,
+    );
+    _drawText(
+      canvas,
+      'y  : ${pos.dy.toStringAsFixed(1)} m',
+      hudX + 8,
+      hudY + 46,
+      size: 9,
+      color: Colors.white70,
+    );
+    _drawText(
+      canvas,
+      '|v|: ${speed.toStringAsFixed(1)} m/s',
+      hudX + 8,
+      hudY + 59,
+      size: 9,
+      bold: true,
+      color: const Color(0xFFFF8A3D),
+    );
   }
 
   void _drawText(

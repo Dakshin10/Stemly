@@ -110,9 +110,9 @@ class _SplashScreenState extends State<SplashScreen> {
                   // Single Tagline
                   Text(
                     AppStrings.appTagline,
-                    style: AppTypography.callout(context).copyWith(
-                      color: textSecondary,
-                    ),
+                    style: AppTypography.callout(
+                      context,
+                    ).copyWith(color: textSecondary),
                   ),
 
                   const Spacer(flex: 2),

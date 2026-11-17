@@ -19,7 +19,9 @@ class StemlyApiService {
       fileField: 'file',
       fileBytes: imageBytes,
       filename: filename,
-      fields: (ocrText != null && ocrText.isNotEmpty) ? {'ocr_text': ocrText} : null,
+      fields: (ocrText != null && ocrText.isNotEmpty)
+          ? {'ocr_text': ocrText}
+          : null,
     );
 
     if (response is Map<String, dynamic>) {
@@ -60,10 +62,7 @@ class StemlyApiService {
   }) async {
     final response = await _client.get(
       '/quiz/generate',
-      queryParameters: {
-        'topic': topic,
-        'count': count,
-      },
+      queryParameters: {'topic': topic, 'count': count},
     );
 
     if (response is Map<String, dynamic>) {
@@ -80,11 +79,7 @@ class StemlyApiService {
   }) async {
     final response = await _client.post(
       '/quiz/submit',
-      body: {
-        'topic': topic,
-        'score': score,
-        'total': total,
-      },
+      body: {'topic': topic, 'score': score, 'total': total},
     );
 
     if (response is Map<String, dynamic>) {
@@ -101,11 +96,7 @@ class StemlyApiService {
   }) async {
     final response = await _client.post(
       '/chat/ask',
-      body: {
-        'message': message,
-        'topic': topic,
-        'history': history ?? [],
-      },
+      body: {'message': message, 'topic': topic, 'history': history ?? []},
     );
 
     if (response is Map<String, dynamic>) {
@@ -144,10 +135,7 @@ class StemlyApiService {
   }) async {
     final response = await _client.get(
       '/scan/history',
-      queryParameters: {
-        'limit': limit,
-        'skip': skip,
-      },
+      queryParameters: {'limit': limit, 'skip': skip},
     );
 
     if (response is Map<String, dynamic>) {

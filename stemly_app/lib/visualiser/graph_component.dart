@@ -63,8 +63,16 @@ class GraphPainter extends CustomPainter {
     final center = Offset(w / 2.0, h / 2.0);
 
     // 1. Draw Axes
-    canvas.drawLine(Offset(0, center.dy), Offset(w, center.dy), _axisPaint); // X-axis
-    canvas.drawLine(Offset(center.dx, 0), Offset(center.dx, h), _axisPaint); // Y-axis
+    canvas.drawLine(
+      Offset(0, center.dy),
+      Offset(w, center.dy),
+      _axisPaint,
+    ); // X-axis
+    canvas.drawLine(
+      Offset(center.dx, 0),
+      Offset(center.dx, h),
+      _axisPaint,
+    ); // Y-axis
 
     // Grid lines (every 24 pixels)
     const double gridSpacing = 24.0;
@@ -118,8 +126,17 @@ class GraphPainter extends CustomPainter {
     // 3. Draw Equation Text Header
     final signB = b >= 0 ? "+" : "-";
     final signC = c >= 0 ? "+" : "-";
-    final eq = "y = ${a.toStringAsFixed(1)}x² $signB ${b.abs().toStringAsFixed(1)}x $signC ${c.abs().toStringAsFixed(1)}";
-    _drawText(canvas, eq, 16, 16, size: 14, bold: true, color: const Color(0xFF1565C0));
+    final eq =
+        "y = ${a.toStringAsFixed(1)}x² $signB ${b.abs().toStringAsFixed(1)}x $signC ${c.abs().toStringAsFixed(1)}";
+    _drawText(
+      canvas,
+      eq,
+      16,
+      16,
+      size: 14,
+      bold: true,
+      color: const Color(0xFF1565C0),
+    );
   }
 
   void _drawText(

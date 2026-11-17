@@ -33,9 +33,7 @@ class AppChip extends StatelessWidget {
     final surface2 = AppColors.surface2(context);
 
     // Selected state uses solid black (light) / solid white (dark)
-    final bg = isSelected
-        ? (isDark ? Colors.white : Colors.black)
-        : surface2;
+    final bg = isSelected ? (isDark ? Colors.white : Colors.black) : surface2;
     final fg = isSelected
         ? (isDark ? Colors.black : Colors.white)
         : textPrimary;

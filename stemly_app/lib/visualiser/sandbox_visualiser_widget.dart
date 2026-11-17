@@ -13,7 +13,8 @@ class SandboxVisualiserWidget extends StatefulWidget {
   });
 
   @override
-  State<SandboxVisualiserWidget> createState() => _SandboxVisualiserWidgetState();
+  State<SandboxVisualiserWidget> createState() =>
+      _SandboxVisualiserWidgetState();
 }
 
 class _SandboxVisualiserWidgetState extends State<SandboxVisualiserWidget> {
@@ -76,7 +77,9 @@ class _SandboxVisualiserWidgetState extends State<SandboxVisualiserWidget> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = AppColors.primary(context);
     final cardBg = isDark ? const Color(0xFF161B26) : const Color(0xFFFFFFFF);
-    final borderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.08);
 
     if (widget.htmlContent.isEmpty) {
       return Center(
@@ -85,7 +88,11 @@ class _SandboxVisualiserWidgetState extends State<SandboxVisualiserWidget> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.code_off_rounded, size: 48, color: Colors.grey.shade400),
+              Icon(
+                Icons.code_off_rounded,
+                size: 48,
+                color: Colors.grey.shade400,
+              ),
               const SizedBox(height: 12),
               const Text(
                 "Empty Simulation Content",
@@ -121,7 +128,10 @@ class _SandboxVisualiserWidgetState extends State<SandboxVisualiserWidget> {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: primaryColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(AppRadii.capsule),
@@ -159,7 +169,10 @@ class _SandboxVisualiserWidgetState extends State<SandboxVisualiserWidget> {
                   icon: const Icon(Icons.refresh_rounded, size: 18),
                   tooltip: "Restart Simulation",
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
                   onPressed: _reloadSimulation,
                 ),
               ],

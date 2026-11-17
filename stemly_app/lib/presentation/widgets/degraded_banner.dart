@@ -8,11 +8,7 @@ class DegradedModeBanner extends StatelessWidget {
   final String? message;
   final VoidCallback? onDismiss;
 
-  const DegradedModeBanner({
-    super.key,
-    this.message,
-    this.onDismiss,
-  });
+  const DegradedModeBanner({super.key, this.message, this.onDismiss});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +20,9 @@ class DegradedModeBanner extends StatelessWidget {
 
     return Semantics(
       label: "Degraded AI Mode Warning",
-      hint: message ?? "Operating in fallback AI mode. Standard explanations are provided.",
+      hint:
+          message ??
+          "Operating in fallback AI mode. Standard explanations are provided.",
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -63,17 +61,17 @@ class DegradedModeBanner extends StatelessWidget {
                 children: [
                   Text(
                     "Fallback AI Mode",
-                    style: AppTypography.subhead(context).copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: textPrimary,
-                    ),
+                    style: AppTypography.subhead(
+                      context,
+                    ).copyWith(fontWeight: FontWeight.w600, color: textPrimary),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    message ?? "Standard curriculum content provided. Generative AI will resume when service load normalizes.",
-                    style: AppTypography.footnote(context).copyWith(
-                      color: textSecondary,
-                    ),
+                    message ??
+                        "Standard curriculum content provided. Generative AI will resume when service load normalizes.",
+                    style: AppTypography.footnote(
+                      context,
+                    ).copyWith(color: textSecondary),
                   ),
                 ],
               ),

@@ -19,14 +19,30 @@ class AppRadii {
   static const double input = 12.0;
 
   // BorderRadius presets
-  static const BorderRadius capsuleRadius = BorderRadius.all(Radius.circular(capsule));
-  static const BorderRadius chipRadius = BorderRadius.all(Radius.circular(chip));
-  static const BorderRadius sheetRadius = BorderRadius.vertical(top: Radius.circular(sheet));
-  static const BorderRadius toolbarRadius = BorderRadius.all(Radius.circular(toolbar));
-  static const BorderRadius cardRadius = BorderRadius.all(Radius.circular(card));
-  static const BorderRadius buttonRadius = BorderRadius.all(Radius.circular(button));
-  static const BorderRadius inputRadius = BorderRadius.all(Radius.circular(input));
-  static const BorderRadius modalRadius = BorderRadius.vertical(top: Radius.circular(modal));
+  static const BorderRadius capsuleRadius = BorderRadius.all(
+    Radius.circular(capsule),
+  );
+  static const BorderRadius chipRadius = BorderRadius.all(
+    Radius.circular(chip),
+  );
+  static const BorderRadius sheetRadius = BorderRadius.vertical(
+    top: Radius.circular(sheet),
+  );
+  static const BorderRadius toolbarRadius = BorderRadius.all(
+    Radius.circular(toolbar),
+  );
+  static const BorderRadius cardRadius = BorderRadius.all(
+    Radius.circular(card),
+  );
+  static const BorderRadius buttonRadius = BorderRadius.all(
+    Radius.circular(button),
+  );
+  static const BorderRadius inputRadius = BorderRadius.all(
+    Radius.circular(input),
+  );
+  static const BorderRadius modalRadius = BorderRadius.vertical(
+    top: Radius.circular(modal),
+  );
 
   /// Generates a smooth Apple continuous superellipse border.
   static ShapeBorder superellipse(double radius) {

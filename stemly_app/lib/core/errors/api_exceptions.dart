@@ -15,10 +15,15 @@ abstract class ApiException implements Exception {
   });
 
   @override
-  String toString() => '$runtimeType: $message (status: $statusCode, req: $requestId)';
+  String toString() =>
+      '$runtimeType: $message (status: $statusCode, req: $requestId)';
 
   /// Factory to parse an HTTP response into a typed exception
-  factory ApiException.fromResponse(int statusCode, String body, {String? requestId}) {
+  factory ApiException.fromResponse(
+    int statusCode,
+    String body, {
+    String? requestId,
+  }) {
     String detail = "Unknown error occurred.";
     String? serverRequestId = requestId;
 
@@ -34,7 +39,9 @@ abstract class ApiException implements Exception {
           if (d is String) {
             detail = d;
           } else if (d is List && d.isNotEmpty) {
-            detail = d.map((e) => e is Map ? e["msg"] : e.toString()).join(", ");
+            detail = d
+                .map((e) => e is Map ? e["msg"] : e.toString())
+                .join(", ");
           }
         } else if (decoded.containsKey("message")) {
           detail = decoded["message"].toString();
@@ -67,11 +74,13 @@ abstract class ApiException implements Exception {
         return ValidationException(
           message: detail,
           statusCode: 413,
-          friendlyMessage: "Image is too large (max 5 MB). Please choose a smaller image.",
+          friendlyMessage:
+              "Image is too large (max 5 MB). Please choose a smaller image.",
           requestId: serverRequestId,
         );
       case 429:
-        if (detail.toLowerCase().contains("quota") || detail.toLowerCase().contains("daily")) {
+        if (detail.toLowerCase().contains("quota") ||
+            detail.toLowerCase().contains("daily")) {
           return QuotaExceededException(
             message: detail,
             statusCode: 429,
@@ -115,8 +124,8 @@ class UnauthorizedException extends ApiException {
     super.statusCode = 401,
     super.requestId,
   }) : super(
-          friendlyMessage: "Your session has expired. Please sign in again.",
-        );
+         friendlyMessage: "Your session has expired. Please sign in again.",
+       );
 }
 
 class ForbiddenException extends ApiException {
@@ -125,8 +134,8 @@ class ForbiddenException extends ApiException {
     super.statusCode = 403,
     super.requestId,
   }) : super(
-          friendlyMessage: "You do not have permission to access this resource.",
-        );
+         friendlyMessage: "You do not have permission to access this resource.",
+       );
 }
 
 class NotFoundException extends ApiException {
@@ -134,9 +143,7 @@ class NotFoundException extends ApiException {
     super.message = "Not found",
     super.statusCode = 404,
     super.requestId,
-  }) : super(
-          friendlyMessage: "The requested resource was not found.",
-        );
+  }) : super(friendlyMessage: "The requested resource was not found.");
 }
 
 class RateLimitException extends ApiException {
@@ -145,8 +152,9 @@ class RateLimitException extends ApiException {
     super.statusCode = 429,
     super.requestId,
   }) : super(
-          friendlyMessage: "Too many requests. Please wait a moment and try again.",
-        );
+         friendlyMessage:
+             "Too many requests. Please wait a moment and try again.",
+       );
 }
 
 class QuotaExceededException extends ApiException {
@@ -155,8 +163,9 @@ class QuotaExceededException extends ApiException {
     super.statusCode = 429,
     super.requestId,
   }) : super(
-          friendlyMessage: "Daily AI generation limit reached (50 requests/day). Quota resets at 00:00 UTC.",
-        );
+         friendlyMessage:
+             "Daily AI generation limit reached (50 requests/day). Quota resets at 00:00 UTC.",
+       );
 }
 
 class ServerException extends ApiException {
@@ -165,8 +174,9 @@ class ServerException extends ApiException {
     super.statusCode = 500,
     super.requestId,
   }) : super(
-          friendlyMessage: "STEMLY AI service is temporarily unavailable. Please try again shortly.",
-        );
+         friendlyMessage:
+             "STEMLY AI service is temporarily unavailable. Please try again shortly.",
+       );
 }
 
 class NetworkException extends ApiException {
@@ -175,8 +185,9 @@ class NetworkException extends ApiException {
     super.statusCode,
     super.requestId,
   }) : super(
-          friendlyMessage: "Unable to reach the server. Please check your internet connection.",
-        );
+         friendlyMessage:
+             "Unable to reach the server. Please check your internet connection.",
+       );
 }
 
 class ValidationException extends ApiException {

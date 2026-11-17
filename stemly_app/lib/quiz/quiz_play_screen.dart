@@ -44,10 +44,8 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => QuizResultScreen(
-            quizData: widget.quizData,
-            answers: _answers,
-          ),
+          builder: (_) =>
+              QuizResultScreen(quizData: widget.quizData, answers: _answers),
         ),
       );
     }
@@ -74,7 +72,8 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
             child: EmptyState(
               icon: Icons.error_outline_rounded,
               title: "No quiz questions",
-              message: widget.quizData["error"]?.toString() ??
+              message:
+                  widget.quizData["error"]?.toString() ??
                   "Quiz questions could not be prepared for this topic.",
               action: PrimaryButton(
                 label: AppStrings.back,
@@ -126,9 +125,9 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                 ),
                 child: Text(
                   "${_currentIndex + 1}/$total",
-                  style: AppTypography.caption(context).copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTypography.caption(
+                    context,
+                  ).copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -139,7 +138,9 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
             child: LinearProgressIndicator(
               value: progress,
               backgroundColor: divider,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary(context)),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.primary(context),
+              ),
               minHeight: 3,
             ),
           ),
@@ -180,7 +181,9 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                       ...List.generate(options.length, (optIndex) {
                         final optionText = options[optIndex]?.toString() ?? "";
                         final isSelected = _answers[_currentIndex] == optIndex;
-                        final letter = String.fromCharCode(65 + optIndex); // A, B, C, D
+                        final letter = String.fromCharCode(
+                          65 + optIndex,
+                        ); // A, B, C, D
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -194,7 +197,9 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                                   _answers[_currentIndex] = optIndex;
                                 });
                               },
-                              borderRadius: BorderRadius.circular(AppRadii.card),
+                              borderRadius: BorderRadius.circular(
+                                AppRadii.card,
+                              ),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 150),
                                 constraints: const BoxConstraints(
@@ -208,7 +213,9 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                                   color: isSelected
                                       ? AppColors.surfaceVariant(context)
                                       : surface,
-                                  borderRadius: BorderRadius.circular(AppRadii.card),
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadii.card,
+                                  ),
                                   border: Border.all(
                                     color: isSelected ? textPrimary : divider,
                                     width: isSelected ? 2.0 : 1.0,
@@ -229,12 +236,15 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                                       alignment: Alignment.center,
                                       child: Text(
                                         letter,
-                                        style: AppTypography.headline(context).copyWith(
-                                          color: isSelected
-                                              ? (AppColors.isDark(context) ? Colors.black : Colors.white)
-                                              : textPrimary,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                        style: AppTypography.headline(context)
+                                            .copyWith(
+                                              color: isSelected
+                                                  ? (AppColors.isDark(context)
+                                                        ? Colors.black
+                                                        : Colors.white)
+                                                  : textPrimary,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                       ),
                                     ),
                                     const SizedBox(width: AppSpacing.md),
@@ -243,12 +253,13 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                                     Expanded(
                                       child: Text(
                                         optionText,
-                                        style: AppTypography.body(context).copyWith(
-                                          color: textPrimary,
-                                          fontWeight: isSelected
-                                              ? FontWeight.w600
-                                              : FontWeight.normal,
-                                        ),
+                                        style: AppTypography.body(context)
+                                            .copyWith(
+                                              color: textPrimary,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.w600
+                                                  : FontWeight.normal,
+                                            ),
                                       ),
                                     ),
 
@@ -302,7 +313,9 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                         icon: isLast
                             ? const Icon(Icons.check_rounded, size: 20)
                             : const Icon(Icons.arrow_forward_rounded, size: 20),
-                        onPressed: hasSelected ? () => _handleNext(total) : null,
+                        onPressed: hasSelected
+                            ? () => _handleNext(total)
+                            : null,
                       ),
                     ),
                   ],

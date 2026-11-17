@@ -9,11 +9,7 @@ class FreeFallWidget extends StatefulWidget {
   final double h;
   final double g;
 
-  const FreeFallWidget({
-    super.key,
-    required this.h,
-    required this.g,
-  });
+  const FreeFallWidget({super.key, required this.h, required this.g});
 
   @override
   State<FreeFallWidget> createState() => _FreeFallWidgetState();
@@ -51,7 +47,10 @@ class _FreeFallWidgetState extends State<FreeFallWidget>
   void _updateAnimation({bool reset = false}) {
     // t_fall = sqrt(2 * h / g)
     _totalFallTime = sqrt(2.0 * _safeH / _safeG);
-    final durationMs = ((_totalFallTime + 1.2) * 1000).toInt().clamp(600, 25000);
+    final durationMs = ((_totalFallTime + 1.2) * 1000).toInt().clamp(
+      600,
+      25000,
+    );
 
     _controller.duration = Duration(milliseconds: durationMs);
     if (reset && !_isPaused) {
@@ -120,7 +119,9 @@ class _FreeFallWidgetState extends State<FreeFallWidget>
                     child: Padding(
                       padding: const EdgeInsets.all(4.0),
                       child: Icon(
-                        _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                        _isPaused
+                            ? Icons.play_arrow_rounded
+                            : Icons.pause_rounded,
                         color: Colors.white,
                         size: 20,
                       ),
@@ -132,12 +133,16 @@ class _FreeFallWidgetState extends State<FreeFallWidget>
                   _controlChip(
                     label: "v⃗",
                     isActive: _showVelocityVector,
-                    onTap: () => setState(() => _showVelocityVector = !_showVelocityVector),
+                    onTap: () => setState(
+                      () => _showVelocityVector = !_showVelocityVector,
+                    ),
                   ),
                   _controlChip(
                     label: "g⃗",
                     isActive: _showGravityVector,
-                    onTap: () => setState(() => _showGravityVector = !_showGravityVector),
+                    onTap: () => setState(
+                      () => _showGravityVector = !_showGravityVector,
+                    ),
                   ),
                   _controlChip(
                     label: "Trail",
@@ -147,7 +152,8 @@ class _FreeFallWidgetState extends State<FreeFallWidget>
                   _controlChip(
                     label: "HUD",
                     isActive: _showTelemetryHud,
-                    onTap: () => setState(() => _showTelemetryHud = !_showTelemetryHud),
+                    onTap: () =>
+                        setState(() => _showTelemetryHud = !_showTelemetryHud),
                   ),
                 ],
               ),
@@ -170,7 +176,9 @@ class _FreeFallWidgetState extends State<FreeFallWidget>
         margin: const EdgeInsets.symmetric(horizontal: 2),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.orangeFillLight : Colors.white.withValues(alpha: 0.12),
+          color: isActive
+              ? AppColors.orangeFillLight
+              : Colors.white.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isActive ? AppColors.orangeFillLight : Colors.white24,
@@ -204,7 +212,8 @@ class FreeFallPainter extends CustomPainter {
   static final Paint _groundPaint = Paint()
     ..color = const Color(0xFFD2D2D7)
     ..strokeWidth = 2.0;
-  static final Paint _groundUnderPaint = Paint()..color = const Color(0xFFF5F5F7);
+  static final Paint _groundUnderPaint = Paint()
+    ..color = const Color(0xFFF5F5F7);
   static final Paint _rulerPaint = Paint()
     ..color = const Color(0x61000000)
     ..strokeWidth = 1.5;
@@ -215,7 +224,8 @@ class FreeFallPainter extends CustomPainter {
   static final Paint _ballShadowPaint = Paint()
     ..color = const Color(0x33000000)
     ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-  static final Paint _ballHighlightPaint = Paint()..color = const Color(0xB3FFFFFF);
+  static final Paint _ballHighlightPaint = Paint()
+    ..color = const Color(0xB3FFFFFF);
   static final Paint _trailDotPaint = Paint()
     ..color = const Color(0xFFFF8A3D)
     ..style = PaintingStyle.fill;
@@ -224,13 +234,15 @@ class FreeFallPainter extends CustomPainter {
     ..color = const Color(0xFFFF6B00)
     ..strokeWidth = 2.5
     ..style = PaintingStyle.stroke;
-  static final Paint _velocityArrowHeadPaint = Paint()..color = const Color(0xFFFF6B00);
+  static final Paint _velocityArrowHeadPaint = Paint()
+    ..color = const Color(0xFFFF6B00);
 
   static final Paint _gravityVectorPaint = Paint()
     ..color = const Color(0xFF636366)
     ..strokeWidth = 2.2
     ..style = PaintingStyle.stroke;
-  static final Paint _gravityArrowHeadPaint = Paint()..color = const Color(0xFF636366);
+  static final Paint _gravityArrowHeadPaint = Paint()
+    ..color = const Color(0xFF636366);
 
   static final Paint _hudBgPaint = Paint()
     ..color = const Color(0xEE1C1C1E)
@@ -279,8 +291,15 @@ class FreeFallPainter extends CustomPainter {
     canvas.drawRect(bgRect, Paint()..shader = bgShader);
 
     // Ground (Clean neutral line and subtle underfill, NO green grass)
-    canvas.drawLine(Offset(0, groundY), Offset(size.width, groundY), _groundPaint);
-    canvas.drawRect(Rect.fromLTWH(0, groundY + 1, size.width, size.height - groundY - 1), _groundUnderPaint);
+    canvas.drawLine(
+      Offset(0, groundY),
+      Offset(size.width, groundY),
+      _groundPaint,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(0, groundY + 1, size.width, size.height - groundY - 1),
+      _groundUnderPaint,
+    );
 
     // Ruler
     _drawRuler(canvas, groundY, scale, marginY);
@@ -290,7 +309,11 @@ class FreeFallPainter extends CustomPainter {
       ..color = const Color(0x20000000)
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
-    canvas.drawLine(Offset(centerX, marginY), Offset(centerX, groundY), dropLinePaint);
+    canvas.drawLine(
+      Offset(centerX, marginY),
+      Offset(centerX, groundY),
+      dropLinePaint,
+    );
 
     // Ghost trail dots
     if (showTrail) {
@@ -371,29 +394,62 @@ class FreeFallPainter extends CustomPainter {
 
   void _drawRuler(Canvas canvas, double groundY, double scale, double marginY) {
     final rulerX = 40.0;
-    canvas.drawLine(Offset(rulerX, marginY), Offset(rulerX, groundY), _rulerPaint);
+    canvas.drawLine(
+      Offset(rulerX, marginY),
+      Offset(rulerX, groundY),
+      _rulerPaint,
+    );
 
     final stepH = max(1.0, (h / 5.0).roundToDouble());
     for (double yVal = 0.0; yVal <= h * 1.05; yVal += stepH) {
       final yPx = groundY - yVal * scale;
       if (yPx < marginY - 10) break;
 
-      canvas.drawLine(Offset(rulerX - 5, yPx), Offset(rulerX + 5, yPx), _rulerMarkPaint);
-      _drawText(canvas, '${yVal.toStringAsFixed(0)}m', rulerX - 32, yPx - 6, size: 9, color: Colors.black54);
+      canvas.drawLine(
+        Offset(rulerX - 5, yPx),
+        Offset(rulerX + 5, yPx),
+        _rulerMarkPaint,
+      );
+      _drawText(
+        canvas,
+        '${yVal.toStringAsFixed(0)}m',
+        rulerX - 32,
+        yPx - 6,
+        size: 9,
+        color: Colors.black54,
+      );
     }
   }
 
-  void _drawArrowHead(Canvas canvas, Offset start, Offset end, Paint paint, double arrowSize) {
+  void _drawArrowHead(
+    Canvas canvas,
+    Offset start,
+    Offset end,
+    Paint paint,
+    double arrowSize,
+  ) {
     final angle = atan2(end.dy - start.dy, end.dx - start.dx);
     final path = Path()
       ..moveTo(end.dx, end.dy)
-      ..lineTo(end.dx - arrowSize * cos(angle - pi / 6), end.dy - arrowSize * sin(angle - pi / 6))
-      ..lineTo(end.dx - arrowSize * cos(angle + pi / 6), end.dy - arrowSize * sin(angle + pi / 6))
+      ..lineTo(
+        end.dx - arrowSize * cos(angle - pi / 6),
+        end.dy - arrowSize * sin(angle - pi / 6),
+      )
+      ..lineTo(
+        end.dx - arrowSize * cos(angle + pi / 6),
+        end.dy - arrowSize * sin(angle + pi / 6),
+      )
       ..close();
     canvas.drawPath(path, paint);
   }
 
-  void _drawTelemetryHud(Canvas canvas, Size size, double t, double currentH, double currentV) {
+  void _drawTelemetryHud(
+    Canvas canvas,
+    Size size,
+    double t,
+    double currentH,
+    double currentV,
+  ) {
     const hudW = 120.0;
     const hudH = 75.0;
     final hudX = size.width - hudW - 12.0;
@@ -407,11 +463,48 @@ class FreeFallPainter extends CustomPainter {
     canvas.drawRRect(hudRRect, _hudBgPaint);
     canvas.drawRRect(hudRRect, _hudBorderPaint);
 
-    _drawText(canvas, 'TELEMETRY HUD', hudX + 16, hudY + 6, size: 8.5, bold: true, color: const Color(0xFFFF8A3D));
-    _drawText(canvas, 't  : ${t.toStringAsFixed(2)} s', hudX + 8, hudY + 20, size: 9, color: Colors.white70);
-    _drawText(canvas, 'h  : ${currentH.toStringAsFixed(1)} m', hudX + 8, hudY + 33, size: 9, color: Colors.white70);
-    _drawText(canvas, 'v  : ${currentV.toStringAsFixed(1)} m/s', hudX + 8, hudY + 46, size: 9, bold: true, color: const Color(0xFFFF8A3D));
-    _drawText(canvas, 'g  : ${g.toStringAsFixed(2)} m/s²', hudX + 8, hudY + 59, size: 9, color: Colors.white70);
+    _drawText(
+      canvas,
+      'TELEMETRY HUD',
+      hudX + 16,
+      hudY + 6,
+      size: 8.5,
+      bold: true,
+      color: const Color(0xFFFF8A3D),
+    );
+    _drawText(
+      canvas,
+      't  : ${t.toStringAsFixed(2)} s',
+      hudX + 8,
+      hudY + 20,
+      size: 9,
+      color: Colors.white70,
+    );
+    _drawText(
+      canvas,
+      'h  : ${currentH.toStringAsFixed(1)} m',
+      hudX + 8,
+      hudY + 33,
+      size: 9,
+      color: Colors.white70,
+    );
+    _drawText(
+      canvas,
+      'v  : ${currentV.toStringAsFixed(1)} m/s',
+      hudX + 8,
+      hudY + 46,
+      size: 9,
+      bold: true,
+      color: const Color(0xFFFF8A3D),
+    );
+    _drawText(
+      canvas,
+      'g  : ${g.toStringAsFixed(2)} m/s²',
+      hudX + 8,
+      hudY + 59,
+      size: 9,
+      color: Colors.white70,
+    );
   }
 
   void _drawText(

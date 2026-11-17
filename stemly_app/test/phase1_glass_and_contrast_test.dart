@@ -30,37 +30,61 @@ double _calculateContrastRatio(Color c1, Color c2) {
 void main() {
   group('Phase 1: Color Contrast & 15-20% Orange Rule Tokens', () {
     test('Black text on orange fill passes WCAG AAA (>= 7.0:1)', () {
-      final ratioLight = _calculateContrastRatio(AppColors.onOrange, AppColors.orangeFillLight);
-      final ratioDark = _calculateContrastRatio(AppColors.onOrange, AppColors.orangeFillDark);
+      final ratioLight = _calculateContrastRatio(
+        AppColors.onOrange,
+        AppColors.orangeFillLight,
+      );
+      final ratioDark = _calculateContrastRatio(
+        AppColors.onOrange,
+        AppColors.orangeFillDark,
+      );
 
-      expect(ratioLight, greaterThanOrEqualTo(7.0),
-          reason: 'Black text on orangeFillLight (#FF6B00) must pass 7:1');
-      expect(ratioDark, greaterThanOrEqualTo(7.0),
-          reason: 'Black text on orangeFillDark (#FF8A3D) must pass 7:1');
+      expect(
+        ratioLight,
+        greaterThanOrEqualTo(7.0),
+        reason: 'Black text on orangeFillLight (#FF6B00) must pass 7:1',
+      );
+      expect(
+        ratioDark,
+        greaterThanOrEqualTo(7.0),
+        reason: 'Black text on orangeFillDark (#FF8A3D) must pass 7:1',
+      );
     });
 
     test('Orange text on white background passes WCAG AA (>= 4.5:1)', () {
-      final ratio = _calculateContrastRatio(AppColors.orangeTextLight, AppColors.backgroundLight);
-      expect(ratio, greaterThanOrEqualTo(4.5),
-          reason: 'orangeTextLight (#C24100) on white must pass 4.5:1');
+      final ratio = _calculateContrastRatio(
+        AppColors.orangeTextLight,
+        AppColors.backgroundLight,
+      );
+      expect(
+        ratio,
+        greaterThanOrEqualTo(4.5),
+        reason: 'orangeTextLight (#C24100) on white must pass 4.5:1',
+      );
     });
 
     test('Orange text on black background passes WCAG AA (>= 4.5:1)', () {
-      final ratio = _calculateContrastRatio(AppColors.orangeTextDark, AppColors.backgroundDark);
-      expect(ratio, greaterThanOrEqualTo(4.5),
-          reason: 'orangeTextDark (#FF8A3D) on black must pass 4.5:1');
+      final ratio = _calculateContrastRatio(
+        AppColors.orangeTextDark,
+        AppColors.backgroundDark,
+      );
+      expect(
+        ratio,
+        greaterThanOrEqualTo(4.5),
+        reason: 'orangeTextDark (#FF8A3D) on black must pass 4.5:1',
+      );
     });
   });
 
   group('Phase 1: Liquid Glass Surface & Accessibility Fallbacks', () {
-    testWidgets('GlassSurface renders BackdropFilter in standard mode', (tester) async {
+    testWidgets('GlassSurface renders BackdropFilter in standard mode', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
           home: Scaffold(
-            body: GlassSurface(
-              child: const Text('Regular Glass'),
-            ),
+            body: GlassSurface(child: const Text('Regular Glass')),
           ),
         ),
       );
@@ -70,36 +94,36 @@ void main() {
       expect(find.text('Regular Glass'), findsOneWidget);
     });
 
-    testWidgets('GlassSurface falls back to opaque surface with border under High Contrast', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: MediaQuery(
-            data: const MediaQueryData(highContrast: true),
-            child: Scaffold(
-              body: GlassSurface(
-                child: const Text('High Contrast Glass'),
+    testWidgets(
+      'GlassSurface falls back to opaque surface with border under High Contrast',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: MediaQuery(
+              data: const MediaQueryData(highContrast: true),
+              child: Scaffold(
+                body: GlassSurface(child: const Text('High Contrast Glass')),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
-      // In high contrast mode, BackdropFilter must NOT be present
-      expect(find.byType(BackdropFilter), findsNothing);
-      expect(find.text('High Contrast Glass'), findsOneWidget);
-    });
+        await tester.pumpAndSettle();
+        // In high contrast mode, BackdropFilter must NOT be present
+        expect(find.byType(BackdropFilter), findsNothing);
+        expect(find.text('High Contrast Glass'), findsOneWidget);
+      },
+    );
 
-    testWidgets('PrimaryButton renders Apple gloss styling and black text', (tester) async {
+    testWidgets('PrimaryButton renders Apple gloss styling and black text', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
           home: Scaffold(
-            body: PrimaryButton(
-              label: 'Scan a problem',
-              onPressed: () {},
-            ),
+            body: PrimaryButton(label: 'Scan a problem', onPressed: () {}),
           ),
         ),
       );
@@ -109,22 +133,22 @@ void main() {
       expect(textWidget.style?.color, equals(AppColors.onOrange));
     });
 
-    testWidgets('PrimaryButton renders disabled state without gloss when onPressed is null', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const Scaffold(
-            body: PrimaryButton(
-              label: 'Disabled Action',
-              onPressed: null,
+    testWidgets(
+      'PrimaryButton renders disabled state without gloss when onPressed is null',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const Scaffold(
+              body: PrimaryButton(label: 'Disabled Action', onPressed: null),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
-      final textWidget = tester.widget<Text>(find.text('Disabled Action'));
-      expect(textWidget.style?.color, equals(AppColors.textSecondaryLight));
-    });
+        await tester.pumpAndSettle();
+        final textWidget = tester.widget<Text>(find.text('Disabled Action'));
+        expect(textWidget.style?.color, equals(AppColors.textSecondaryLight));
+      },
+    );
   });
 }

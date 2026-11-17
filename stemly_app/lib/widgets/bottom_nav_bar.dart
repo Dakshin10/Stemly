@@ -33,22 +33,13 @@ class BottomNavBar extends StatelessWidget {
       selectedIndex: currentIndex,
       onTabSelected: (index) => _go(context, index),
       items: const [
-        GlassTabItem(
-          icon: Icons.camera_alt_rounded,
-          label: AppStrings.tabHome,
-        ),
-        GlassTabItem(
-          icon: Icons.history_rounded,
-          label: AppStrings.tabHistory,
-        ),
+        GlassTabItem(icon: Icons.camera_alt_rounded, label: AppStrings.tabHome),
+        GlassTabItem(icon: Icons.history_rounded, label: AppStrings.tabHistory),
         GlassTabItem(
           icon: Icons.settings_rounded,
           label: AppStrings.tabSettings,
         ),
-        GlassTabItem(
-          icon: Icons.person_rounded,
-          label: AppStrings.tabAccount,
-        ),
+        GlassTabItem(icon: Icons.person_rounded, label: AppStrings.tabAccount),
       ],
     );
   }

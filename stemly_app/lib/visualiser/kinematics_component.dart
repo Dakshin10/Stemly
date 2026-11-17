@@ -166,8 +166,16 @@ class KinematicsPainter extends CustomPainter {
     );
 
     // Curbs
-    canvas.drawLine(Offset(0, roadTop), Offset(size.width, roadTop), _curbPaint);
-    canvas.drawLine(Offset(0, roadTop + roadHeight), Offset(size.width, roadTop + roadHeight), _curbPaint);
+    canvas.drawLine(
+      Offset(0, roadTop),
+      Offset(size.width, roadTop),
+      _curbPaint,
+    );
+    canvas.drawLine(
+      Offset(0, roadTop + roadHeight),
+      Offset(size.width, roadTop + roadHeight),
+      _curbPaint,
+    );
 
     // Road dashed lane markings
     for (double i = 0; i < size.width; i += 36.0) {
@@ -182,9 +190,18 @@ class KinematicsPainter extends CustomPainter {
     canvas.drawLine(
       Offset(originX, roadTop - 6.0),
       Offset(originX, roadTop + roadHeight + 6.0),
-      Paint()..color = const Color(0x66FFFFFF)..strokeWidth = 1.5,
+      Paint()
+        ..color = const Color(0x66FFFFFF)
+        ..strokeWidth = 1.5,
     );
-    _drawText(canvas, 'x=0', originX - 10, roadTop + roadHeight + 8, size: 9, color: Colors.grey.shade600);
+    _drawText(
+      canvas,
+      'x=0',
+      originX - 10,
+      roadTop + roadHeight + 8,
+      size: 9,
+      color: Colors.grey.shade600,
+    );
 
     // Car Position
     final carX = originX + x * scale;
@@ -205,8 +222,16 @@ class KinematicsPainter extends CustomPainter {
     canvas.drawCircle(Offset(x + 42, y), 6.5, _wheelPaint);
 
     // Main Chassis
-    final chassisRect = Rect.fromLTWH(x, y - carHeight, carWidth, carHeight - 4);
-    final rrect = RRect.fromRectAndRadius(chassisRect, const Radius.circular(6));
+    final chassisRect = Rect.fromLTWH(
+      x,
+      y - carHeight,
+      carWidth,
+      carHeight - 4,
+    );
+    final rrect = RRect.fromRectAndRadius(
+      chassisRect,
+      const Radius.circular(6),
+    );
     canvas.drawRRect(rrect, _carBodyPaint);
 
     // Cabin / Roof
@@ -232,7 +257,11 @@ class KinematicsPainter extends CustomPainter {
       final arrowY = y - carHeight - 20.0;
       final arrowX = x + carWidth / 2.0;
 
-      canvas.drawLine(Offset(arrowX, arrowY), Offset(arrowX + arrowLen, arrowY), _vectorPaint);
+      canvas.drawLine(
+        Offset(arrowX, arrowY),
+        Offset(arrowX + arrowLen, arrowY),
+        _vectorPaint,
+      );
 
       // Arrowhead
       final dir = arrowLen.isNegative ? -1.0 : 1.0;
@@ -261,10 +290,36 @@ class KinematicsPainter extends CustomPainter {
     canvas.drawRRect(rrect, _panelBgPaint);
     canvas.drawRRect(rrect, _panelBorderPaint);
 
-    _drawText(canvas, '1D Kinematics', 20, 20, size: 13, bold: true, color: const Color(0xFF283593));
-    _drawText(canvas, 'Time: ${t.toStringAsFixed(1)} s / ${tMax.toStringAsFixed(1)} s', 20, 40, size: 11);
-    _drawText(canvas, 'Position (x): ${x.toStringAsFixed(1)} m', 20, 58, size: 11);
-    _drawText(canvas, 'Velocity (v): ${v.toStringAsFixed(1)} m/s', 20, 76, size: 11);
+    _drawText(
+      canvas,
+      '1D Kinematics',
+      20,
+      20,
+      size: 13,
+      bold: true,
+      color: const Color(0xFF283593),
+    );
+    _drawText(
+      canvas,
+      'Time: ${t.toStringAsFixed(1)} s / ${tMax.toStringAsFixed(1)} s',
+      20,
+      40,
+      size: 11,
+    );
+    _drawText(
+      canvas,
+      'Position (x): ${x.toStringAsFixed(1)} m',
+      20,
+      58,
+      size: 11,
+    );
+    _drawText(
+      canvas,
+      'Velocity (v): ${v.toStringAsFixed(1)} m/s',
+      20,
+      76,
+      size: 11,
+    );
   }
 
   void _drawText(

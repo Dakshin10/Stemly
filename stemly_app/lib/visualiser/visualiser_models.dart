@@ -35,14 +35,14 @@ class TemplateParameter {
   }
 
   Map<String, dynamic> toJson() => {
-        name: {
-          'value': value,
-          'min': min,
-          'max': max,
-          'unit': unit,
-          'label': label,
-        }
-      };
+    name: {
+      'value': value,
+      'min': min,
+      'max': max,
+      'unit': unit,
+      'label': label,
+    },
+  };
 }
 
 class VisualTemplate {
@@ -84,13 +84,15 @@ class VisualTemplate {
 
   Map<String, dynamic> toJson() {
     final p = <String, dynamic>{};
-    parameters.forEach((k, v) => p[k] = {
-          'value': v.value,
-          'min': v.min,
-          'max': v.max,
-          'unit': v.unit,
-          'label': v.label
-        });
+    parameters.forEach(
+      (k, v) => p[k] = {
+        'value': v.value,
+        'min': v.min,
+        'max': v.max,
+        'unit': v.unit,
+        'label': v.label,
+      },
+    );
     return {
       'template_id': templateId,
       'title': title,

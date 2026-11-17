@@ -18,7 +18,10 @@ import 'sandbox_visualiser_widget.dart';
 
 class VisualiserFactory {
   /// Creates the appropriate visualiser widget based on the template ID.
-  static Widget create(VisualTemplate template, {Function(Map<String, String>)? onSimulationUpdate}) {
+  static Widget create(
+    VisualTemplate template, {
+    Function(Map<String, String>)? onSimulationUpdate,
+  }) {
     final id = (template.templateId).toLowerCase().replaceAll("-", "_");
     final p = template.parameters;
 
@@ -44,7 +47,7 @@ class VisualiserFactory {
     if (id.contains("shm") || id.contains("harmonic")) {
       return SHMWidget(A: getVal("A"), m: getVal("m"), k: getVal("k"));
     }
-    
+
     if (id.contains("atom") || id.contains("chemistry")) {
       return AtomWidget(
         protons: getVal("protons"),
@@ -52,12 +55,10 @@ class VisualiserFactory {
       );
     }
 
-    if (id.contains("math") || id.contains("graph") || id.contains("quadratic")) {
-      return GraphWidget(
-        a: getVal("a"),
-        b: getVal("b"),
-        c: getVal("c"),
-      );
+    if (id.contains("math") ||
+        id.contains("graph") ||
+        id.contains("quadratic")) {
+      return GraphWidget(a: getVal("a"), b: getVal("b"), c: getVal("c"));
     }
 
     if (id.contains("kinematics")) {
@@ -93,7 +94,7 @@ class VisualiserFactory {
     // Dynamic Equation Plotter
     if (id.contains("plot") || id.contains("equation")) {
       String equation = "x^2"; // Default
-      
+
       if (template.metadata.containsKey("equation")) {
         equation = template.metadata["equation"].toString();
       }
@@ -110,29 +111,38 @@ class VisualiserFactory {
     // Generic Diagram
     if (id.contains("diagram")) {
       List<Map<String, dynamic>> primitives = [];
-      if (template.metadata.containsKey("primitives") && template.metadata["primitives"] is List) {
-        primitives = List<Map<String, dynamic>>.from(template.metadata["primitives"]);
+      if (template.metadata.containsKey("primitives") &&
+          template.metadata["primitives"] is List) {
+        primitives = List<Map<String, dynamic>>.from(
+          template.metadata["primitives"],
+        );
       }
       return GenericDiagramWidget(primitives: primitives);
     }
 
     // PhET Simulations
-    if (id == "phet-webview" || (template.metadata.containsKey("type") && template.metadata["type"] == "phet")) {
-        final url = template.metadata["url"]?.toString() ?? "";
-        final title = template.metadata["title"]?.toString() ?? "Simulation";
-        if (url.isNotEmpty) {
-           return PhetVisualiserWidget(url: url, title: title);
-        }
+    if (id == "phet-webview" ||
+        (template.metadata.containsKey("type") &&
+            template.metadata["type"] == "phet")) {
+      final url = template.metadata["url"]?.toString() ?? "";
+      final title = template.metadata["title"]?.toString() ?? "Simulation";
+      if (url.isNotEmpty) {
+        return PhetVisualiserWidget(url: url, title: title);
+      }
     }
 
     // AI Micro-Simulation Sandbox
     if (id.contains("sandbox") ||
         id.contains("ai_canvas") ||
         id.contains("micro_simulation") ||
-        (template.metadata.containsKey("type") && template.metadata["type"] == "sandbox") ||
-        (template.metadata.containsKey("html") && template.metadata["html"].toString().isNotEmpty)) {
+        (template.metadata.containsKey("type") &&
+            template.metadata["type"] == "sandbox") ||
+        (template.metadata.containsKey("html") &&
+            template.metadata["html"].toString().isNotEmpty)) {
       final html = template.metadata["html"]?.toString() ?? "";
-      final title = template.title.isNotEmpty ? template.title : "Micro-Simulation";
+      final title = template.title.isNotEmpty
+          ? template.title
+          : "Micro-Simulation";
       if (html.isNotEmpty) {
         return SandboxVisualiserWidget(htmlContent: html, title: title);
       }
@@ -146,7 +156,11 @@ class VisualiserFactory {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.science_outlined, size: 40, color: AppColors.textSecondary(context)),
+              Icon(
+                Icons.science_outlined,
+                size: 40,
+                color: AppColors.textSecondary(context),
+              ),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 "Interactive simulation unavailable for this topic",

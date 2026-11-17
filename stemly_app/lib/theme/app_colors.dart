@@ -19,9 +19,14 @@ class AppColors {
   // LIGHT PALETTE (80-85% Neutrals)
   // ---------------------------------------------------------------------------
   static const Color backgroundLight = Color(0xFFFFFFFF);
-  static const Color surfaceLight = Color(0xFFF5F5F7); // mild-white (cards, grouped rows)
-  static const Color surface2Light = Color(0xFFE8E8ED); // surface2 (chips, inputs, tracks)
-  static const Color surfaceVariantLight = surface2Light; // backward compatibility
+  static const Color surfaceLight = Color(
+    0xFFF5F5F7,
+  ); // mild-white (cards, grouped rows)
+  static const Color surface2Light = Color(
+    0xFFE8E8ED,
+  ); // surface2 (chips, inputs, tracks)
+  static const Color surfaceVariantLight =
+      surface2Light; // backward compatibility
   static const Color dividerLight = Color(0xFFD2D2D7);
   static const Color textPrimaryLight = Color(0xFF000000);
   static const Color textBodyLight = Color(0xFF111111);
@@ -35,7 +40,8 @@ class AppColors {
   static const Color backgroundDark = Color(0xFF000000);
   static const Color surfaceDark = Color(0xFF1C1C1E);
   static const Color surface2Dark = Color(0xFF2C2C2E); // surface2
-  static const Color surfaceVariantDark = surface2Dark; // backward compatibility
+  static const Color surfaceVariantDark =
+      surface2Dark; // backward compatibility
   static const Color dividerDark = Color(0xFF38383A);
   static const Color textPrimaryDark = Color(0xFFFFFFFF);
   static const Color textBodyDark = Color(0xFFFFFFFF);

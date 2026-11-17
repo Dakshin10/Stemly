@@ -193,7 +193,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           "Content-Type": "application/json",
           "Authorization": "Bearer $token",
         },
-        body: jsonEncode({"prompt": "${widget.topic} ${widget.variables.join(' ')}"}),
+        body: jsonEncode({
+          "prompt": "${widget.topic} ${widget.variables.join(' ')}",
+        }),
       );
 
       if (!mounted) return;
@@ -237,15 +239,17 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final templateJson = data["template"] ?? {
-          "template_id": "sandbox",
-          "title": data["title"] ?? widget.topic,
-          "metadata": {
-            "type": "sandbox",
-            "html": data["html"] ?? "",
-            "topic": widget.topic,
-          },
-        };
+        final templateJson =
+            data["template"] ??
+            {
+              "template_id": "sandbox",
+              "title": data["title"] ?? widget.topic,
+              "metadata": {
+                "type": "sandbox",
+                "html": data["html"] ?? "",
+                "topic": widget.topic,
+              },
+            };
         if (data.containsKey("history_id")) {
           templateJson["history_id"] = data["history_id"];
         }
@@ -263,7 +267,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to generate AI micro-simulation")),
+          const SnackBar(
+            content: Text("Failed to generate AI micro-simulation"),
+          ),
         );
       }
     } catch (e) {
@@ -296,7 +302,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     try {
       if (_visualiserTemplate == null) {
         setState(() {
-          _chatMessages.add({"text": "No active simulation to control.", "isUser": false});
+          _chatMessages.add({
+            "text": "No active simulation to control.",
+            "isUser": false,
+          });
           _isSendingChat = false;
         });
         return;
@@ -344,12 +353,20 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           }
         }
       } else {
-        setState(() => _chatMessages.add({"text": "Failed to update parameters.", "isUser": false}));
+        setState(
+          () => _chatMessages.add({
+            "text": "Failed to update parameters.",
+            "isUser": false,
+          }),
+        );
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _chatMessages.add({"text": "Error: ${e.toString()}", "isUser": false});
+          _chatMessages.add({
+            "text": "Error: ${e.toString()}",
+            "isUser": false,
+          });
         });
       }
     } finally {
@@ -378,7 +395,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           elevation: 0,
           scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded, color: textPrimary, size: 20),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: textPrimary,
+              size: 20,
+            ),
             onPressed: () => Navigator.pop(context),
             tooltip: AppStrings.back,
           ),
@@ -392,7 +413,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(56),
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin, vertical: 4),
+              margin: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screenMargin,
+                vertical: 4,
+              ),
               decoration: BoxDecoration(
                 color: AppColors.surfaceVariant(context),
                 borderRadius: BorderRadius.circular(AppRadii.capsule),
@@ -403,10 +427,14 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 indicatorAnimation: TabIndicatorAnimation.elastic,
                 overlayColor: WidgetStateProperty.resolveWith<Color?>((states) {
                   if (states.contains(WidgetState.pressed)) {
-                    return AppColors.accentFill(context).withValues(alpha: 0.14);
+                    return AppColors.accentFill(
+                      context,
+                    ).withValues(alpha: 0.14);
                   }
                   if (states.contains(WidgetState.hovered)) {
-                    return AppColors.accentFill(context).withValues(alpha: 0.06);
+                    return AppColors.accentFill(
+                      context,
+                    ).withValues(alpha: 0.06);
                   }
                   return Colors.transparent;
                 }),
@@ -414,12 +442,16 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                   color: AppColors.surface(context),
                   borderRadius: BorderRadius.circular(AppRadii.capsule),
                   border: Border.all(
-                    color: AppColors.accentFill(context).withValues(alpha: 0.22),
+                    color: AppColors.accentFill(
+                      context,
+                    ).withValues(alpha: 0.22),
                     width: 1.0,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.accentFill(context).withValues(alpha: 0.08),
+                      color: AppColors.accentFill(
+                        context,
+                      ).withValues(alpha: 0.08),
                       blurRadius: 6,
                       offset: const Offset(0, 1),
                     ),
@@ -434,7 +466,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 dividerColor: Colors.transparent,
                 labelColor: textPrimary,
                 unselectedLabelColor: AppColors.textSecondary(context),
-                labelStyle: AppTypography.caption(context).copyWith(fontWeight: FontWeight.bold),
+                labelStyle: AppTypography.caption(
+                  context,
+                ).copyWith(fontWeight: FontWeight.bold),
                 unselectedLabelStyle: AppTypography.caption(context),
                 padding: const EdgeInsets.all(3),
                 tabs: const [
@@ -456,7 +490,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           ),
         ),
         body: TabBarView(
-          physics: const NeverScrollableScrollPhysics(), // Simulations capture drag gestures
+          physics:
+              const NeverScrollableScrollPhysics(), // Simulations capture drag gestures
           children: [
             _buildNotesTab(context),
             _buildVisualiserTab(context),
@@ -474,7 +509,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     if (widget.notesJson.containsKey("error")) {
       return ErrorStateView(
         title: "Notes Generation Failed",
-        message: widget.notesJson["error"]?.toString() ?? "Could not synthesize notes for this topic.",
+        message:
+            widget.notesJson["error"]?.toString() ??
+            "Could not synthesize notes for this topic.",
       );
     }
 
@@ -486,7 +523,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       );
     }
 
-    final bool isDegraded = widget.isDegraded || (widget.notesJson["degraded"] == true);
+    final bool isDegraded =
+        widget.isDegraded || (widget.notesJson["degraded"] == true);
     final surface = AppColors.surface(context);
     final divider = AppColors.divider(context);
     final textPrimary = AppColors.textPrimary(context);
@@ -496,7 +534,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     final bool hasObjective = objectiveCard is! SizedBox;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin, vertical: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenMargin,
+        vertical: AppSpacing.md,
+      ),
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -513,64 +554,82 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           ],
 
           // Notes Accordions
-          ...widget.notesJson.entries.where((e) => e.key != 'degraded' && e.key != 'error').map((entry) {
-            final key = entry.key;
-            final isExpanded = _notesExpanded[key] ?? false;
+          ...widget.notesJson.entries
+              .where((e) => e.key != 'degraded' && e.key != 'error')
+              .map((entry) {
+                final key = entry.key;
+                final isExpanded = _notesExpanded[key] ?? false;
 
-            return Container(
-              margin: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: Material(
-                color: surface,
-                borderRadius: BorderRadius.circular(AppRadii.card),
-                child: Container(
-                  decoration: BoxDecoration(
+                return Container(
+                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: Material(
+                    color: surface,
                     borderRadius: BorderRadius.circular(AppRadii.card),
-                    border: Border.all(color: divider, width: 1.0),
-                  ),
-                  child: Theme(
-                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                    child: ExpansionTile(
-                      key: ValueKey<String>('expansion_$key'),
-                      initiallyExpanded: isExpanded,
-                      onExpansionChanged: (val) {
-                        setState(() => _notesExpanded[key] = val);
-                      },
-                      tilePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-                      childrenPadding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
-                      iconColor: textSecondary,
-                      collapsedIconColor: textSecondary,
-                      shape: const RoundedRectangleBorder(side: BorderSide.none),
-                      collapsedShape: const RoundedRectangleBorder(side: BorderSide.none),
-                      leading: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: AppColors.surface2(context),
-                          borderRadius: BorderRadius.circular(AppRadii.input),
-                          border: Border.all(color: divider, width: 0.5),
-                        ),
-                        child: Icon(
-                          _sectionIcon(key),
-                          size: 18,
-                          color: textPrimary,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppRadii.card),
+                        border: Border.all(color: divider, width: 1.0),
+                      ),
+                      child: Theme(
+                        data: Theme.of(
+                          context,
+                        ).copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          key: ValueKey<String>('expansion_$key'),
+                          initiallyExpanded: isExpanded,
+                          onExpansionChanged: (val) {
+                            setState(() => _notesExpanded[key] = val);
+                          },
+                          tilePadding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.xs,
+                          ),
+                          childrenPadding: const EdgeInsets.fromLTRB(
+                            AppSpacing.md,
+                            0,
+                            AppSpacing.md,
+                            AppSpacing.md,
+                          ),
+                          iconColor: textSecondary,
+                          collapsedIconColor: textSecondary,
+                          shape: const RoundedRectangleBorder(
+                            side: BorderSide.none,
+                          ),
+                          collapsedShape: const RoundedRectangleBorder(
+                            side: BorderSide.none,
+                          ),
+                          leading: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: AppColors.surface2(context),
+                              borderRadius: BorderRadius.circular(
+                                AppRadii.input,
+                              ),
+                              border: Border.all(color: divider, width: 0.5),
+                            ),
+                            child: Icon(
+                              _sectionIcon(key),
+                              size: 18,
+                              color: textPrimary,
+                            ),
+                          ),
+                          title: Text(
+                            _formatKey(key),
+                            style: AppTypography.headline(context),
+                          ),
+                          subtitle: _sectionSubtitle(context, key, entry.value),
+                          children: [
+                            Divider(height: 1, thickness: 0.5, color: divider),
+                            const SizedBox(height: AppSpacing.md),
+                            _buildNoteContent(context, key, entry.value),
+                          ],
                         ),
                       ),
-                      title: Text(
-                        _formatKey(key),
-                        style: AppTypography.headline(context),
-                      ),
-                      subtitle: _sectionSubtitle(context, key, entry.value),
-                      children: [
-                        Divider(height: 1, thickness: 0.5, color: divider),
-                        const SizedBox(height: AppSpacing.md),
-                        _buildNoteContent(context, key, entry.value),
-                      ],
                     ),
                   ),
-                ),
-              ),
-            );
-          }),
+                );
+              }),
 
           const SizedBox(height: AppSpacing.xl),
         ],
@@ -581,12 +640,18 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   IconData _sectionIcon(String key) {
     final lower = key.toLowerCase();
     if (lower.contains('example')) return Icons.science_outlined;
-    if (lower.contains('formula') || lower.contains('equation')) return Icons.functions_rounded;
-    if (lower.contains('variable') || lower.contains('breakdown')) return Icons.tune_rounded;
-    if (lower.contains('mistake') || lower.contains('pitfall')) return Icons.warning_amber_rounded;
-    if (lower.contains('practice') || lower.contains('question')) return Icons.help_outline_rounded;
-    if (lower.contains('summary') || lower.contains('takeaway')) return Icons.checklist_rounded;
-    if (lower.contains('resource') || lower.contains('reference')) return Icons.bookmark_border_rounded;
+    if (lower.contains('formula') || lower.contains('equation'))
+      return Icons.functions_rounded;
+    if (lower.contains('variable') || lower.contains('breakdown'))
+      return Icons.tune_rounded;
+    if (lower.contains('mistake') || lower.contains('pitfall'))
+      return Icons.warning_amber_rounded;
+    if (lower.contains('practice') || lower.contains('question'))
+      return Icons.help_outline_rounded;
+    if (lower.contains('summary') || lower.contains('takeaway'))
+      return Icons.checklist_rounded;
+    if (lower.contains('resource') || lower.contains('reference'))
+      return Icons.bookmark_border_rounded;
     return Icons.menu_book_rounded;
   }
 
@@ -607,9 +672,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       padding: const EdgeInsets.only(top: 2),
       child: Text(
         label,
-        style: AppTypography.caption(context).copyWith(
-          color: AppColors.textSecondary(context),
-        ),
+        style: AppTypography.caption(
+          context,
+        ).copyWith(color: AppColors.textSecondary(context)),
       ),
     );
   }
@@ -621,11 +686,14 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
     // 1. STRING CONTENT (Examples, explanations, prose)
     if (value is String) {
-      final stepRegex = RegExp(r'(?:^|\s)(?:\((\d+)\)|(?:Step\s+(\d+)[:.]?)|(\d+)[.)])\s+');
+      final stepRegex = RegExp(
+        r'(?:^|\s)(?:\((\d+)\)|(?:Step\s+(\d+)[:.]?)|(\d+)[.)])\s+',
+      );
       final matches = stepRegex.allMatches(value).toList();
 
       // If it contains step markers, render as a high-end stepped walkthrough
-      if (matches.length >= 2 || (matches.length == 1 && key.toLowerCase().contains('example'))) {
+      if (matches.length >= 2 ||
+          (matches.length == 1 && key.toLowerCase().contains('example'))) {
         return _buildSteppedExample(context, value, matches);
       }
 
@@ -659,7 +727,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             final str = item.toString();
             return Container(
               margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: 12,
+              ),
               decoration: BoxDecoration(
                 color: AppColors.surface2(context),
                 borderRadius: BorderRadius.circular(AppRadii.input),
@@ -674,7 +745,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                       scrollDirection: Axis.horizontal,
                       child: MathTexView(
                         formula: str,
-                        textStyle: AppTypography.subhead(context).copyWith(fontWeight: FontWeight.w600),
+                        textStyle: AppTypography.subhead(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),
@@ -738,7 +811,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.surface(context),
                       borderRadius: BorderRadius.circular(6),
@@ -784,10 +860,15 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: str.contains(r'\')
-                      ? MathTexView(formula: str, textStyle: AppTypography.body(context))
+                      ? MathTexView(
+                          formula: str,
+                          textStyle: AppTypography.body(context),
+                        )
                       : Text(
                           str,
-                          style: AppTypography.body(context).copyWith(height: 1.45),
+                          style: AppTypography.body(
+                            context,
+                          ).copyWith(height: 1.45),
                         ),
                 ),
               ],
@@ -815,13 +896,19 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             return Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: 10,
+                  ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       // Monospace / math symbol badge
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.surface(context),
                           borderRadius: BorderRadius.circular(6),
@@ -841,14 +928,15 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                       Expanded(
                         child: Text(
                           e.value.toString(),
-                          style: AppTypography.body(context).copyWith(height: 1.35),
+                          style: AppTypography.body(
+                            context,
+                          ).copyWith(height: 1.35),
                         ),
                       ),
                     ],
                   ),
                 ),
-                if (!isLast)
-                  Divider(height: 1, thickness: 0.5, color: divider),
+                if (!isLast) Divider(height: 1, thickness: 0.5, color: divider),
               ],
             );
           }).toList(),
@@ -856,23 +944,24 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       );
     }
 
-    return Text(value.toString(), style: AppTypography.body(context).copyWith(height: 1.45));
+    return Text(
+      value.toString(),
+      style: AppTypography.body(context).copyWith(height: 1.45),
+    );
   }
 
   Widget _renderMathOrText(BuildContext context, String text) {
     if (text.contains(r'\') || text.contains('^') || text.contains('_')) {
-      return MathTexView(
-        formula: text,
-        textStyle: AppTypography.body(context),
-      );
+      return MathTexView(formula: text, textStyle: AppTypography.body(context));
     }
-    return Text(
-      text,
-      style: AppTypography.body(context).copyWith(height: 1.5),
-    );
+    return Text(text, style: AppTypography.body(context).copyWith(height: 1.5));
   }
 
-  Widget _buildSteppedExample(BuildContext context, String rawText, List<RegExpMatch> matches) {
+  Widget _buildSteppedExample(
+    BuildContext context,
+    String rawText,
+    List<RegExpMatch> matches,
+  ) {
     final divider = AppColors.divider(context);
     final textPrimary = AppColors.textPrimary(context);
     final textSecondary = AppColors.textSecondary(context);
@@ -889,7 +978,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       final m = matches[i];
       final stepNum = m.group(1) ?? m.group(2) ?? m.group(3) ?? "${i + 1}";
       final start = m.end;
-      final end = (i + 1 < matches.length) ? matches[i + 1].start : rawText.length;
+      final end = (i + 1 < matches.length)
+          ? matches[i + 1].start
+          : rawText.length;
       String rawStepContent = rawText.substring(start, end).trim();
 
       if (i == matches.length - 1) {
@@ -900,7 +991,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
         if (conclusionMatch != null) {
           conclusion = rawStepContent.substring(conclusionMatch.start).trim();
-          rawStepContent = rawStepContent.substring(0, conclusionMatch.start).trim();
+          rawStepContent = rawStepContent
+              .substring(0, conclusionMatch.start)
+              .trim();
         }
       }
 
@@ -932,7 +1025,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.help_outline_rounded, size: 16, color: textSecondary),
+                    Icon(
+                      Icons.help_outline_rounded,
+                      size: 16,
+                      color: textSecondary,
+                    ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
                       "Problem Scenario",
@@ -946,7 +1043,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   preamble,
-                  style: AppTypography.body(context).copyWith(height: 1.45, color: textPrimary),
+                  style: AppTypography.body(
+                    context,
+                  ).copyWith(height: 1.45, color: textPrimary),
                 ),
               ],
             ),
@@ -958,7 +1057,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         ...steps.asMap().entries.map((entry) {
           final idx = entry.key;
           final step = entry.value;
-          final isLast = idx == steps.length - 1 && (conclusion == null || conclusion.isEmpty);
+          final isLast =
+              idx == steps.length - 1 &&
+              (conclusion == null || conclusion.isEmpty);
 
           return Padding(
             padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.md),
@@ -978,10 +1079,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                   alignment: Alignment.center,
                   child: Text(
                     step.number,
-                    style: AppTypography.caption(context).copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: textPrimary,
-                    ),
+                    style: AppTypography.caption(
+                      context,
+                    ).copyWith(fontWeight: FontWeight.bold, color: textPrimary),
                   ),
                 ),
 
@@ -1002,13 +1102,19 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                       ],
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.surface2(context),
                           borderRadius: BorderRadius.circular(AppRadii.input),
                           border: Border.all(color: divider, width: 0.5),
                         ),
-                        child: step.body.contains(r'\') || step.body.contains('^') || step.body.contains('_')
+                        child:
+                            step.body.contains(r'\') ||
+                                step.body.contains('^') ||
+                                step.body.contains('_')
                             ? SingleChildScrollView(
                                 scrollDirection: Axis.horizontal,
                                 child: MathTexView(
@@ -1018,7 +1124,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                               )
                             : Text(
                                 step.body,
-                                style: AppTypography.body(context).copyWith(height: 1.45, color: textPrimary),
+                                style: AppTypography.body(
+                                  context,
+                                ).copyWith(height: 1.45, color: textPrimary),
                               ),
                       ),
                     ],
@@ -1089,7 +1197,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin, vertical: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenMargin,
+        vertical: AppSpacing.md,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1130,7 +1241,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 return Expanded(
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: surface,
                       borderRadius: BorderRadius.circular(AppRadii.button),
@@ -1166,7 +1280,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           ],
 
           // 3. SIMULATION PARAMETERS (SLIDERS WITH MONOSPACE VALUES & RESET)
-          if (_visualiserTemplate != null && _visualiserTemplate!.parameters.isNotEmpty) ...[
+          if (_visualiserTemplate != null &&
+              _visualiserTemplate!.parameters.isNotEmpty) ...[
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
@@ -1182,7 +1297,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.tune_rounded, color: textPrimary, size: 20),
+                          Icon(
+                            Icons.tune_rounded,
+                            color: textPrimary,
+                            size: 20,
+                          ),
                           const SizedBox(width: AppSpacing.sm),
                           Text(
                             AppStrings.simulationParameters,
@@ -1196,7 +1315,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                           _loadVisualiser();
                         },
                         style: TextButton.styleFrom(
-                          minimumSize: const Size(44, AppSpacing.minTouchTarget),
+                          minimumSize: const Size(
+                            44,
+                            AppSpacing.minTouchTarget,
+                          ),
                         ),
                         child: Text(
                           AppStrings.resetCrop,
@@ -1214,9 +1336,12 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                     final param = e.value;
                     final double val = param.value;
                     final double minVal = param.min;
-                    final double maxVal =
-                        param.max > param.min ? param.max : (val > 0 ? val * 2 : 100.0);
-                    final String label = param.label.isNotEmpty ? param.label : _formatKey(e.key);
+                    final double maxVal = param.max > param.min
+                        ? param.max
+                        : (val > 0 ? val * 2 : 100.0);
+                    final String label = param.label.isNotEmpty
+                        ? param.label
+                        : _formatKey(e.key);
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -1226,10 +1351,17 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(label, style: AppTypography.subhead(context)),
                               Text(
-                                "${val.toStringAsFixed(1)} ${param.unit}".trim(),
-                                style: AppTypography.numeric(context, fontSize: 13),
+                                label,
+                                style: AppTypography.subhead(context),
+                              ),
+                              Text(
+                                "${val.toStringAsFixed(1)} ${param.unit}"
+                                    .trim(),
+                                style: AppTypography.numeric(
+                                  context,
+                                  fontSize: 13,
+                                ),
                               ),
                             ],
                           ),
@@ -1296,7 +1428,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                   children: [
                     AppChip(
                       label: AppStrings.chipExplainGravity,
-                      onTap: () => _sendChatMessage("Explain gravity in this problem"),
+                      onTap: () =>
+                          _sendChatMessage("Explain gravity in this problem"),
                     ),
                     AppChip(
                       label: AppStrings.chipSetVelocity,
@@ -1337,24 +1470,37 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                                 : textPrimary;
 
                             return Align(
-                              alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                              alignment: isUser
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
                               child: Container(
                                 margin: const EdgeInsets.only(bottom: 6),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
                                 constraints: BoxConstraints(
-                                  maxWidth: MediaQuery.of(context).size.width * 0.72,
+                                  maxWidth:
+                                      MediaQuery.of(context).size.width * 0.72,
                                 ),
                                 decoration: BoxDecoration(
                                   color: bubbleBg,
-                                  borderRadius: BorderRadius.circular(AppRadii.button),
-                                  border: isUser ? null : Border.all(color: divider),
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadii.button,
+                                  ),
+                                  border: isUser
+                                      ? null
+                                      : Border.all(color: divider),
                                 ),
                                 child: Text(
                                   msg["text"] ?? "",
-                                  style: AppTypography.subhead(context).copyWith(
-                                    color: bubbleFg,
-                                    fontWeight: isUser ? FontWeight.w600 : FontWeight.normal,
-                                  ),
+                                  style: AppTypography.subhead(context)
+                                      .copyWith(
+                                        color: bubbleFg,
+                                        fontWeight: isUser
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                      ),
                                 ),
                               ),
                             );
@@ -1400,7 +1546,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       );
     }
 
-    if (_visualiserWidget != null && _visualiserTemplate?.templateId != "default-empty") {
+    if (_visualiserWidget != null &&
+        _visualiserTemplate?.templateId != "default-empty") {
       return _visualiserWidget!;
     }
 
@@ -1413,7 +1560,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.broken_image_outlined, size: 48, color: AppColors.textSecondary(context)),
+              Icon(
+                Icons.broken_image_outlined,
+                size: 48,
+                color: AppColors.textSecondary(context),
+              ),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 "Could not load diagram",
@@ -1427,12 +1578,19 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.science_outlined, size: 36, color: AppColors.textSecondary(context)),
+            Icon(
+              Icons.science_outlined,
+              size: 36,
+              color: AppColors.textSecondary(context),
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               "Interactive simulation unavailable for this topic.",
@@ -1441,7 +1599,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             ),
             const SizedBox(height: AppSpacing.sm),
             if (_generatingSandbox) ...[
-              CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary(context)),
+              CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: AppColors.primary(context),
+              ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 "Building interactive micro-simulation...",
@@ -1481,7 +1642,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         ? widget.structuredVariables
         : (widget.historyItem?.structuredVariables ?? []);
 
-    if (target == null && formula == null && structured.isEmpty && widget.variables.isEmpty) {
+    if (target == null &&
+        formula == null &&
+        structured.isEmpty &&
+        widget.variables.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -1559,7 +1723,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.functions_rounded, size: 16, color: textPrimary),
+                      Icon(
+                        Icons.functions_rounded,
+                        size: 16,
+                        color: textPrimary,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         AppStrings.governingEquation,
@@ -1575,7 +1743,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                     scrollDirection: Axis.horizontal,
                     child: MathTexView(
                       formula: formula,
-                      textStyle: AppTypography.subhead(context).copyWith(fontWeight: FontWeight.bold),
+                      textStyle: AppTypography.subhead(
+                        context,
+                      ).copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -1588,7 +1758,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           if (structured.isNotEmpty) ...[
             Text(
               AppStrings.physicalVariables,
-              style: AppTypography.subhead(context).copyWith(fontWeight: FontWeight.w600),
+              style: AppTypography.subhead(
+                context,
+              ).copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: AppSpacing.xs),
             Wrap(
@@ -1601,15 +1773,14 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 final unit = v["unit"]?.toString() ?? "";
                 final isTarget = v["is_target"] == true;
 
-                final displayVal = val != null ? "$val $unit".trim() : AppStrings.toFind;
+                final displayVal = val != null
+                    ? "$val $unit".trim()
+                    : AppStrings.toFind;
                 final label = symbol.isNotEmpty && symbol != name
                     ? "$symbol ($name): $displayVal"
                     : "$name: $displayVal";
 
-                return AppChip(
-                  label: label,
-                  isToFind: isTarget,
-                );
+                return AppChip(label: label, isToFind: isTarget);
               }).toList(),
             ),
           ],
@@ -1649,11 +1820,17 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 ),
                 child: Column(
                   children: [
-                    Icon(Icons.quiz_outlined, size: 48, color: AppColors.primary(context)),
+                    Icon(
+                      Icons.quiz_outlined,
+                      size: 48,
+                      color: AppColors.primary(context),
+                    ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       "${AppStrings.quizSetupHeader}${widget.topic}",
-                      style: AppTypography.title2(context).copyWith(fontWeight: FontWeight.bold),
+                      style: AppTypography.title2(
+                        context,
+                      ).copyWith(fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: AppSpacing.xs),
@@ -1673,15 +1850,24 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 title: "Quiz configuration",
                 children: [
                   GroupedRow(
-                    leading: Icon(Icons.format_list_numbered_rounded, color: textPrimary, size: 22),
+                    leading: Icon(
+                      Icons.format_list_numbered_rounded,
+                      color: textPrimary,
+                      size: 22,
+                    ),
                     title: AppStrings.questionCount,
                     trailing: Text(
                       "${_quizQuestionCount.toInt()}",
-                      style: AppTypography.headline(context).copyWith(fontWeight: FontWeight.bold),
+                      style: AppTypography.headline(
+                        context,
+                      ).copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
                     child: Slider(
                       min: 3,
                       max: 10,
@@ -1689,11 +1875,16 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                       value: _quizQuestionCount,
                       activeColor: AppColors.primary(context),
                       inactiveColor: AppColors.surface2(context),
-                      onChanged: (v) => setQuizState(() => _quizQuestionCount = v),
+                      onChanged: (v) =>
+                          setQuizState(() => _quizQuestionCount = v),
                     ),
                   ),
                   GroupedRow(
-                    leading: Icon(Icons.speed_rounded, color: textPrimary, size: 22),
+                    leading: Icon(
+                      Icons.speed_rounded,
+                      color: textPrimary,
+                      size: 22,
+                    ),
                     title: AppStrings.difficulty,
                     trailing: AppSegmentedControl<int>(
                       children: const {
@@ -1702,7 +1893,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                         2: AppStrings.difficultyHard,
                       },
                       groupValue: _selectedDifficulty,
-                      onValueChanged: (val) => setQuizState(() => _selectedDifficulty = val),
+                      onValueChanged: (val) =>
+                          setQuizState(() => _selectedDifficulty = val),
                     ),
                   ),
                 ],
@@ -1735,7 +1927,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       isScrollControlled: true,
       backgroundColor: AppColors.surface(context),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.modal)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadii.modal),
+        ),
       ),
       builder: (_) => SizedBox(
         height: MediaQuery.of(context).size.height * 0.75,
@@ -1753,15 +1947,21 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         return;
       }
 
-      final response = await http.get(
-        Uri.parse("$_serverIp/quiz/generate?topic=${widget.topic}&count=$count"),
-        headers: {"Authorization": "Bearer $token"},
-      ).timeout(const Duration(seconds: 45));
+      final response = await http
+          .get(
+            Uri.parse(
+              "$_serverIp/quiz/generate?topic=${widget.topic}&count=$count",
+            ),
+            headers: {"Authorization": "Bearer $token"},
+          )
+          .timeout(const Duration(seconds: 45));
 
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
 
       if (response.statusCode != 200) {
-        _showQuizError("Quiz generation failed (status ${response.statusCode}).");
+        _showQuizError(
+          "Quiz generation failed (status ${response.statusCode}).",
+        );
         return;
       }
 
@@ -1803,10 +2003,5 @@ class _StepItem {
   final String? title;
   final String body;
 
-  const _StepItem({
-    required this.number,
-    this.title,
-    required this.body,
-  });
+  const _StepItem({required this.number, this.title, required this.body});
 }
-

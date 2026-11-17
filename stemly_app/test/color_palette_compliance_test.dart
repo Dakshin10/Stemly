@@ -41,30 +41,45 @@ void main() {
         }
       }
 
-      expect(violations, isEmpty, reason: 'Found old blue palette tokens in lib/:\n${violations.join('\n')}');
+      expect(
+        violations,
+        isEmpty,
+        reason:
+            'Found old blue palette tokens in lib/:\n${violations.join('\n')}',
+      );
     });
 
-    test('Screens do not contain hard-coded color literals (excluding test/mock widgets)', () {
-      final screensDir = Directory('lib/screens');
-      expect(screensDir.existsSync(), isTrue);
+    test(
+      'Screens do not contain hard-coded color literals (excluding test/mock widgets)',
+      () {
+        final screensDir = Directory('lib/screens');
+        expect(screensDir.existsSync(), isTrue);
 
-      final screenFiles = screensDir
-          .listSync(recursive: true)
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.dart'));
+        final screenFiles = screensDir
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.dart'));
 
-      final hardcodedColorRegex = RegExp(r'Color\(0x[0-9a-fA-F]{8}\)');
-      final violations = <String>[];
+        final hardcodedColorRegex = RegExp(r'Color\(0x[0-9a-fA-F]{8}\)');
+        final violations = <String>[];
 
-      for (var file in screenFiles) {
-        final content = file.readAsStringSync();
-        final matches = hardcodedColorRegex.allMatches(content);
-        for (var match in matches) {
-          violations.add('${file.path} contains hardcoded color: ${match.group(0)}');
+        for (var file in screenFiles) {
+          final content = file.readAsStringSync();
+          final matches = hardcodedColorRegex.allMatches(content);
+          for (var match in matches) {
+            violations.add(
+              '${file.path} contains hardcoded color: ${match.group(0)}',
+            );
+          }
         }
-      }
 
-      expect(violations, isEmpty, reason: 'Screens must use AppColors tokens:\n${violations.join('\n')}');
-    });
+        expect(
+          violations,
+          isEmpty,
+          reason:
+              'Screens must use AppColors tokens:\n${violations.join('\n')}',
+        );
+      },
+    );
   });
 }

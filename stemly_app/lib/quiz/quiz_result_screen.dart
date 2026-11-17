@@ -82,7 +82,9 @@ class QuizResultScreen extends StatelessWidget {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenMargin,
+                ),
                 physics: const BouncingScrollPhysics(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -123,10 +125,11 @@ class QuizResultScreen extends StatelessWidget {
                                     children: [
                                       Text(
                                         "$score / $total",
-                                        style: AppTypography.headline(context).copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: textPrimary,
-                                        ),
+                                        style: AppTypography.headline(context)
+                                            .copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: textPrimary,
+                                            ),
                                       ),
                                     ],
                                   ),
@@ -172,7 +175,8 @@ class QuizResultScreen extends StatelessWidget {
                       final explanation = q["explanation"]?.toString();
                       final takeaway = q["takeaway"]?.toString();
 
-                      final userAnswerText = userIndex != null && userIndex < options.length
+                      final userAnswerText =
+                          userIndex != null && userIndex < options.length
                           ? options[userIndex]?.toString() ?? ""
                           : "Not answered";
                       final correctAnswerText = correctIndex < options.length
@@ -204,13 +208,16 @@ class QuizResultScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(width: AppSpacing.xs),
                                 Text(
-                                  isCorrect ? AppStrings.correct : AppStrings.incorrect,
-                                  style: AppTypography.subhead(context).copyWith(
-                                    color: isCorrect
-                                        ? AppColors.success(context)
-                                        : AppColors.error(context),
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  isCorrect
+                                      ? AppStrings.correct
+                                      : AppStrings.incorrect,
+                                  style: AppTypography.subhead(context)
+                                      .copyWith(
+                                        color: isCorrect
+                                            ? AppColors.success(context)
+                                            : AppColors.error(context),
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                 ),
                                 const Spacer(),
                                 Text(
@@ -234,19 +241,20 @@ class QuizResultScreen extends StatelessWidget {
                               children: [
                                 Text(
                                   "${AppStrings.yourAnswer}: ",
-                                  style: AppTypography.subhead(context).copyWith(
-                                    fontWeight: FontWeight.w500,
-                                    color: isCorrect
-                                        ? AppColors.success(context)
-                                        : AppColors.error(context),
-                                  ),
+                                  style: AppTypography.subhead(context)
+                                      .copyWith(
+                                        fontWeight: FontWeight.w500,
+                                        color: isCorrect
+                                            ? AppColors.success(context)
+                                            : AppColors.error(context),
+                                      ),
                                 ),
                                 Expanded(
                                   child: Text(
                                     userAnswerText,
-                                    style: AppTypography.subhead(context).copyWith(
-                                      color: textPrimary,
-                                    ),
+                                    style: AppTypography.subhead(
+                                      context,
+                                    ).copyWith(color: textPrimary),
                                   ),
                                 ),
                               ],
@@ -260,17 +268,18 @@ class QuizResultScreen extends StatelessWidget {
                                 children: [
                                   Text(
                                     "${AppStrings.correctAnswer}: ",
-                                    style: AppTypography.subhead(context).copyWith(
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.success(context),
-                                    ),
+                                    style: AppTypography.subhead(context)
+                                        .copyWith(
+                                          fontWeight: FontWeight.w500,
+                                          color: AppColors.success(context),
+                                        ),
                                   ),
                                   Expanded(
                                     child: Text(
                                       correctAnswerText,
-                                      style: AppTypography.subhead(context).copyWith(
-                                        color: textPrimary,
-                                      ),
+                                      style: AppTypography.subhead(
+                                        context,
+                                      ).copyWith(color: textPrimary),
                                     ),
                                   ),
                                 ],
@@ -278,14 +287,14 @@ class QuizResultScreen extends StatelessWidget {
                             ],
 
                             // Explanation
-                            if (explanation != null && explanation.isNotEmpty) ...[
+                            if (explanation != null &&
+                                explanation.isNotEmpty) ...[
                               const SizedBox(height: AppSpacing.sm),
                               Text(
                                 explanation,
-                                style: AppTypography.footnote(context).copyWith(
-                                  color: textSecondary,
-                                  height: 1.35,
-                                ),
+                                style: AppTypography.footnote(
+                                  context,
+                                ).copyWith(color: textSecondary, height: 1.35),
                               ),
                             ],
 
@@ -295,10 +304,16 @@ class QuizResultScreen extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.all(AppSpacing.sm),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary(context).withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(AppRadii.input),
+                                  color: AppColors.primary(
+                                    context,
+                                  ).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadii.input,
+                                  ),
                                   border: Border.all(
-                                    color: AppColors.primary(context).withValues(alpha: 0.2),
+                                    color: AppColors.primary(
+                                      context,
+                                    ).withValues(alpha: 0.2),
                                   ),
                                 ),
                                 child: Row(
@@ -313,10 +328,11 @@ class QuizResultScreen extends StatelessWidget {
                                     Expanded(
                                       child: Text(
                                         "${AppStrings.keyTakeaway}: $takeaway",
-                                        style: AppTypography.footnote(context).copyWith(
-                                          color: textPrimary,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                        style: AppTypography.footnote(context)
+                                            .copyWith(
+                                              color: textPrimary,
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                       ),
                                     ),
                                   ],

@@ -48,7 +48,8 @@ Future<void> bootstrapApp(AppFlavorConfig flavorConfig) async {
 
     // Initialize Unified ApiClient & StemlyApiService
     final apiClient = ApiClient(
-      tokenProvider: ({forceRefresh = false}) => authService.getIdToken(forceRefresh: forceRefresh),
+      tokenProvider: ({forceRefresh = false}) =>
+          authService.getIdToken(forceRefresh: forceRefresh),
     );
     final apiService = StemlyApiService(client: apiClient);
 
@@ -60,25 +61,26 @@ Future<void> bootstrapApp(AppFlavorConfig flavorConfig) async {
           Provider<ApiClient>.value(value: apiClient),
           Provider<StemlyApiService>.value(value: apiService),
         ],
-        child: MyApp(debugShowCheckedModeBanner: flavorConfig.enableDebugBanner),
+        child: MyApp(
+          debugShowCheckedModeBanner: flavorConfig.enableDebugBanner,
+        ),
       ),
     );
   }
 
   // Initialize Sentry APM if DSN is configured
   if (flavorConfig.sentryDsn != null && flavorConfig.sentryDsn!.isNotEmpty) {
-    await SentryFlutter.init(
-      (options) {
-        options.dsn = flavorConfig.sentryDsn;
-        options.tracesSampleRate = 0.2;
-        options.environment = flavorConfig.isProduction ? 'production' : 'development';
-        options.beforeSend = (event, hint) {
-          // PII protection: scrub sensitive auth tokens from request breadcrumbs
-          return event;
-        };
-      },
-      appRunner: startApp,
-    );
+    await SentryFlutter.init((options) {
+      options.dsn = flavorConfig.sentryDsn;
+      options.tracesSampleRate = 0.2;
+      options.environment = flavorConfig.isProduction
+          ? 'production'
+          : 'development';
+      options.beforeSend = (event, hint) {
+        // PII protection: scrub sensitive auth tokens from request breadcrumbs
+        return event;
+      };
+    }, appRunner: startApp);
   } else {
     await startApp();
   }
@@ -92,10 +94,7 @@ Future<void> main() async {
 class MyApp extends StatelessWidget {
   final bool debugShowCheckedModeBanner;
 
-  const MyApp({
-    super.key,
-    this.debugShowCheckedModeBanner = false,
-  });
+  const MyApp({super.key, this.debugShowCheckedModeBanner = false});
 
   @override
   Widget build(BuildContext context) {

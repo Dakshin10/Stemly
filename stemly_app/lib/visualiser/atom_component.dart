@@ -6,18 +6,13 @@ class AtomWidget extends StatefulWidget {
   final double protons;
   final double neutrons;
 
-  const AtomWidget({
-    super.key,
-    required this.protons,
-    required this.neutrons,
-  });
+  const AtomWidget({super.key, required this.protons, required this.neutrons});
 
   @override
   State<AtomWidget> createState() => _AtomWidgetState();
 }
 
-class _AtomWidgetState extends State<AtomWidget>
-    with TickerProviderStateMixin {
+class _AtomWidgetState extends State<AtomWidget> with TickerProviderStateMixin {
   late AnimationController _controller;
 
   int get _safeProtons => widget.protons.toInt().clamp(1, 118);
@@ -88,18 +83,125 @@ class AtomPainter extends CustomPainter {
   );
 
   static const List<String> _elementSymbols = [
-    "n", "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne",
-    "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca",
-    "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
-    "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y", "Zr",
-    "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn",
-    "Sb", "Te", "I", "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
-    "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb",
-    "Lu", "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg",
-    "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
-    "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm",
-    "Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds",
-    "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og"
+    "n",
+    "H",
+    "He",
+    "Li",
+    "Be",
+    "B",
+    "C",
+    "N",
+    "O",
+    "F",
+    "Ne",
+    "Na",
+    "Mg",
+    "Al",
+    "Si",
+    "P",
+    "S",
+    "Cl",
+    "Ar",
+    "K",
+    "Ca",
+    "Sc",
+    "Ti",
+    "V",
+    "Cr",
+    "Mn",
+    "Fe",
+    "Co",
+    "Ni",
+    "Cu",
+    "Zn",
+    "Ga",
+    "Ge",
+    "As",
+    "Se",
+    "Br",
+    "Kr",
+    "Rb",
+    "Sr",
+    "Y",
+    "Zr",
+    "Nb",
+    "Mo",
+    "Tc",
+    "Ru",
+    "Rh",
+    "Pd",
+    "Ag",
+    "Cd",
+    "In",
+    "Sn",
+    "Sb",
+    "Te",
+    "I",
+    "Xe",
+    "Cs",
+    "Ba",
+    "La",
+    "Ce",
+    "Pr",
+    "Nd",
+    "Pm",
+    "Sm",
+    "Eu",
+    "Gd",
+    "Tb",
+    "Dy",
+    "Ho",
+    "Er",
+    "Tm",
+    "Yb",
+    "Lu",
+    "Hf",
+    "Ta",
+    "W",
+    "Re",
+    "Os",
+    "Ir",
+    "Pt",
+    "Au",
+    "Hg",
+    "Tl",
+    "Pb",
+    "Bi",
+    "Po",
+    "At",
+    "Rn",
+    "Fr",
+    "Ra",
+    "Ac",
+    "Th",
+    "Pa",
+    "U",
+    "Np",
+    "Pu",
+    "Am",
+    "Cm",
+    "Bk",
+    "Cf",
+    "Es",
+    "Fm",
+    "Md",
+    "No",
+    "Lr",
+    "Rf",
+    "Db",
+    "Sg",
+    "Bh",
+    "Hs",
+    "Mt",
+    "Ds",
+    "Rg",
+    "Cn",
+    "Nh",
+    "Fl",
+    "Mc",
+    "Lv",
+    "Ts",
+    "Og",
   ];
 
   AtomPainter({
@@ -157,7 +259,8 @@ class AtomPainter extends CustomPainter {
       // Orbital rotation angle with alternating directions per shell
       final direction = (shellIndex % 2 == 0) ? -1.0 : 1.0;
       final baseSpeed = (1.0 / sqrt(shellIndex.toDouble()));
-      final shellAngleOffset = direction * animationValue * 2.0 * pi * baseSpeed;
+      final shellAngleOffset =
+          direction * animationValue * 2.0 * pi * baseSpeed;
 
       // Draw Electrons on this shell
       for (int i = 0; i < electronsInShell; i++) {
@@ -197,10 +300,25 @@ class AtomPainter extends CustomPainter {
     canvas.drawRRect(rrect, _panelBgPaint);
     canvas.drawRRect(rrect, _panelBorderPaint);
 
-    _drawText(canvas, 'Bohr Atom Model', 20, 20, size: 12, bold: true, color: const Color(0xFF1565C0));
+    _drawText(
+      canvas,
+      'Bohr Atom Model',
+      20,
+      20,
+      size: 12,
+      bold: true,
+      color: const Color(0xFF1565C0),
+    );
     _drawText(canvas, 'Element: $symbol (Z = $protons)', 20, 38, size: 11);
     _drawText(canvas, 'Neutrons: $neutrons', 20, 54, size: 11);
-    _drawText(canvas, 'Electron Shells: $shells', 20, 70, size: 11, color: Colors.grey.shade700);
+    _drawText(
+      canvas,
+      'Electron Shells: $shells',
+      20,
+      70,
+      size: 11,
+      color: Colors.grey.shade700,
+    );
   }
 
   String _getElementSymbol(int z) {

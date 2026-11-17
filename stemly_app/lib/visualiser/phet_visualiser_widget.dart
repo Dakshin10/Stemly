@@ -9,14 +9,15 @@ class PhetVisualiserWidget extends StatefulWidget {
     final uri = Uri.tryParse(url);
     if (uri == null) return false;
     return uri.isScheme('https') &&
-        (uri.host == 'phet.colorado.edu' || uri.host.endsWith('.phet.colorado.edu')) &&
+        (uri.host == 'phet.colorado.edu' ||
+            uri.host.endsWith('.phet.colorado.edu')) &&
         uri.path.startsWith('/sims/html/');
   }
 
   const PhetVisualiserWidget({
-    super.key, 
+    super.key,
     required this.url,
-    required this.title
+    required this.title,
   });
 
   @override
@@ -49,7 +50,8 @@ class _PhetVisualiserWidgetState extends State<PhetVisualiserWidget> {
               final uri = Uri.tryParse(request.url);
               if (uri != null &&
                   uri.isScheme('https') &&
-                  (uri.host == 'phet.colorado.edu' || uri.host.endsWith('.phet.colorado.edu'))) {
+                  (uri.host == 'phet.colorado.edu' ||
+                      uri.host.endsWith('.phet.colorado.edu'))) {
                 return NavigationDecision.navigate;
               }
               return NavigationDecision.prevent;
@@ -92,11 +94,12 @@ class _PhetVisualiserWidgetState extends State<PhetVisualiserWidget> {
     return RepaintBoundary(
       child: Stack(
         children: [
-          if (_controller != null)
-            WebViewWidget(controller: _controller!),
+          if (_controller != null) WebViewWidget(controller: _controller!),
           if (_isLoading)
             Center(
-              child: CircularProgressIndicator(color: Theme.of(context).primaryColor),
+              child: CircularProgressIndicator(
+                color: Theme.of(context).primaryColor,
+              ),
             ),
         ],
       ),

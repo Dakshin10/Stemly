@@ -37,9 +37,10 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
         vsync: this,
         duration: const Duration(milliseconds: 1000),
       )..repeat(reverse: true);
-      _opacity = Tween<double>(begin: 0.45, end: 0.9).animate(
-        CurvedAnimation(parent: _controller!, curve: Curves.easeInOut),
-      );
+      _opacity = Tween<double>(
+        begin: 0.45,
+        end: 0.9,
+      ).animate(CurvedAnimation(parent: _controller!, curve: Curves.easeInOut));
     } else if (isReduced && _controller != null) {
       _controller?.dispose();
       _controller = null;
@@ -62,10 +63,7 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
       return Container(
         width: widget.width,
         height: widget.height,
-        decoration: BoxDecoration(
-          color: baseColor,
-          borderRadius: radius,
-        ),
+        decoration: BoxDecoration(color: baseColor, borderRadius: radius),
       );
     }
 
@@ -77,10 +75,7 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
           child: Container(
             width: widget.width,
             height: widget.height,
-            decoration: BoxDecoration(
-              color: baseColor,
-              borderRadius: radius,
-            ),
+            decoration: BoxDecoration(color: baseColor, borderRadius: radius),
           ),
         );
       },

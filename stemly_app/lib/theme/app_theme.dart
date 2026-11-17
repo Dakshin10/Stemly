@@ -74,7 +74,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surfaceVariantLight,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: AppRadii.inputRadius,
           borderSide: BorderSide.none,
@@ -85,7 +88,10 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppRadii.inputRadius,
-          borderSide: const BorderSide(color: AppColors.orangeFillLight, width: 1.5),
+          borderSide: const BorderSide(
+            color: AppColors.orangeFillLight,
+            width: 1.5,
+          ),
         ),
         hintStyle: const TextStyle(color: AppColors.textSecondaryLight),
       ),
@@ -204,7 +210,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surfaceVariantDark,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: AppRadii.inputRadius,
           borderSide: BorderSide.none,
@@ -215,7 +224,10 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppRadii.inputRadius,
-          borderSide: const BorderSide(color: AppColors.orangeFillDark, width: 1.5),
+          borderSide: const BorderSide(
+            color: AppColors.orangeFillDark,
+            width: 1.5,
+          ),
         ),
         hintStyle: const TextStyle(color: AppColors.textSecondaryDark),
       ),

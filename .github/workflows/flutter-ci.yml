@@ -36,7 +36,7 @@ jobs:
         run: flutter pub get
 
       - name: Check code formatting
-        run: dart format --set-exit-if-changed .
+        run: dart format --set-exit-if-changed lib test
 
       - name: Analyze Flutter codebase
         run: flutter analyze --fatal-warnings

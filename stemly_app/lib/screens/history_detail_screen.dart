@@ -63,47 +63,45 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       // START CHANGE: Check for existing history ID
       final historyId = widget.history.visualiserHistoryId;
       if (historyId != null && historyId.isNotEmpty) {
-          final url = Uri.parse("$serverIp/visualiser/$historyId");
-          response = await http.get(url, headers: headers);
+        final url = Uri.parse("$serverIp/visualiser/$historyId");
+        response = await http.get(url, headers: headers);
       } else {
-          // Fallback to generate
-          final url = Uri.parse("$serverIp/visualiser/generate");
-          response = await http.post(
-            url,
-            headers: headers,
-            body: jsonEncode({
-              "topic": widget.history.topic,
-              "variables": widget.history.variables,
-            }),
-          );
+        // Fallback to generate
+        final url = Uri.parse("$serverIp/visualiser/generate");
+        response = await http.post(
+          url,
+          headers: headers,
+          body: jsonEncode({
+            "topic": widget.history.topic,
+            "variables": widget.history.variables,
+          }),
+        );
       }
       // END CHANGE
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final templateJson = data["template"];
-        
+
         // Inject history_id if present
         if (data.containsKey("history_id")) {
-             templateJson["history_id"] = data["history_id"];
+          templateJson["history_id"] = data["history_id"];
         }
 
         final template = VisualTemplate.fromJson(templateJson);
         visualiserTemplate = template;
         visualiserWidget = VisualiserFactory.create(template);
-        
+
         // Save ID if we didn't have it before
-        if ((widget.history.visualiserHistoryId == null || widget.history.visualiserHistoryId!.isEmpty) && 
+        if ((widget.history.visualiserHistoryId == null ||
+                widget.history.visualiserHistoryId!.isEmpty) &&
             template.historyId != null) {
-            widget.history.visualiserHistoryId = template.historyId;
-            HistoryStore.update();
+          widget.history.visualiserHistoryId = template.historyId;
+          HistoryStore.update();
         }
-
       } else {
-          debugPrint("Failed to load visualiser: ${response.statusCode}");
+        debugPrint("Failed to load visualiser: ${response.statusCode}");
       }
-
-
     } catch (e) {
       debugPrint("History visualiser error: $e");
     }
@@ -154,7 +152,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               onPressed: () {
                 setState(() => h.isStarred = !h.isStarred);
               },
-            )
+            ),
           ],
 
           bottom: PreferredSize(
@@ -212,8 +210,14 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           children: [
             CircularProgressIndicator(color: accentColor),
             const SizedBox(height: 16),
-            Text("Loading Visualisation...", 
-              style: TextStyle(color: accentColor, fontWeight: FontWeight.w600, fontSize: 16)),
+            Text(
+              "Loading Visualisation...",
+              style: TextStyle(
+                color: accentColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
           ],
         ),
       );
@@ -228,50 +232,54 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          
           // 1. VISUALISER CARD
-         if (widgetAvailable)
-          Container(
-            height: 340,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: accentColor.withValues(alpha: 0.08),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
+          if (widgetAvailable)
+            Container(
+              height: 340,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: accentColor.withValues(alpha: 0.08),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Stack(
+                  children: [Positioned.fill(child: visualiserWidget!)],
                 ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: Stack(
+              ),
+            )
+          else
+            Container(
+              height: 200,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Positioned.fill(child: visualiserWidget!),
+                  Icon(
+                    Icons.broken_image_outlined,
+                    size: 48,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    "No visualisation available",
+                    style: TextStyle(color: Colors.grey.shade500),
+                  ),
                 ],
               ),
             ),
-          )
-        else
-          Container(
-            height: 200,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey.shade400),
-                const SizedBox(height: 12),
-                Text("No visualisation available", style: TextStyle(color: Colors.grey.shade500)),
-              ],
-            ),
-          ),
 
           const SizedBox(height: 32),
 
@@ -286,7 +294,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           ),
           const SizedBox(height: 16),
           Container(
-             decoration: BoxDecoration(
+            decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
@@ -304,9 +312,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                 width: double.infinity,
                 fit: BoxFit.cover,
                 errorBuilder: (ctx, _, _) => Container(
-                   height: 200,
-                   color: Colors.grey.shade200,
-                   child: const Center(child: Text("Image file not found")),
+                  height: 200,
+                  color: Colors.grey.shade200,
+                  child: const Center(child: Text("Image file not found")),
                 ),
               ),
             ),
@@ -332,17 +340,31 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                 _detailRow("Topic", h.topic, accentColor, Icons.topic_rounded),
-                 const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1)),
-                 _detailRow("Variables", h.variables.join(", "), accentColor, Icons.functions_rounded),
-                 const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1)),
-                 _detailRow("Date", 
-                    "${h.timestamp.day}/${h.timestamp.month}/${h.timestamp.year}  ${h.timestamp.hour}:${h.timestamp.minute.toString().padLeft(2, '0')}", 
-                    accentColor, Icons.calendar_today_rounded),
+                _detailRow("Topic", h.topic, accentColor, Icons.topic_rounded),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Divider(height: 1),
+                ),
+                _detailRow(
+                  "Variables",
+                  h.variables.join(", "),
+                  accentColor,
+                  Icons.functions_rounded,
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Divider(height: 1),
+                ),
+                _detailRow(
+                  "Date",
+                  "${h.timestamp.day}/${h.timestamp.month}/${h.timestamp.year}  ${h.timestamp.hour}:${h.timestamp.minute.toString().padLeft(2, '0')}",
+                  accentColor,
+                  Icons.calendar_today_rounded,
+                ),
               ],
             ),
           ),
-          
+
           const SizedBox(height: 40),
         ],
       ),
@@ -359,9 +381,24 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(value, style: TextStyle(fontSize: 16, color: color, fontWeight: FontWeight.w600, height: 1.3)),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              ),
             ],
           ),
         ),
@@ -374,7 +411,8 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     if (h.notesJson.containsKey("error")) {
       return ErrorStateView(
         title: "Notes Error",
-        message: h.notesJson["error"]?.toString() ?? "Could not load saved notes.",
+        message:
+            h.notesJson["error"]?.toString() ?? "Could not load saved notes.",
       );
     }
 
@@ -444,11 +482,14 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(title,
-                      style: TextStyle(
-                          fontSize: 18,
-                          color: accentColor,
-                          fontWeight: FontWeight.w700)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: accentColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   Icon(
                     expanded
                         ? Icons.keyboard_arrow_up
@@ -462,11 +503,14 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           ),
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 240),
-            crossFadeState:
-                expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            crossFadeState: expanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
-            secondChild:
-                Padding(padding: const EdgeInsets.all(16), child: child),
+            secondChild: Padding(
+              padding: const EdgeInsets.all(16),
+              child: child,
+            ),
           ),
         ],
       ),
@@ -482,11 +526,15 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value
-            .map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text("• $e",
-                      style: TextStyle(color: accentColor, fontSize: 15)),
-                ))
+            .map(
+              (e) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  "• $e",
+                  style: TextStyle(color: accentColor, fontSize: 15),
+                ),
+              ),
+            )
             .toList(),
       );
     }
@@ -494,11 +542,15 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value.entries
-            .map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text("${e.key}: ${e.value}",
-                      style: TextStyle(color: accentColor, fontSize: 15)),
-                ))
+            .map(
+              (e) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  "${e.key}: ${e.value}",
+                  style: TextStyle(color: accentColor, fontSize: 15),
+                ),
+              ),
+            )
             .toList(),
       );
     }
@@ -507,9 +559,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
 
   String _formatKey(String raw) {
     if (raw.isEmpty) return "";
-    return raw
-        .replaceAll("_", " ")
-        .replaceFirst(raw[0], raw[0].toUpperCase());
+    return raw.replaceAll("_", " ").replaceFirst(raw[0], raw[0].toUpperCase());
   }
 
   // ==========================================================
@@ -541,7 +591,11 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.quiz_rounded, size: 48, color: Colors.white),
+                    const Icon(
+                      Icons.quiz_rounded,
+                      size: 48,
+                      color: Colors.white,
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       "AI Quiz Generator",
@@ -604,17 +658,23 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    
+
                     // Question count
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
                           "Number of Questions",
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: accentColor,
                             borderRadius: BorderRadius.circular(20),
@@ -638,7 +698,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                         thumbColor: accentColor,
                         overlayColor: accentColor.withValues(alpha: 0.2),
                         trackHeight: 6,
-                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 12,
+                        ),
                       ),
                       child: Slider(
                         min: 3,
@@ -648,7 +710,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                         onChanged: (v) => setStateSB(() => count = v),
                       ),
                     ),
-                    
+
                     // Difficulty indicators
                     const SizedBox(height: 16),
                     Row(
@@ -687,11 +749,10 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                   ),
                 ),
               ),
-              
-               const SizedBox(height: 16),
+
+              const SizedBox(height: 16),
               // Info text
 
-              
               // ---------------- HISTORY LIST ----------------
               if (widget.history.quizResults.isNotEmpty) ...[
                 const SizedBox(height: 32),
@@ -711,103 +772,123 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                 ),
                 const SizedBox(height: 16),
                 ...widget.history.quizResults.map((r) {
-                   final score = r["score"];
-                   final total = r["total"];
-                   final pct = r["percentage"];
-                   final date = DateTime.tryParse(r["timestamp"] ?? "") ?? DateTime.now();
-                   
-                   final Color color = pct >= 80 ? Colors.green : (pct >= 50 ? Colors.orange : Colors.red);
-                   
-                  final Map<String, dynamic> quizData = r["quizData"] != null 
-                      ? Map<String, dynamic>.from(r["quizData"]) 
+                  final score = r["score"];
+                  final total = r["total"];
+                  final pct = r["percentage"];
+                  final date =
+                      DateTime.tryParse(r["timestamp"] ?? "") ?? DateTime.now();
+
+                  final Color color = pct >= 80
+                      ? Colors.green
+                      : (pct >= 50 ? Colors.orange : Colors.red);
+
+                  final Map<String, dynamic> quizData = r["quizData"] != null
+                      ? Map<String, dynamic>.from(r["quizData"])
                       : {};
-                  final Map<String, dynamic> rawAnswers = r["answers"] != null 
-                      ? Map<String, dynamic>.from(r["answers"]) 
+                  final Map<String, dynamic> rawAnswers = r["answers"] != null
+                      ? Map<String, dynamic>.from(r["answers"])
                       : {};
 
-                   return GestureDetector(
-                     onTap: () {
-                        if (quizData.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Details not available for this quiz.")),
-                          );
-                          return;
-                        }
-
-                        // Parse answers: JSON keys are strings, Map<int,int> needs ints
-                        final Map<int, int> answerMap = {};
-                        rawAnswers.forEach((k, v) {
-                          final key = int.tryParse(k);
-                          if (key != null && v is int) {
-                            answerMap[key] = v;
-                          }
-                        });
-
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => QuizResultScreen(
-                              quizData: quizData,
-                              answers: answerMap,
+                  return GestureDetector(
+                    onTap: () {
+                      if (quizData.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "Details not available for this quiz.",
                             ),
                           ),
                         );
-                     },
-                     child: Container(
+                        return;
+                      }
+
+                      // Parse answers: JSON keys are strings, Map<int,int> needs ints
+                      final Map<int, int> answerMap = {};
+                      rawAnswers.forEach((k, v) {
+                        final key = int.tryParse(k);
+                        if (key != null && v is int) {
+                          answerMap[key] = v;
+                        }
+                      });
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => QuizResultScreen(
+                            quizData: quizData,
+                            answers: answerMap,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                         color: Theme.of(context).cardColor,
-                         borderRadius: BorderRadius.circular(16),
-                         border: Border.all(color: Colors.grey.shade200),
-                         boxShadow: [
-                           BoxShadow(
-                             color: Colors.black.withValues(alpha: 0.04),
-                             blurRadius: 8,
-                             offset: const Offset(0, 2),
-                           ),
-                         ],
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Row(
                         children: [
-                           // Score Circle
-                           Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: color.withValues(alpha: 0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  "$pct%",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: color,
-                                    fontSize: 14,
-                                  ),
+                          // Score Circle
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                "$pct%",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: color,
+                                  fontSize: 14,
                                 ),
                               ),
-                           ),
-                           const SizedBox(width: 16),
-                           Expanded(
-                             child: Column(
-                               crossAxisAlignment: CrossAxisAlignment.start,
-                               children: [
-                                 Text("Score: $score / $total", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: accentColor)),
-                                 const SizedBox(height: 4),
-                                 Text(
-                                   "${date.day}/${date.month}/${date.year} • ${date.hour}:${date.minute.toString().padLeft(2, '0')}",
-                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                                 ),
-                               ],
-                             ),
-                           ),
-                           Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Score: $score / $total",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: accentColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "${date.day}/${date.month}/${date.year} • ${date.hour}:${date.minute.toString().padLeft(2, '0')}",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            color: Colors.grey.shade400,
+                          ),
                         ],
                       ),
                     ),
-                   );
+                  );
                 }),
               ],
             ],
@@ -821,7 +902,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: isIncluded ? color.withValues(alpha: 0.15) : Colors.grey.shade200,
+        color: isIncluded
+            ? color.withValues(alpha: 0.15)
+            : Colors.grey.shade200,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: isIncluded ? color : Colors.grey.shade300),
       ),
@@ -874,10 +957,14 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
 
     try {
-      final response = await http.get(
-        Uri.parse("$serverIp/quiz/generate?topic=${widget.history.topic}&count=$count"),
-        headers: {"Authorization": "Bearer $token"},
-      ).timeout(const Duration(seconds: 120));
+      final response = await http
+          .get(
+            Uri.parse(
+              "$serverIp/quiz/generate?topic=${widget.history.topic}&count=$count",
+            ),
+            headers: {"Authorization": "Bearer $token"},
+          )
+          .timeout(const Duration(seconds: 120));
 
       // Close loading dialog
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
@@ -888,14 +975,18 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       }
 
       if (response.statusCode != 200) {
-        _showQuizError("Failed to generate quiz. Error: ${response.statusCode}");
+        _showQuizError(
+          "Failed to generate quiz. Error: ${response.statusCode}",
+        );
         return;
       }
 
       final data = jsonDecode(response.body);
 
       // Check for error in response
-      if (data is Map && data.containsKey("error") && (data["questions"] == null || (data["questions"] as List).isEmpty)) {
+      if (data is Map &&
+          data.containsKey("error") &&
+          (data["questions"] == null || (data["questions"] as List).isEmpty)) {
         _showQuizError(data["error"]?.toString() ?? "Quiz generation failed");
         return;
       }
@@ -909,26 +1000,30 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
 
         // If returned with results, save them
         if (result != null && result is Map && mounted) {
-           setState(() {
-             // Cast to Map<String, dynamic> manually to match the type
-             widget.history.quizResults.insert(0, Map<String, dynamic>.from(result));
-             // Save to disk
-             HistoryStore.update();
-           });
-           
-           ScaffoldMessenger.of(context).showSnackBar(
-             const SnackBar(content: Text("Quiz result saved to history!")),
-           );
+          setState(() {
+            // Cast to Map<String, dynamic> manually to match the type
+            widget.history.quizResults.insert(
+              0,
+              Map<String, dynamic>.from(result),
+            );
+            // Save to disk
+            HistoryStore.update();
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Quiz result saved to history!")),
+          );
         }
       }
     } catch (e) {
       // Close loading dialog if still open
-      if (mounted && Navigator.canPop(context)) Navigator.of(context, rootNavigator: true).pop();
+      if (mounted && Navigator.canPop(context))
+        Navigator.of(context, rootNavigator: true).pop();
       // Only show error if we haven't navigated away or if it's a real error
       if (e.toString().contains("Timeout")) {
-         _showQuizError("Connection timed out. Please try again.");
+        _showQuizError("Connection timed out. Please try again.");
       } else {
-         debugPrint("Quiz error: $e");
+        debugPrint("Quiz error: $e");
       }
     }
   }

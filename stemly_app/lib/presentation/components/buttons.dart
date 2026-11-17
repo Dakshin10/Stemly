@@ -65,7 +65,9 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.textSecondary(context)),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppColors.textSecondary(context),
+                    ),
                   ),
                 )
               : Row(
@@ -79,9 +81,9 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                     Flexible(
                       child: Text(
                         widget.label,
-                        style: AppTypography.headline(context).copyWith(
-                          color: AppColors.textSecondary(context),
-                        ),
+                        style: AppTypography.headline(
+                          context,
+                        ).copyWith(color: AppColors.textSecondary(context)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -129,9 +131,13 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: baseColor.withValues(alpha: _isPressed ? 0.12 : 0.25),
+                    color: baseColor.withValues(
+                      alpha: _isPressed ? 0.12 : 0.25,
+                    ),
                     blurRadius: _isPressed ? 8 : 16,
-                    offset: _isPressed ? const Offset(0, 2) : const Offset(0, 4),
+                    offset: _isPressed
+                        ? const Offset(0, 2)
+                        : const Offset(0, 4),
                   ),
                 ],
               ),
@@ -147,7 +153,9 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                       height: 1.0,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.30),
-                        borderRadius: BorderRadius.vertical(top: radius.topLeft),
+                        borderRadius: BorderRadius.vertical(
+                          top: radius.topLeft,
+                        ),
                       ),
                     ),
                   ),
@@ -155,14 +163,19 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                   // Button Content (Always BLACK text on orange for 7:1 contrast)
                   Center(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.space16,
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (widget.icon != null) ...[
                             IconTheme(
-                              data: const IconThemeData(color: AppColors.onOrange, size: 20),
+                              data: const IconThemeData(
+                                color: AppColors.onOrange,
+                                size: 20,
+                              ),
                               child: widget.icon!,
                             ),
                             const SizedBox(width: AppSpacing.space8),
@@ -227,7 +240,9 @@ class SecondaryButton extends StatelessWidget {
             backgroundColor: surfaceColor,
             foregroundColor: textColor,
             side: BorderSide(color: dividerColor, width: 1.0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.capsule)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.capsule),
+            ),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space16),
             elevation: 0,
           ),
@@ -242,9 +257,9 @@ class SecondaryButton extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
-                  style: AppTypography.headline(context).copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppTypography.headline(
+                    context,
+                  ).copyWith(fontWeight: FontWeight.w600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -274,7 +289,10 @@ class DestructiveTextButton extends StatelessWidget {
       onPressed: onPressed,
       style: TextButton.styleFrom(
         foregroundColor: AppColors.error(context),
-        minimumSize: const Size(AppSpacing.minTouchTarget, AppSpacing.minTouchTarget),
+        minimumSize: const Size(
+          AppSpacing.minTouchTarget,
+          AppSpacing.minTouchTarget,
+        ),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space12),
       ),
       child: Text(

@@ -68,7 +68,8 @@ class GlassSurface extends StatelessWidget {
     return GlassSurface(
       variant: variant,
       borderRadius: BorderRadius.circular(AppRadii.toolbar),
-      padding: padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding:
+          padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       width: width,
       height: height,
       child: child,
@@ -95,7 +96,8 @@ class GlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveRadius = borderRadius ?? BorderRadius.circular(AppRadii.card);
+    final effectiveRadius =
+        borderRadius ?? BorderRadius.circular(AppRadii.card);
 
     // Accessibility Fallback: Replace glass with opaque surface
     if (AppGlass.shouldUseOpaqueFallback(context)) {
@@ -125,9 +127,7 @@ class GlassSurface extends StatelessWidget {
       child: Container(
         width: width,
         height: height,
-        decoration: const BoxDecoration(
-          boxShadow: [AppGlass.glassShadow],
-        ),
+        decoration: const BoxDecoration(boxShadow: [AppGlass.glassShadow]),
         child: CustomPaint(
           foregroundPainter: _GlassBorderPainter(
             borderRadius: effectiveRadius,
@@ -162,7 +162,9 @@ class GlassSurface extends StatelessWidget {
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              Colors.white.withValues(alpha: AppGlass.specularTopAlpha),
+                              Colors.white.withValues(
+                                alpha: AppGlass.specularTopAlpha,
+                              ),
                               Colors.white.withValues(alpha: 0.0),
                             ],
                           ),
@@ -172,10 +174,7 @@ class GlassSurface extends StatelessWidget {
                   ),
 
                   // Layer 4: Content
-                  Padding(
-                    padding: padding ?? EdgeInsets.zero,
-                    child: child,
-                  ),
+                  Padding(padding: padding ?? EdgeInsets.zero, child: child),
                 ],
               ),
             ),

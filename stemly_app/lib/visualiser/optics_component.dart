@@ -72,11 +72,7 @@ class OpticsPainter extends CustomPainter {
     textDirection: TextDirection.ltr,
   );
 
-  OpticsPainter({
-    required this.f,
-    required this.u,
-    required this.ho,
-  });
+  OpticsPainter({required this.f, required this.u, required this.ho});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -136,7 +132,14 @@ class OpticsPainter extends CustomPainter {
     // Object Arrow at (-u)
     final objX = centerX - u * scale;
     final scaledHo = ho * scale * 1.8;
-    _drawArrow(canvas, objX, centerY, -scaledHo, const Color(0xFF1976D2), 'Object');
+    _drawArrow(
+      canvas,
+      objX,
+      centerY,
+      -scaledHo,
+      const Color(0xFF1976D2),
+      'Object',
+    );
 
     // Rays and Image
     if (isAtFocus) {
@@ -148,7 +151,14 @@ class OpticsPainter extends CustomPainter {
 
       if (!isVirtual) {
         // Real, inverted image (v > 0)
-        _drawArrow(canvas, imgX, centerY, scaledHi, const Color(0xFFD32F2F), 'Image');
+        _drawArrow(
+          canvas,
+          imgX,
+          centerY,
+          scaledHi,
+          const Color(0xFFD32F2F),
+          'Image',
+        );
         _drawRealRays(
           canvas,
           objX,
@@ -161,7 +171,14 @@ class OpticsPainter extends CustomPainter {
         );
       } else {
         // Virtual, upright image (v < 0, same side as object)
-        _drawArrow(canvas, imgX, centerY, -scaledHi, const Color(0xFFE53935), 'Virtual Image');
+        _drawArrow(
+          canvas,
+          imgX,
+          centerY,
+          -scaledHi,
+          const Color(0xFFE53935),
+          'Virtual Image',
+        );
         _drawVirtualRays(
           canvas,
           objX,
@@ -205,7 +222,9 @@ class OpticsPainter extends CustomPainter {
     String label,
   ) {
     final tipY = y + deltaY;
-    final paint = (color == const Color(0xFF1976D2)) ? _objArrowPaint : _imgArrowPaint;
+    final paint = (color == const Color(0xFF1976D2))
+        ? _objArrowPaint
+        : _imgArrowPaint;
 
     canvas.drawLine(Offset(x, y), Offset(x, tipY), paint);
 
@@ -275,7 +294,11 @@ class OpticsPainter extends CustomPainter {
 
     // Ray 2: Optical center ray through (cx, cy)
     final ray2Slope = (cy - oy) / (cx - ox);
-    canvas.drawLine(Offset(ox, oy), Offset(extendX, cy + ray2Slope * (extendX - cx)), _rayPaint);
+    canvas.drawLine(
+      Offset(ox, oy),
+      Offset(extendX, cy + ray2Slope * (extendX - cx)),
+      _rayPaint,
+    );
     _drawDashedLine(canvas, Offset(cx, cy), Offset(ix, iy));
   }
 
@@ -288,10 +311,18 @@ class OpticsPainter extends CustomPainter {
   ) {
     // Ray 1: Parallel to axis to lens, refracts through F2
     canvas.drawLine(Offset(ox, oy), Offset(cx, oy), _rayPaint);
-    canvas.drawLine(Offset(cx, oy), Offset(cx + 250.0, cy + (cy - oy)), _rayPaint);
+    canvas.drawLine(
+      Offset(cx, oy),
+      Offset(cx + 250.0, cy + (cy - oy)),
+      _rayPaint,
+    );
 
     // Ray 2: Directly through optical center
-    canvas.drawLine(Offset(ox, oy), Offset(cx + 250.0, cy + (cy - oy)), _rayPaint);
+    canvas.drawLine(
+      Offset(ox, oy),
+      Offset(cx + 250.0, cy + (cy - oy)),
+      _rayPaint,
+    );
 
     _drawText(
       canvas,
@@ -331,18 +362,61 @@ class OpticsPainter extends CustomPainter {
     canvas.drawRRect(rrect, _panelBgPaint);
     canvas.drawRRect(rrect, _panelBorderPaint);
 
-    _drawText(canvas, 'Convex Lens Optics', 22, 20, size: 13, bold: true, color: const Color(0xFF1565C0));
-    _drawText(canvas, 'Focal Length: ${f.toStringAsFixed(1)} cm', 22, 40, size: 11);
-    _drawText(canvas, 'Object Dist (u): ${u.toStringAsFixed(1)} cm', 22, 58, size: 11);
+    _drawText(
+      canvas,
+      'Convex Lens Optics',
+      22,
+      20,
+      size: 13,
+      bold: true,
+      color: const Color(0xFF1565C0),
+    );
+    _drawText(
+      canvas,
+      'Focal Length: ${f.toStringAsFixed(1)} cm',
+      22,
+      40,
+      size: 11,
+    );
+    _drawText(
+      canvas,
+      'Object Dist (u): ${u.toStringAsFixed(1)} cm',
+      22,
+      58,
+      size: 11,
+    );
 
     if (isAtFocus) {
-      _drawText(canvas, 'Image Dist: ∞ (At Infinity)', 22, 76, size: 11, bold: true, color: const Color(0xFFE65100));
-      _drawText(canvas, 'Nature: Parallel Beams', 22, 94, size: 10, color: Colors.grey.shade700);
+      _drawText(
+        canvas,
+        'Image Dist: ∞ (At Infinity)',
+        22,
+        76,
+        size: 11,
+        bold: true,
+        color: const Color(0xFFE65100),
+      );
+      _drawText(
+        canvas,
+        'Nature: Parallel Beams',
+        22,
+        94,
+        size: 10,
+        color: Colors.grey.shade700,
+      );
     } else {
-      final imgDistStr = '${v.abs().toStringAsFixed(1)} cm (${isVirtual ? "Virtual" : "Real"})';
+      final imgDistStr =
+          '${v.abs().toStringAsFixed(1)} cm (${isVirtual ? "Virtual" : "Real"})';
       _drawText(canvas, 'Image Dist: $imgDistStr', 22, 76, size: 11);
       final nature = isVirtual ? "Virtual, Upright" : "Real, Inverted";
-      _drawText(canvas, 'Mag: ${m.abs().toStringAsFixed(2)}x ($nature)', 22, 94, size: 10, color: Colors.grey.shade700);
+      _drawText(
+        canvas,
+        'Mag: ${m.abs().toStringAsFixed(2)}x ($nature)',
+        22,
+        94,
+        size: 10,
+        color: Colors.grey.shade700,
+      );
     }
   }
 

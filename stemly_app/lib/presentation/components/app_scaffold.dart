@@ -39,9 +39,12 @@ class AppScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = backgroundColor ?? AppColors.background(context);
     final hasBottomBar = currentBottomNavIndex != null;
-    final extraBottomPadding = hasBottomBar ? AppSpacing.scrollBottomPadding : AppSpacing.space20;
+    final extraBottomPadding = hasBottomBar
+        ? AppSpacing.scrollBottomPadding
+        : AppSpacing.space20;
     // Primary bottom nav tab destinations (Home, History, Settings, Account) must never imply a back button
-    final bool shouldImplyLeading = automaticallyImplyLeading && currentBottomNavIndex == null;
+    final bool shouldImplyLeading =
+        automaticallyImplyLeading && currentBottomNavIndex == null;
 
     Widget content;
 
@@ -64,7 +67,11 @@ class AppScaffold extends StatelessWidget {
                     pinned: true,
                     delegate: _LargeTitleHeaderDelegate(
                       title: title,
-                      leading: leading ?? (shouldImplyLeading ? _buildDefaultLeading(context) : null),
+                      leading:
+                          leading ??
+                          (shouldImplyLeading
+                              ? _buildDefaultLeading(context)
+                              : null),
                       actions: actions,
                       backgroundColor: bg,
                       topPadding: MediaQuery.paddingOf(context).top,
@@ -72,9 +79,7 @@ class AppScaffold extends StatelessWidget {
                   ),
                   SliverPadding(
                     padding: EdgeInsets.only(bottom: extraBottomPadding),
-                    sliver: SliverToBoxAdapter(
-                      child: body,
-                    ),
+                    sliver: SliverToBoxAdapter(child: body),
                   ),
                 ],
               ),
@@ -104,7 +109,11 @@ class AppScaffold extends StatelessWidget {
           ),
         ),
         bottomNavigationBar: hasBottomBar
-            ? _buildGlassBottomBar(context, currentBottomNavIndex!, onBottomNavTap)
+            ? _buildGlassBottomBar(
+                context,
+                currentBottomNavIndex!,
+                onBottomNavTap,
+              )
             : null,
       );
     } else {
@@ -119,7 +128,9 @@ class AppScaffold extends StatelessWidget {
           scrolledUnderElevation: 0,
           elevation: 0,
           automaticallyImplyLeading: shouldImplyLeading,
-          leading: leading ?? (shouldImplyLeading ? _buildDefaultLeading(context) : null),
+          leading:
+              leading ??
+              (shouldImplyLeading ? _buildDefaultLeading(context) : null),
           actions: actions,
         ),
         body: SafeArea(
@@ -130,7 +141,11 @@ class AppScaffold extends StatelessWidget {
           ),
         ),
         bottomNavigationBar: hasBottomBar
-            ? _buildGlassBottomBar(context, currentBottomNavIndex!, onBottomNavTap)
+            ? _buildGlassBottomBar(
+                context,
+                currentBottomNavIndex!,
+                onBottomNavTap,
+              )
             : null,
       );
     }
@@ -186,22 +201,13 @@ class AppScaffold extends StatelessWidget {
       selectedIndex: activeIndex,
       onTabSelected: handleTap,
       items: const [
-        GlassTabItem(
-          icon: Icons.camera_alt_rounded,
-          label: AppStrings.tabHome,
-        ),
-        GlassTabItem(
-          icon: Icons.history_rounded,
-          label: AppStrings.tabHistory,
-        ),
+        GlassTabItem(icon: Icons.camera_alt_rounded, label: AppStrings.tabHome),
+        GlassTabItem(icon: Icons.history_rounded, label: AppStrings.tabHistory),
         GlassTabItem(
           icon: Icons.settings_rounded,
           label: AppStrings.tabSettings,
         ),
-        GlassTabItem(
-          icon: Icons.person_rounded,
-          label: AppStrings.tabAccount,
-        ),
+        GlassTabItem(icon: Icons.person_rounded, label: AppStrings.tabAccount),
       ],
     );
   }
@@ -227,7 +233,8 @@ class _LargeTitleHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.topPadding,
   });
 
-  bool get hasTopBar => (actions != null && actions!.isNotEmpty) || leading != null;
+  bool get hasTopBar =>
+      (actions != null && actions!.isNotEmpty) || leading != null;
 
   @override
   double get minExtent => topPadding + 44.0;
@@ -236,7 +243,11 @@ class _LargeTitleHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => topPadding + (hasTopBar ? 96.0 : 60.0);
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     final double collapseRange = maxExtent - minExtent;
     final double progress = collapseRange > 0.0
         ? (shrinkOffset / collapseRange).clamp(0.0, 1.0)
@@ -257,7 +268,9 @@ class _LargeTitleHeaderDelegate extends SliverPersistentHeaderDelegate {
               border: isScrolled
                   ? Border(
                       bottom: BorderSide(
-                        color: AppColors.divider(context).withValues(alpha: progress),
+                        color: AppColors.divider(
+                          context,
+                        ).withValues(alpha: progress),
                         width: 0.5,
                       ),
                     )
@@ -340,4 +353,3 @@ class _LargeTitleHeaderDelegate extends SliverPersistentHeaderDelegate {
         oldDelegate.topPadding != topPadding;
   }
 }
-

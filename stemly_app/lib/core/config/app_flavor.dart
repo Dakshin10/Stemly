@@ -35,9 +35,7 @@ class AppFlavor {
   static const AppFlavorConfig dev = AppFlavorConfig(
     flavor: Flavor.dev,
     name: 'Development',
-    apiBaseUrl: kIsWeb
-        ? 'http://localhost:8080'
-        : 'http://10.0.2.2:8080',
+    apiBaseUrl: kIsWeb ? 'http://localhost:8080' : 'http://10.0.2.2:8080',
     sentryDsn: null,
     enableDebugBanner: true,
   );

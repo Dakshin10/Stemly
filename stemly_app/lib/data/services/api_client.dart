@@ -25,15 +25,17 @@ class ApiClient {
     http.Client? httpClient,
     String? baseUrl,
     TokenProvider? tokenProvider,
-  })  : _httpClient = httpClient ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.baseUrl,
-        _tokenProvider = tokenProvider;
+  }) : _httpClient = httpClient ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.baseUrl,
+       _tokenProvider = tokenProvider;
 
   String get baseUrl => _baseUrl;
 
   /// Helper to build URI from path and optional query parameters.
   Uri _buildUri(String path, [Map<String, dynamic>? queryParameters]) {
-    String cleanBase = _baseUrl.endsWith('/') ? _baseUrl.substring(0, _baseUrl.length - 1) : _baseUrl;
+    String cleanBase = _baseUrl.endsWith('/')
+        ? _baseUrl.substring(0, _baseUrl.length - 1)
+        : _baseUrl;
     String cleanPath = path.startsWith('/') ? path : '/$path';
     final fullUrl = '$cleanBase$cleanPath';
 
@@ -102,37 +104,55 @@ class ApiClient {
         );
 
         http.Response response;
-        final encodedBody = (body != null && body is! String) ? jsonEncode(body) : body;
+        final encodedBody = (body != null && body is! String)
+            ? jsonEncode(body)
+            : body;
 
         switch (method.toUpperCase()) {
           case 'GET':
-            response = await _httpClient.get(uri, headers: headers).timeout(effectiveTimeout);
+            response = await _httpClient
+                .get(uri, headers: headers)
+                .timeout(effectiveTimeout);
             break;
           case 'POST':
-            response = await _httpClient.post(uri, headers: headers, body: encodedBody).timeout(effectiveTimeout);
+            response = await _httpClient
+                .post(uri, headers: headers, body: encodedBody)
+                .timeout(effectiveTimeout);
             break;
           case 'PUT':
-            response = await _httpClient.put(uri, headers: headers, body: encodedBody).timeout(effectiveTimeout);
+            response = await _httpClient
+                .put(uri, headers: headers, body: encodedBody)
+                .timeout(effectiveTimeout);
             break;
           case 'DELETE':
-            response = await _httpClient.delete(uri, headers: headers, body: encodedBody).timeout(effectiveTimeout);
+            response = await _httpClient
+                .delete(uri, headers: headers, body: encodedBody)
+                .timeout(effectiveTimeout);
             break;
           default:
             throw ArgumentError("Unsupported HTTP method: $method");
         }
 
         // Handle 401 Unauthorized token expiry with 1 retry
-        if (response.statusCode == 401 && _tokenProvider != null && !hasRefreshedToken) {
-          debugPrint("ApiClient: 401 Unauthorized on $uri. Attempting token refresh and replay...");
+        if (response.statusCode == 401 &&
+            _tokenProvider != null &&
+            !hasRefreshedToken) {
+          debugPrint(
+            "ApiClient: 401 Unauthorized on $uri. Attempting token refresh and replay...",
+          );
           hasRefreshedToken = true;
           // Loop will retry with refreshed token
           continue;
         }
 
         // Retry on transient server errors (502, 503, 504) for idempotent requests
-        if (isIdempotent && attempt < maxAttempts && (response.statusCode >= 502 && response.statusCode <= 504)) {
+        if (isIdempotent &&
+            attempt < maxAttempts &&
+            (response.statusCode >= 502 && response.statusCode <= 504)) {
           final backoffMs = attempt * 500;
-          debugPrint("ApiClient: Server ${response.statusCode} on $uri. Retrying in ${backoffMs}ms (attempt $attempt)...");
+          debugPrint(
+            "ApiClient: Server ${response.statusCode} on $uri. Retrying in ${backoffMs}ms (attempt $attempt)...",
+          );
           await Future.delayed(Duration(milliseconds: backoffMs));
           continue;
         }
@@ -150,7 +170,10 @@ class ApiClient {
           await Future.delayed(Duration(milliseconds: attempt * 500));
           continue;
         }
-        throw NetworkException(message: "Request timed out after ${effectiveTimeout.inSeconds}s: ${e.message}");
+        throw NetworkException(
+          message:
+              "Request timed out after ${effectiveTimeout.inSeconds}s: ${e.message}",
+        );
       } on http.ClientException catch (e) {
         if (isIdempotent && attempt < maxAttempts) {
           await Future.delayed(Duration(milliseconds: attempt * 500));
@@ -160,7 +183,9 @@ class ApiClient {
       }
     }
 
-    throw const NetworkException(message: "Request failed after all retry attempts.");
+    throw const NetworkException(
+      message: "Request failed after all retry attempts.",
+    );
   }
 
   /// Parses the response body or throws typed ApiException.
@@ -309,7 +334,10 @@ class ApiClient {
     } on SocketException catch (e) {
       throw NetworkException(message: "SocketException: ${e.message}");
     } on TimeoutException catch (e) {
-      throw NetworkException(message: "Upload timed out after ${effectiveTimeout.inSeconds}s: ${e.message}");
+      throw NetworkException(
+        message:
+            "Upload timed out after ${effectiveTimeout.inSeconds}s: ${e.message}",
+      );
     }
   }
 

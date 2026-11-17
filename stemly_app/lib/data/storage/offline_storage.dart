@@ -31,7 +31,9 @@ class OfflineStorage {
     final installedVersion = prefs.getInt(_versionKey) ?? 1;
 
     if (installedVersion < currentSchemaVersion) {
-      debugPrint("OfflineStorage: Migrating storage from schema v$installedVersion to v$currentSchemaVersion...");
+      debugPrint(
+        "OfflineStorage: Migrating storage from schema v$installedVersion to v$currentSchemaVersion...",
+      );
 
       if (installedVersion == 1) {
         // Migrate legacy v1 history to v2
@@ -46,7 +48,9 @@ class OfflineStorage {
             // Save under v2 format
             final v2Json = jsonEncode(items.map((e) => e.toJson()).toList());
             await prefs.setString(_historyKeyV2, v2Json);
-            debugPrint("OfflineStorage: Successfully migrated ${items.length} history records to v2.");
+            debugPrint(
+              "OfflineStorage: Successfully migrated ${items.length} history records to v2.",
+            );
           } catch (e) {
             debugPrint("OfflineStorage: Warning migrating legacy history: $e");
           }
@@ -54,7 +58,9 @@ class OfflineStorage {
       }
 
       await prefs.setInt(_versionKey, currentSchemaVersion);
-      debugPrint("OfflineStorage: Migration complete. Schema version is now $currentSchemaVersion.");
+      debugPrint(
+        "OfflineStorage: Migration complete. Schema version is now $currentSchemaVersion.",
+      );
     }
   }
 
@@ -115,7 +121,9 @@ class OfflineStorage {
 
   static Future<void> _saveHistoryToDisk() async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
-    final jsonString = jsonEncode(_cachedHistory.map((e) => e.toJson()).toList());
+    final jsonString = jsonEncode(
+      _cachedHistory.map((e) => e.toJson()).toList(),
+    );
     await prefs.setString(_historyKeyV2, jsonString);
   }
 

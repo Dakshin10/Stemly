@@ -12,11 +12,7 @@ class VisualiserScreen extends StatefulWidget {
   final String topic;
   final String? userId;
 
-  const VisualiserScreen({
-    super.key,
-    required this.topic,
-    this.userId,
-  });
+  const VisualiserScreen({super.key, required this.topic, this.userId});
 
   @override
   State<VisualiserScreen> createState() => _VisualiserScreenState();
@@ -81,9 +77,7 @@ class _VisualiserScreenState extends State<VisualiserScreen> {
         }
 
         if (ctl.error != null) {
-          return Scaffold(
-            body: Center(child: Text("Error: ${ctl.error}")),
-          );
+          return Scaffold(body: Center(child: Text("Error: ${ctl.error}")));
         }
 
         final template = ctl.template;
@@ -106,10 +100,12 @@ class _VisualiserScreenState extends State<VisualiserScreen> {
                 child: Container(
                   color: Colors.black12,
                   height: double.infinity,
-                  child: visualiserWidget ?? const Center(child: Text("Select a topic")),
+                  child:
+                      visualiserWidget ??
+                      const Center(child: Text("Select a topic")),
                 ),
               ),
-              
+
               // Controls Area
               Expanded(
                 flex: 2,
@@ -125,7 +121,7 @@ class _VisualiserScreenState extends State<VisualiserScreen> {
                       const SizedBox(height: 20),
                       _buildSliders(template),
                       const SizedBox(height: 20),
-                      
+
                       ElevatedButton.icon(
                         icon: const Icon(Icons.auto_awesome),
                         label: const Text("Ask AI to Adjust"),

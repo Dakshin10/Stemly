@@ -117,9 +117,11 @@ class _MainScreenState extends State<MainScreen> {
       final variables = rawVars.map((e) => e.toString()).toList();
       final extractedText = scanData['extracted_text']?.toString() ?? "";
 
-      final rawStructured = scanData['structured_variables'] as List<dynamic>? ?? [];
-      final structuredVariables =
-          rawStructured.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      final rawStructured =
+          scanData['structured_variables'] as List<dynamic>? ?? [];
+      final structuredVariables = rawStructured
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
       final targetQuestion = scanData['target_question']?.toString();
       final latexFormula = scanData['latex_formula']?.toString();
       final historyId = scanData['history_id']?.toString();
@@ -131,8 +133,9 @@ class _MainScreenState extends State<MainScreen> {
         final appDir = await getApplicationDocumentsDirectory();
         final scansDir = Directory('${appDir.path}/scans');
         if (!await scansDir.exists()) await scansDir.create(recursive: true);
-        final localFile =
-            File('${scansDir.path}/scan_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        final localFile = File(
+          '${scansDir.path}/scan_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        );
         await image.copy(localFile.path);
         savedLocalPath = localFile.path;
       } catch (e) {
@@ -151,7 +154,8 @@ class _MainScreenState extends State<MainScreen> {
       );
 
       final notesData = (notesResponse['notes'] as Map<String, dynamic>?) ?? {};
-      final bool notesDegraded = notesResponse['degraded'] == true || isDegraded;
+      final bool notesDegraded =
+          notesResponse['degraded'] == true || isDegraded;
 
       // 4. Save to history
       final historyItem = ScanHistory(
@@ -283,7 +287,9 @@ class _MainScreenState extends State<MainScreen> {
           automaticallyImplyLeading: false,
           currentBottomNavIndex: 0,
           body: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.screenMargin,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -299,7 +305,10 @@ class _MainScreenState extends State<MainScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.surface(context),
                       borderRadius: BorderRadius.circular(AppRadii.card),
-                      border: Border.all(color: AppColors.divider(context), width: 1.0),
+                      border: Border.all(
+                        color: AppColors.divider(context),
+                        width: 1.0,
+                      ),
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -310,7 +319,9 @@ class _MainScreenState extends State<MainScreen> {
                           decoration: BoxDecoration(
                             color: AppColors.surfaceVariant(context),
                             shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.divider(context)),
+                            border: Border.all(
+                              color: AppColors.divider(context),
+                            ),
                           ),
                           child: Icon(
                             Icons.camera_alt_rounded,
@@ -321,24 +332,29 @@ class _MainScreenState extends State<MainScreen> {
                         const SizedBox(height: AppSpacing.md),
                         Text(
                           AppStrings.scanCardTitle,
-                          style: AppTypography.title2(context).copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: AppTypography.title2(
+                            context,
+                          ).copyWith(fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           AppStrings.scanCardSubtitle,
-                          style: AppTypography.subhead(context).copyWith(
-                            color: AppColors.textSecondary(context),
-                          ),
+                          style: AppTypography.subhead(
+                            context,
+                          ).copyWith(color: AppColors.textSecondary(context)),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: AppSpacing.lg),
                         PrimaryButton(
                           label: AppStrings.scanCardTitle,
-                          icon: const Icon(Icons.document_scanner_rounded, size: 20),
-                          onPressed: _isProcessing ? null : () => _pickImage(ImageSource.camera),
+                          icon: const Icon(
+                            Icons.document_scanner_rounded,
+                            size: 20,
+                          ),
+                          onPressed: _isProcessing
+                              ? null
+                              : () => _pickImage(ImageSource.camera),
                         ),
                       ],
                     ),
@@ -353,9 +369,13 @@ class _MainScreenState extends State<MainScreen> {
                     Expanded(
                       child: SecondaryButton(
                         label: AppStrings.chooseFromGallery,
-                        icon: const Icon(Icons.photo_library_outlined, size: 20),
-                        onPressed:
-                            _isProcessing ? null : () => _pickImage(ImageSource.gallery),
+                        icon: const Icon(
+                          Icons.photo_library_outlined,
+                          size: 20,
+                        ),
+                        onPressed: _isProcessing
+                            ? null
+                            : () => _pickImage(ImageSource.gallery),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -383,7 +403,8 @@ class _MainScreenState extends State<MainScreen> {
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
                     itemCount: _exploreTopics.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(width: AppSpacing.xs),
                     itemBuilder: (context, index) {
                       final topic = _exploreTopics[index];
                       return AppChip(
@@ -391,7 +412,9 @@ class _MainScreenState extends State<MainScreen> {
                         onTap: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text("Explore $topic: scan a problem to begin."),
+                              content: Text(
+                                "Explore $topic: scan a problem to begin.",
+                              ),
                               duration: const Duration(seconds: 2),
                             ),
                           );
@@ -413,7 +436,8 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                     if (history.isNotEmpty)
                       TextButton(
-                        onPressed: () => Navigator.pushNamed(context, '/history'),
+                        onPressed: () =>
+                            Navigator.pushNamed(context, '/history'),
                         child: Text(
                           AppStrings.seeAll,
                           style: AppTypography.subhead(context).copyWith(
@@ -436,7 +460,8 @@ class _MainScreenState extends State<MainScreen> {
                   GroupedSection(
                     children: history.take(3).map((item) {
                       final file = File(item.imagePath);
-                      final hasImage = item.imagePath.isNotEmpty && file.existsSync();
+                      final hasImage =
+                          item.imagePath.isNotEmpty && file.existsSync();
 
                       return GroupedRow(
                         leading: Container(
@@ -518,9 +543,9 @@ class _MainScreenState extends State<MainScreen> {
                       const SizedBox(height: AppSpacing.lg),
                       Text(
                         AppStrings.processingTitle,
-                        style: AppTypography.title2(context).copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: AppTypography.title2(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: AppSpacing.lg),
 
@@ -588,7 +613,11 @@ class _MainScreenState extends State<MainScreen> {
     return Row(
       children: [
         if (isDone)
-          Icon(Icons.check_circle_rounded, color: AppColors.success(context), size: 22)
+          Icon(
+            Icons.check_circle_rounded,
+            color: AppColors.success(context),
+            size: 22,
+          )
         else if (isCurrent)
           SizedBox(
             width: 20,

@@ -19,24 +19,23 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
     try {
       await authService.signInWithGoogle();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Signed in with Google")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Signed in with Google")));
     } catch (error) {
       if (!mounted) return;
       final errorMessage = error.toString();
       String userMessage;
-      
-      if (errorMessage.contains('ApiException: 10') || 
+
+      if (errorMessage.contains('ApiException: 10') ||
           errorMessage.contains('DEVELOPER_ERROR') ||
           errorMessage.contains('Firebase configuration')) {
         userMessage = "Firebase not configured. See FIREBASE_SETUP.md";
       } else {
-        userMessage = "Login failed: ${errorMessage.length > 100 
-          ? '${errorMessage.substring(0, 100)}...' 
-          : errorMessage}";
+        userMessage =
+            "Login failed: ${errorMessage.length > 100 ? '${errorMessage.substring(0, 100)}...' : errorMessage}";
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(userMessage),
@@ -48,9 +47,7 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
                 context: context,
                 builder: (dialogContext) => AlertDialog(
                   title: const Text("Login Error"),
-                  content: SingleChildScrollView(
-                    child: Text(errorMessage),
-                  ),
+                  content: SingleChildScrollView(child: Text(errorMessage)),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(dialogContext),
@@ -96,4 +93,3 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
     );
   }
 }
-

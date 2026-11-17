@@ -37,10 +37,9 @@ class GroupedSection extends StatelessWidget {
               ),
               child: Text(
                 title!,
-                style: AppTypography.footnote(context).copyWith(
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.2,
-                ),
+                style: AppTypography.footnote(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w600, letterSpacing: 0.2),
               ),
             ),
           ],
@@ -64,10 +63,7 @@ class GroupedSection extends StatelessWidget {
                 right: AppSpacing.screenMargin,
                 top: AppSpacing.space8,
               ),
-              child: Text(
-                footer!,
-                style: AppTypography.footnote(context),
-              ),
+              child: Text(footer!, style: AppTypography.footnote(context)),
             ),
           ],
         ],
@@ -75,7 +71,10 @@ class GroupedSection extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildSeparatedChildren(BuildContext context, Color dividerColor) {
+  List<Widget> _buildSeparatedChildren(
+    BuildContext context,
+    Color dividerColor,
+  ) {
     final result = <Widget>[];
     for (int i = 0; i < children.length; i++) {
       result.add(children[i]);
@@ -161,9 +160,9 @@ class GroupedRow extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           subtitle!,
-                          style: AppTypography.subhead(context).copyWith(
-                            color: textSecondary,
-                          ),
+                          style: AppTypography.subhead(
+                            context,
+                          ).copyWith(color: textSecondary),
                         ),
                       ],
                     ],

@@ -13,9 +13,7 @@ void main() {
     // Build a minimal widget to verify test setup works.
     await tester.pumpWidget(
       const MaterialApp(
-        home: Scaffold(
-          body: Center(child: Text('Stemly')),
-        ),
+        home: Scaffold(body: Center(child: Text('Stemly'))),
       ),
     );
 

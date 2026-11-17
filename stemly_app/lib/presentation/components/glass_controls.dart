@@ -8,10 +8,7 @@ class GlassTabItem {
   final IconData icon;
   final String label;
 
-  const GlassTabItem({
-    required this.icon,
-    required this.label,
-  });
+  const GlassTabItem({required this.icon, required this.label});
 }
 
 /// Floating Apple Liquid Glass Tab Bar.
@@ -70,11 +67,16 @@ class GlassTabBar extends StatelessWidget {
                       height: constraints.maxHeight,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: (AppColors.isDark(context) ? Colors.white : Colors.black)
-                              .withValues(alpha: 0.12),
+                          color:
+                              (AppColors.isDark(context)
+                                      ? Colors.white
+                                      : Colors.black)
+                                  .withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(100),
                           border: Border.all(
-                            color: AppColors.divider(context).withValues(alpha: 0.4),
+                            color: AppColors.divider(
+                              context,
+                            ).withValues(alpha: 0.4),
                             width: 1.0,
                           ),
                         ),
@@ -174,7 +176,9 @@ class _GlassTabButtonState extends State<_GlassTabButton> {
               Text(
                 widget.item.label,
                 style: AppTypography.caption(context).copyWith(
-                  fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
+                  fontWeight: widget.isSelected
+                      ? FontWeight.w600
+                      : FontWeight.w500,
                   color: widget.isSelected ? activeColor : inactiveColor,
                 ),
                 maxLines: 1,
@@ -228,10 +232,7 @@ class GlassNavBar extends StatelessWidget implements PreferredSizeWidget {
           overflow: TextOverflow.ellipsis,
         ),
         trailing: actions != null && actions!.isNotEmpty
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: actions!,
-              )
+            ? Row(mainAxisSize: MainAxisSize.min, children: actions!)
             : null,
         centerMiddle: true,
       ),
@@ -270,9 +271,15 @@ class _GlassIconButtonState extends State<GlassIconButton> {
 
     Widget button = GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTapDown: widget.onPressed == null ? null : (_) => setState(() => _isPressed = true),
-      onTapUp: widget.onPressed == null ? null : (_) => setState(() => _isPressed = false),
-      onTapCancel: widget.onPressed == null ? null : () => setState(() => _isPressed = false),
+      onTapDown: widget.onPressed == null
+          ? null
+          : (_) => setState(() => _isPressed = true),
+      onTapUp: widget.onPressed == null
+          ? null
+          : (_) => setState(() => _isPressed = false),
+      onTapCancel: widget.onPressed == null
+          ? null
+          : () => setState(() => _isPressed = false),
       onTap: () {
         if (widget.onPressed != null) {
           AppHaptics.selection();
@@ -359,7 +366,10 @@ class GlassComposer extends StatelessWidget {
                         color: AppColors.primary(context),
                       ),
                     )
-                  : Icon(Icons.arrow_upward_rounded, color: AppColors.primary(context)),
+                  : Icon(
+                      Icons.arrow_upward_rounded,
+                      color: AppColors.primary(context),
+                    ),
               onPressed: isSending ? null : onSend,
             ),
           ),

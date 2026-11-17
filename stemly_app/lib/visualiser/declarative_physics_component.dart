@@ -13,7 +13,8 @@ enum MechanicsSceneType { inclinedPlane, pulley, collision, forceBlock }
 /// - Collisions & Momentum conservation with coefficient of restitution (e)
 /// - General 2D block with applied tension force at angle theta
 class DeclarativePhysicsWidget extends StatefulWidget {
-  final String scenario; // "inclined_plane", "pulley", "collision", "mechanics_2d"
+  final String
+  scenario; // "inclined_plane", "pulley", "collision", "mechanics_2d"
   final Map<String, double> parameters;
   final Function(Map<String, String>)? onSimulationUpdate;
 
@@ -25,7 +26,8 @@ class DeclarativePhysicsWidget extends StatefulWidget {
   });
 
   @override
-  State<DeclarativePhysicsWidget> createState() => _DeclarativePhysicsWidgetState();
+  State<DeclarativePhysicsWidget> createState() =>
+      _DeclarativePhysicsWidgetState();
 }
 
 class _DeclarativePhysicsWidgetState extends State<DeclarativePhysicsWidget>
@@ -39,9 +41,12 @@ class _DeclarativePhysicsWidgetState extends State<DeclarativePhysicsWidget>
 
   MechanicsSceneType get sceneType {
     final s = widget.scenario.toLowerCase();
-    if (s.contains("incline") || s.contains("ramp")) return MechanicsSceneType.inclinedPlane;
-    if (s.contains("pulley") || s.contains("atwood")) return MechanicsSceneType.pulley;
-    if (s.contains("collision") || s.contains("momentum")) return MechanicsSceneType.collision;
+    if (s.contains("incline") || s.contains("ramp"))
+      return MechanicsSceneType.inclinedPlane;
+    if (s.contains("pulley") || s.contains("atwood"))
+      return MechanicsSceneType.pulley;
+    if (s.contains("collision") || s.contains("momentum"))
+      return MechanicsSceneType.collision;
     return MechanicsSceneType.forceBlock;
   }
 
@@ -82,8 +87,10 @@ class _DeclarativePhysicsWidgetState extends State<DeclarativePhysicsWidget>
           final a = max(0.0, g * (sin(thetaRad) - mu * cos(thetaRad)));
           widget.onSimulationUpdate!({
             "Acceleration": "${a.toStringAsFixed(2)} m/s²",
-            "Normal Force": "${(cos(thetaRad) * _getParam("m", 5.0) * g).toStringAsFixed(1)} N",
-            "Friction": "${(mu * cos(thetaRad) * _getParam("m", 5.0) * g).toStringAsFixed(1)} N",
+            "Normal Force":
+                "${(cos(thetaRad) * _getParam("m", 5.0) * g).toStringAsFixed(1)} N",
+            "Friction":
+                "${(mu * cos(thetaRad) * _getParam("m", 5.0) * g).toStringAsFixed(1)} N",
           });
           break;
 
@@ -186,7 +193,9 @@ class _DeclarativePhysicsWidgetState extends State<DeclarativePhysicsWidget>
                     child: Padding(
                       padding: const EdgeInsets.all(4.0),
                       child: Icon(
-                        _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                        _isPaused
+                            ? Icons.play_arrow_rounded
+                            : Icons.pause_rounded,
                         color: Colors.white,
                         size: 20,
                       ),
@@ -231,7 +240,9 @@ class _DeclarativePhysicsWidgetState extends State<DeclarativePhysicsWidget>
         margin: const EdgeInsets.symmetric(horizontal: 2),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.orangeFillLight : Colors.white.withValues(alpha: 0.12),
+          color: isActive
+              ? AppColors.orangeFillLight
+              : Colors.white.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isActive ? AppColors.orangeFillLight : Colors.white24,
@@ -340,7 +351,10 @@ class _DeclarativePhysicsPainter extends CustomPainter {
 
     final cornerX = size.width * 0.12;
     final peakX = cornerX;
-    final peakY = (groundY - rampHeight).clamp(size.height * 0.20, groundY - 40);
+    final peakY = (groundY - rampHeight).clamp(
+      size.height * 0.20,
+      groundY - 40,
+    );
     final footX = cornerX + rampBaseWidth;
     final footY = groundY;
 
@@ -357,7 +371,9 @@ class _DeclarativePhysicsPainter extends CustomPainter {
     canvas.drawLine(
       Offset(0, footY),
       Offset(size.width, footY),
-      Paint()..color = const Color(0xFF16A34A)..strokeWidth = 3.0,
+      Paint()
+        ..color = const Color(0xFF16A34A)
+        ..strokeWidth = 3.0,
     );
 
     // Block position along ramp
@@ -382,8 +398,15 @@ class _DeclarativePhysicsPainter extends CustomPainter {
 
     const bW = 28.0;
     const bH = 20.0;
-    final blockRect = Rect.fromCenter(center: Offset.zero, width: bW, height: bH);
-    canvas.drawRRect(RRect.fromRectAndRadius(blockRect, const Radius.circular(4)), _blockPaint);
+    final blockRect = Rect.fromCenter(
+      center: Offset.zero,
+      width: bW,
+      height: bH,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(blockRect, const Radius.circular(4)),
+      _blockPaint,
+    );
     canvas.drawCircle(const Offset(-4, -4), 3, _blockHighlight);
     canvas.restore();
 
@@ -412,7 +435,13 @@ class _DeclarativePhysicsPainter extends CustomPainter {
       if (a > 0.05) {
         final aLen = 32.0;
         final aEnd = center + Offset(unitX * aLen, unitY * aLen);
-        _drawVector(canvas, center, aEnd, const Color(0xFF10B981), "a=${a.toStringAsFixed(1)}");
+        _drawVector(
+          canvas,
+          center,
+          aEnd,
+          const Color(0xFF10B981),
+          "a=${a.toStringAsFixed(1)}",
+        );
       }
     }
 
@@ -447,7 +476,9 @@ class _DeclarativePhysicsPainter extends CustomPainter {
     canvas.drawLine(
       Offset(pulleyCenter.dx, 0),
       pulleyCenter,
-      Paint()..color = Colors.black87..strokeWidth = 4.0,
+      Paint()
+        ..color = Colors.black87
+        ..strokeWidth = 4.0,
     );
 
     // Pulley Wheel
@@ -465,31 +496,93 @@ class _DeclarativePhysicsPainter extends CustomPainter {
     final m2X = pulleyCenter.dx + pulleyR;
 
     // Cord
-    canvas.drawLine(Offset(m1X, pulleyCenter.dy), Offset(m1X, m1CenterY), _cordPaint);
-    canvas.drawLine(Offset(m2X, pulleyCenter.dy), Offset(m2X, m2CenterY), _cordPaint);
+    canvas.drawLine(
+      Offset(m1X, pulleyCenter.dy),
+      Offset(m1X, m1CenterY),
+      _cordPaint,
+    );
+    canvas.drawLine(
+      Offset(m2X, pulleyCenter.dy),
+      Offset(m2X, m2CenterY),
+      _cordPaint,
+    );
 
     // Masses (scaled visually by mass)
     final r1 = (14.0 + (m1 / 50.0) * 16.0).clamp(14.0, 30.0);
     final r2 = (14.0 + (m2 / 50.0) * 16.0).clamp(14.0, 30.0);
 
     // Block 1
-    final b1Rect = Rect.fromCenter(center: Offset(m1X, m1CenterY), width: r1 * 2, height: r1 * 1.6);
-    canvas.drawRRect(RRect.fromRectAndRadius(b1Rect, const Radius.circular(6)), _blockPaint);
-    _drawText(canvas, "m1=${m1.toStringAsFixed(1)}", m1X - 16, m1CenterY - 6, size: 9, bold: true, color: Colors.white);
+    final b1Rect = Rect.fromCenter(
+      center: Offset(m1X, m1CenterY),
+      width: r1 * 2,
+      height: r1 * 1.6,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(b1Rect, const Radius.circular(6)),
+      _blockPaint,
+    );
+    _drawText(
+      canvas,
+      "m1=${m1.toStringAsFixed(1)}",
+      m1X - 16,
+      m1CenterY - 6,
+      size: 9,
+      bold: true,
+      color: Colors.white,
+    );
 
     // Block 2
-    final b2Rect = Rect.fromCenter(center: Offset(m2X, m2CenterY), width: r2 * 2, height: r2 * 1.6);
-    canvas.drawRRect(RRect.fromRectAndRadius(b2Rect, const Radius.circular(6)), Paint()..color = const Color(0xFF2C2C2E));
-    _drawText(canvas, "m2=${m2.toStringAsFixed(1)}", m2X - 16, m2CenterY - 6, size: 9, bold: true, color: Colors.white);
+    final b2Rect = Rect.fromCenter(
+      center: Offset(m2X, m2CenterY),
+      width: r2 * 2,
+      height: r2 * 1.6,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(b2Rect, const Radius.circular(6)),
+      Paint()..color = const Color(0xFF2C2C2E),
+    );
+    _drawText(
+      canvas,
+      "m2=${m2.toStringAsFixed(1)}",
+      m2X - 16,
+      m2CenterY - 6,
+      size: 9,
+      bold: true,
+      color: Colors.white,
+    );
 
     if (showVectors) {
       // String Tension T (upward)
-      _drawVector(canvas, Offset(m1X, m1CenterY - r1 * 0.8), Offset(m1X, m1CenterY - r1 * 0.8 - 26), const Color(0xFF06B6D4), "T");
-      _drawVector(canvas, Offset(m2X, m2CenterY - r2 * 0.8), Offset(m2X, m2CenterY - r2 * 0.8 - 26), const Color(0xFF06B6D4), "T");
+      _drawVector(
+        canvas,
+        Offset(m1X, m1CenterY - r1 * 0.8),
+        Offset(m1X, m1CenterY - r1 * 0.8 - 26),
+        const Color(0xFF06B6D4),
+        "T",
+      );
+      _drawVector(
+        canvas,
+        Offset(m2X, m2CenterY - r2 * 0.8),
+        Offset(m2X, m2CenterY - r2 * 0.8 - 26),
+        const Color(0xFF06B6D4),
+        "T",
+      );
 
       // Gravity mg (downward)
-      _drawVector(canvas, Offset(m1X, m1CenterY + r1 * 0.8), Offset(m1X, m1CenterY + r1 * 0.8 + 28), const Color(0xFFEF4444), "m1g");
-      _drawVector(canvas, Offset(m2X, m2CenterY + r2 * 0.8), Offset(m2X, m2CenterY + r2 * 0.8 + 28), const Color(0xFFEF4444), "m2g");
+      _drawVector(
+        canvas,
+        Offset(m1X, m1CenterY + r1 * 0.8),
+        Offset(m1X, m1CenterY + r1 * 0.8 + 28),
+        const Color(0xFFEF4444),
+        "m1g",
+      );
+      _drawVector(
+        canvas,
+        Offset(m2X, m2CenterY + r2 * 0.8),
+        Offset(m2X, m2CenterY + r2 * 0.8 + 28),
+        const Color(0xFFEF4444),
+        "m2g",
+      );
     }
 
     if (showHud) {
@@ -523,7 +616,9 @@ class _DeclarativePhysicsPainter extends CustomPainter {
     canvas.drawLine(
       Offset(size.width * 0.05, trackY),
       Offset(size.width * 0.95, trackY),
-      Paint()..color = const Color(0xFF64748B)..strokeWidth = 3.0,
+      Paint()
+        ..color = const Color(0xFF64748B)
+        ..strokeWidth = 3.0,
     );
 
     const collisionProgress = 0.5;
@@ -548,11 +643,31 @@ class _DeclarativePhysicsPainter extends CustomPainter {
 
     // Ball 1
     canvas.drawCircle(Offset(x1, y1), r1, _blockPaint);
-    _drawText(canvas, "m1", x1 - 6, y1 - 5, size: 9, bold: true, color: Colors.white);
+    _drawText(
+      canvas,
+      "m1",
+      x1 - 6,
+      y1 - 5,
+      size: 9,
+      bold: true,
+      color: Colors.white,
+    );
 
     // Ball 2
-    canvas.drawCircle(Offset(x2, y2), r2, Paint()..color = const Color(0xFF2C2C2E));
-    _drawText(canvas, "m2", x2 - 6, y2 - 5, size: 9, bold: true, color: Colors.white);
+    canvas.drawCircle(
+      Offset(x2, y2),
+      r2,
+      Paint()..color = const Color(0xFF2C2C2E),
+    );
+    _drawText(
+      canvas,
+      "m2",
+      x2 - 6,
+      y2 - 5,
+      size: 9,
+      bold: true,
+      color: Colors.white,
+    );
 
     if (showVectors) {
       final curV1 = progress < collisionProgress ? u1 : v1;
@@ -561,8 +676,20 @@ class _DeclarativePhysicsPainter extends CustomPainter {
       final arrowLen1 = (curV1 * 2.2).clamp(-50.0, 50.0);
       final arrowLen2 = (curV2 * 2.2).clamp(-50.0, 50.0);
 
-      _drawVector(canvas, Offset(x1, y1), Offset(x1 + arrowLen1, y1), const Color(0xFF10B981), "v1=${curV1.toStringAsFixed(1)}");
-      _drawVector(canvas, Offset(x2, y2), Offset(x2 + arrowLen2, y2), const Color(0xFF06B6D4), "v2=${curV2.toStringAsFixed(1)}");
+      _drawVector(
+        canvas,
+        Offset(x1, y1),
+        Offset(x1 + arrowLen1, y1),
+        const Color(0xFF10B981),
+        "v1=${curV1.toStringAsFixed(1)}",
+      );
+      _drawVector(
+        canvas,
+        Offset(x2, y2),
+        Offset(x2 + arrowLen2, y2),
+        const Color(0xFF06B6D4),
+        "v2=${curV2.toStringAsFixed(1)}",
+      );
     }
 
     if (showHud) {
@@ -598,7 +725,9 @@ class _DeclarativePhysicsPainter extends CustomPainter {
     canvas.drawLine(
       Offset(0, groundY),
       Offset(size.width, groundY),
-      Paint()..color = const Color(0xFF334155)..strokeWidth = 3.0,
+      Paint()
+        ..color = const Color(0xFF334155)
+        ..strokeWidth = 3.0,
     );
 
     const bW = 44.0;
@@ -608,26 +737,58 @@ class _DeclarativePhysicsPainter extends CustomPainter {
     final blockX = size.width * 0.15 + travel;
     final blockY = groundY - bH / 2;
 
-    final blockRect = Rect.fromCenter(center: Offset(blockX, blockY), width: bW, height: bH);
-    canvas.drawRRect(RRect.fromRectAndRadius(blockRect, const Radius.circular(6)), _blockPaint);
+    final blockRect = Rect.fromCenter(
+      center: Offset(blockX, blockY),
+      width: bW,
+      height: bH,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(blockRect, const Radius.circular(6)),
+      _blockPaint,
+    );
 
     if (showVectors) {
       final center = Offset(blockX, blockY);
 
       // Applied Force F at angle theta
       final fLen = 42.0;
-      final fEnd = center + Offset(fLen * cos(-thetaRad), fLen * sin(-thetaRad));
-      _drawVector(canvas, center, fEnd, const Color(0xFF8B5CF6), "F=${F.toStringAsFixed(0)}N");
+      final fEnd =
+          center + Offset(fLen * cos(-thetaRad), fLen * sin(-thetaRad));
+      _drawVector(
+        canvas,
+        center,
+        fEnd,
+        const Color(0xFF8B5CF6),
+        "F=${F.toStringAsFixed(0)}N",
+      );
 
       // Gravity mg
-      _drawVector(canvas, center, center + const Offset(0, 32), const Color(0xFFEF4444), "mg");
+      _drawVector(
+        canvas,
+        center,
+        center + const Offset(0, 32),
+        const Color(0xFFEF4444),
+        "mg",
+      );
 
       // Normal N
-      _drawVector(canvas, center, center - const Offset(0, 30), const Color(0xFF06B6D4), "N");
+      _drawVector(
+        canvas,
+        center,
+        center - const Offset(0, 30),
+        const Color(0xFF06B6D4),
+        "N",
+      );
 
       // Friction fk
       if (fK > 0.1) {
-        _drawVector(canvas, Offset(blockX - bW / 2, groundY), Offset(blockX - bW / 2 - 25, groundY), const Color(0xFFF59E0B), "fk");
+        _drawVector(
+          canvas,
+          Offset(blockX - bW / 2, groundY),
+          Offset(blockX - bW / 2 - 25, groundY),
+          const Color(0xFFF59E0B),
+          "fk",
+        );
       }
     }
 
@@ -642,7 +803,13 @@ class _DeclarativePhysicsPainter extends CustomPainter {
     }
   }
 
-  void _drawVector(Canvas canvas, Offset start, Offset end, Color color, String label) {
+  void _drawVector(
+    Canvas canvas,
+    Offset start,
+    Offset end,
+    Color color,
+    String label,
+  ) {
     final paint = Paint()
       ..color = color
       ..strokeWidth = 2.2
@@ -654,12 +821,26 @@ class _DeclarativePhysicsPainter extends CustomPainter {
     const arrowSize = 7.0;
     final path = Path()
       ..moveTo(end.dx, end.dy)
-      ..lineTo(end.dx - arrowSize * cos(angle - pi / 6), end.dy - arrowSize * sin(angle - pi / 6))
-      ..lineTo(end.dx - arrowSize * cos(angle + pi / 6), end.dy - arrowSize * sin(angle + pi / 6))
+      ..lineTo(
+        end.dx - arrowSize * cos(angle - pi / 6),
+        end.dy - arrowSize * sin(angle - pi / 6),
+      )
+      ..lineTo(
+        end.dx - arrowSize * cos(angle + pi / 6),
+        end.dy - arrowSize * sin(angle + pi / 6),
+      )
       ..close();
     canvas.drawPath(path, Paint()..color = color);
 
-    _drawText(canvas, label, end.dx + 4, end.dy - 6, size: 9, bold: true, color: color);
+    _drawText(
+      canvas,
+      label,
+      end.dx + 4,
+      end.dy - 6,
+      size: 9,
+      bold: true,
+      color: color,
+    );
   }
 
   void _drawHudBox(Canvas canvas, Size size, List<String> lines) {
@@ -685,7 +866,9 @@ class _DeclarativePhysicsPainter extends CustomPainter {
         hudY + 6 + i * 13,
         size: isHeader ? 8.5 : 9.0,
         bold: isHeader,
-        color: isHeader ? const Color(0xFF38BDF8) : (i == 2 ? const Color(0xFF4ADE80) : Colors.white70),
+        color: isHeader
+            ? const Color(0xFF38BDF8)
+            : (i == 2 ? const Color(0xFF4ADE80) : Colors.white70),
       );
     }
   }

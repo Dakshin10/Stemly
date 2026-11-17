@@ -31,10 +31,14 @@ class _EquationPlotterWidgetState extends State<EquationPlotterWidget> {
   bool _hasError = false;
   String _errorMessage = "";
 
-  double get _safeMinX => widget.minX < widget.maxX ? widget.minX : widget.maxX - 1.0;
-  double get _safeMaxX => widget.maxX > widget.minX ? widget.maxX : widget.minX + 1.0;
-  double get _safeMinY => widget.minY < widget.maxY ? widget.minY : widget.maxY - 1.0;
-  double get _safeMaxY => widget.maxY > widget.minY ? widget.maxY : widget.minY + 1.0;
+  double get _safeMinX =>
+      widget.minX < widget.maxX ? widget.minX : widget.maxX - 1.0;
+  double get _safeMaxX =>
+      widget.maxX > widget.minX ? widget.maxX : widget.minX + 1.0;
+  double get _safeMinY =>
+      widget.minY < widget.maxY ? widget.minY : widget.maxY - 1.0;
+  double get _safeMaxY =>
+      widget.maxY > widget.minY ? widget.maxY : widget.minY + 1.0;
 
   @override
   void initState() {
@@ -174,12 +178,19 @@ class _EquationPlotterWidgetState extends State<EquationPlotterWidget> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 36, color: Colors.redAccent),
+              const Icon(
+                Icons.error_outline,
+                size: 36,
+                color: Colors.redAccent,
+              ),
               const SizedBox(height: 8),
               Text(
                 _errorMessage,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -190,7 +201,8 @@ class _EquationPlotterWidgetState extends State<EquationPlotterWidget> {
     final barDataList = _segments.map((segment) {
       return LineChartBarData(
         spots: segment,
-        isCurved: false, // Straight segments prevent cubic-spline overshoot across sharp derivatives
+        isCurved:
+            false, // Straight segments prevent cubic-spline overshoot across sharp derivatives
         color: widget.plotColor,
         barWidth: 2.5,
         isStrokeCapRound: true,
@@ -223,15 +235,22 @@ class _EquationPlotterWidgetState extends State<EquationPlotterWidget> {
               ),
               titlesData: FlTitlesData(
                 show: true,
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
                     getTitlesWidget: (value, meta) {
                       return Text(
                         value.toInt().toString(),
-                        style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.shade700,
+                        ),
                       );
                     },
                     interval: max(1.0, (_safeMaxX - _safeMinX) / 5.0),
@@ -243,7 +262,10 @@ class _EquationPlotterWidgetState extends State<EquationPlotterWidget> {
                     getTitlesWidget: (value, meta) {
                       return Text(
                         value.toInt().toString(),
-                        style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.shade700,
+                        ),
                       );
                     },
                     interval: max(1.0, (_safeMaxY - _safeMinY) / 5.0),

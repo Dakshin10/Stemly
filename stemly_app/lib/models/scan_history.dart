@@ -54,7 +54,9 @@ class ScanHistory {
       ),
       visualiserHistoryId: json["visualiserHistoryId"],
       structuredVariables: List<Map<String, dynamic>>.from(
-        (json["structuredVariables"] ?? []).map((x) => Map<String, dynamic>.from(x)),
+        (json["structuredVariables"] ?? []).map(
+          (x) => Map<String, dynamic>.from(x),
+        ),
       ),
       targetQuestion: json["targetQuestion"],
       latexFormula: json["latexFormula"],

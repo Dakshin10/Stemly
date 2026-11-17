@@ -19,7 +19,9 @@ class FakeAuthService extends ChangeNotifier implements FirebaseAuthService {
   Future<String?> getIdToken({bool forceRefresh = false}) async => _testToken;
 
   @override
-  Future<Map<String, String>> authenticatedHeaders({Map<String, String>? base}) async {
+  Future<Map<String, String>> authenticatedHeaders({
+    Map<String, String>? base,
+  }) async {
     final map = <String, String>{};
     if (base != null) map.addAll(base);
     map["Authorization"] = "Bearer $_testToken";

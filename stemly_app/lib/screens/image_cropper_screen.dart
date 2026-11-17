@@ -15,10 +15,7 @@ import '../theme/theme.dart';
 class ImageCropperScreen extends StatefulWidget {
   final File originalImage;
 
-  const ImageCropperScreen({
-    super.key,
-    required this.originalImage,
-  });
+  const ImageCropperScreen({super.key, required this.originalImage});
 
   @override
   State<ImageCropperScreen> createState() => _ImageCropperScreenState();
@@ -127,9 +124,14 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
         Paint()..filterQuality = FilterQuality.high,
       );
       final picture = recorder.endRecording();
-      final croppedUiImage = await picture.toImage(cropWidth.toInt(), cropHeight.toInt());
+      final croppedUiImage = await picture.toImage(
+        cropWidth.toInt(),
+        cropHeight.toInt(),
+      );
 
-      final byteData = await croppedUiImage.toByteData(format: ui.ImageByteFormat.png);
+      final byteData = await croppedUiImage.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       if (byteData == null) {
         if (mounted) Navigator.pop(context, widget.originalImage);
         return;
@@ -137,8 +139,9 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
 
       final croppedBytes = byteData.buffer.asUint8List();
       final tempDir = await getTemporaryDirectory();
-      final croppedFile =
-          File('${tempDir.path}/cropped_${DateTime.now().millisecondsSinceEpoch}.png');
+      final croppedFile = File(
+        '${tempDir.path}/cropped_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
       await croppedFile.writeAsBytes(croppedBytes);
 
       if (mounted) {
@@ -179,178 +182,210 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
               ),
             )
           : _errorMessage != null
-              ? Center(
-                  child: Text(
-                    _errorMessage!,
-                    style: AppTypography.body(context).copyWith(color: Colors.white70),
-                  ),
-                )
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    final viewW = constraints.maxWidth;
-                    // Reserve 160 dp for controls and action buttons
-                    final viewH = max(100.0, constraints.maxHeight - 160);
+          ? Center(
+              child: Text(
+                _errorMessage!,
+                style: AppTypography.body(
+                  context,
+                ).copyWith(color: Colors.white70),
+              ),
+            )
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final viewW = constraints.maxWidth;
+                // Reserve 160 dp for controls and action buttons
+                final viewH = max(100.0, constraints.maxHeight - 160);
 
-                    final imgW = _decodedImage!.width.toDouble();
-                    final imgH = _decodedImage!.height.toDouble();
+                final imgW = _decodedImage!.width.toDouble();
+                final imgH = _decodedImage!.height.toDouble();
 
-                    final scaleX = viewW / imgW;
-                    final scaleY = viewH / imgH;
-                    final scale = min(scaleX, scaleY);
+                final scaleX = viewW / imgW;
+                final scaleY = viewH / imgH;
+                final scale = min(scaleX, scaleY);
 
-                    final displayW = imgW * scale;
-                    final displayH = imgH * scale;
+                final displayW = imgW * scale;
+                final displayH = imgH * scale;
 
-                    final offsetX = (viewW - displayW) / 2;
-                    final offsetY = (viewH - displayH) / 2;
+                final offsetX = (viewW - displayW) / 2;
+                final offsetY = (viewH - displayH) / 2;
 
-                    final imageRect = Rect.fromLTWH(offsetX, offsetY, displayW, displayH);
+                final imageRect = Rect.fromLTWH(
+                  offsetX,
+                  offsetY,
+                  displayW,
+                  displayH,
+                );
 
-                    final screenCrop = Rect.fromLTRB(
-                      imageRect.left + _normalizedCrop.left * displayW,
-                      imageRect.top + _normalizedCrop.top * displayH,
-                      imageRect.left + _normalizedCrop.right * displayW,
-                      imageRect.top + _normalizedCrop.bottom * displayH,
-                    );
+                final screenCrop = Rect.fromLTRB(
+                  imageRect.left + _normalizedCrop.left * displayW,
+                  imageRect.top + _normalizedCrop.top * displayH,
+                  imageRect.left + _normalizedCrop.right * displayW,
+                  imageRect.top + _normalizedCrop.bottom * displayH,
+                );
 
-                    return Column(
-                      children: [
-                        // CROP VIEW CANVAS
-                        Expanded(
-                          child: GestureDetector(
-                            onPanStart: (details) {
-                              _activeHandle = _hitTestHandle(details.localPosition, screenCrop);
-                            },
-                            onPanUpdate: (details) {
-                              if (_activeHandle == _HandleType.none) return;
+                return Column(
+                  children: [
+                    // CROP VIEW CANVAS
+                    Expanded(
+                      child: GestureDetector(
+                        onPanStart: (details) {
+                          _activeHandle = _hitTestHandle(
+                            details.localPosition,
+                            screenCrop,
+                          );
+                        },
+                        onPanUpdate: (details) {
+                          if (_activeHandle == _HandleType.none) return;
 
-                              setState(() {
-                                final deltaX = details.delta.dx / displayW;
-                                final deltaY = details.delta.dy / displayH;
+                          setState(() {
+                            final deltaX = details.delta.dx / displayW;
+                            final deltaY = details.delta.dy / displayH;
 
-                                double newLeft = _normalizedCrop.left;
-                                double newTop = _normalizedCrop.top;
-                                double newRight = _normalizedCrop.right;
-                                double newBottom = _normalizedCrop.bottom;
+                            double newLeft = _normalizedCrop.left;
+                            double newTop = _normalizedCrop.top;
+                            double newRight = _normalizedCrop.right;
+                            double newBottom = _normalizedCrop.bottom;
 
-                                const minSize = 0.1;
+                            const minSize = 0.1;
 
-                                switch (_activeHandle) {
-                                  case _HandleType.topLeft:
-                                    newLeft =
-                                        (_normalizedCrop.left + deltaX).clamp(0.0, newRight - minSize);
-                                    newTop =
-                                        (_normalizedCrop.top + deltaY).clamp(0.0, newBottom - minSize);
-                                    break;
-                                  case _HandleType.topRight:
-                                    newRight =
-                                        (_normalizedCrop.right + deltaX).clamp(newLeft + minSize, 1.0);
-                                    newTop =
-                                        (_normalizedCrop.top + deltaY).clamp(0.0, newBottom - minSize);
-                                    break;
-                                  case _HandleType.bottomLeft:
-                                    newLeft =
-                                        (_normalizedCrop.left + deltaX).clamp(0.0, newRight - minSize);
-                                    newBottom =
-                                        (_normalizedCrop.bottom + deltaY).clamp(newTop + minSize, 1.0);
-                                    break;
-                                  case _HandleType.bottomRight:
-                                    newRight =
-                                        (_normalizedCrop.right + deltaX).clamp(newLeft + minSize, 1.0);
-                                    newBottom =
-                                        (_normalizedCrop.bottom + deltaY).clamp(newTop + minSize, 1.0);
-                                    break;
-                                  case _HandleType.body:
-                                    final width = _normalizedCrop.width;
-                                    final height = _normalizedCrop.height;
-                                    newLeft = (_normalizedCrop.left + deltaX).clamp(0.0, 1.0 - width);
-                                    newTop = (_normalizedCrop.top + deltaY).clamp(0.0, 1.0 - height);
-                                    newRight = newLeft + width;
-                                    newBottom = newTop + height;
-                                    break;
-                                  default:
-                                    break;
-                                }
+                            switch (_activeHandle) {
+                              case _HandleType.topLeft:
+                                newLeft = (_normalizedCrop.left + deltaX).clamp(
+                                  0.0,
+                                  newRight - minSize,
+                                );
+                                newTop = (_normalizedCrop.top + deltaY).clamp(
+                                  0.0,
+                                  newBottom - minSize,
+                                );
+                                break;
+                              case _HandleType.topRight:
+                                newRight = (_normalizedCrop.right + deltaX)
+                                    .clamp(newLeft + minSize, 1.0);
+                                newTop = (_normalizedCrop.top + deltaY).clamp(
+                                  0.0,
+                                  newBottom - minSize,
+                                );
+                                break;
+                              case _HandleType.bottomLeft:
+                                newLeft = (_normalizedCrop.left + deltaX).clamp(
+                                  0.0,
+                                  newRight - minSize,
+                                );
+                                newBottom = (_normalizedCrop.bottom + deltaY)
+                                    .clamp(newTop + minSize, 1.0);
+                                break;
+                              case _HandleType.bottomRight:
+                                newRight = (_normalizedCrop.right + deltaX)
+                                    .clamp(newLeft + minSize, 1.0);
+                                newBottom = (_normalizedCrop.bottom + deltaY)
+                                    .clamp(newTop + minSize, 1.0);
+                                break;
+                              case _HandleType.body:
+                                final width = _normalizedCrop.width;
+                                final height = _normalizedCrop.height;
+                                newLeft = (_normalizedCrop.left + deltaX).clamp(
+                                  0.0,
+                                  1.0 - width,
+                                );
+                                newTop = (_normalizedCrop.top + deltaY).clamp(
+                                  0.0,
+                                  1.0 - height,
+                                );
+                                newRight = newLeft + width;
+                                newBottom = newTop + height;
+                                break;
+                              default:
+                                break;
+                            }
 
-                                _normalizedCrop =
-                                    Rect.fromLTRB(newLeft, newTop, newRight, newBottom);
-                              });
-                            },
-                            onPanEnd: (_) => _activeHandle = _HandleType.none,
-                            child: CustomPaint(
-                              painter: _CropperPainter(
-                                image: _decodedImage!,
-                                imageRect: imageRect,
-                                cropRect: screenCrop,
-                                rotation: _rotationDegrees,
-                              ),
-                              child: const SizedBox.expand(),
-                            ),
+                            _normalizedCrop = Rect.fromLTRB(
+                              newLeft,
+                              newTop,
+                              newRight,
+                              newBottom,
+                            );
+                          });
+                        },
+                        onPanEnd: (_) => _activeHandle = _HandleType.none,
+                        child: CustomPaint(
+                          painter: _CropperPainter(
+                            image: _decodedImage!,
+                            imageRect: imageRect,
+                            cropRect: screenCrop,
+                            rotation: _rotationDegrees,
                           ),
+                          child: const SizedBox.expand(),
                         ),
+                      ),
+                    ),
 
-                        // TOOLBAR & ACTIONS
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.screenMargin,
-                            vertical: AppSpacing.sm,
-                          ),
-                          color: AppColors.surfaceDark,
-                          child: SafeArea(
-                            top: false,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
+                    // TOOLBAR & ACTIONS
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.screenMargin,
+                        vertical: AppSpacing.sm,
+                      ),
+                      color: AppColors.surfaceDark,
+                      child: SafeArea(
+                        top: false,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // TOOL BUTTONS ROW (Rotate, Reset)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                // TOOL BUTTONS ROW (Rotate, Reset)
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    _buildToolButton(
-                                      icon: Icons.rotate_left_rounded,
-                                      label: AppStrings.rotateLeft,
-                                      onTap: _rotateCounterClockwise,
-                                    ),
-                                    _buildToolButton(
-                                      icon: Icons.refresh_rounded,
-                                      label: AppStrings.resetCrop,
-                                      onTap: _resetCrop,
-                                    ),
-                                    _buildToolButton(
-                                      icon: Icons.rotate_right_rounded,
-                                      label: AppStrings.rotateRight,
-                                      onTap: _rotateClockwise,
-                                    ),
-                                  ],
+                                _buildToolButton(
+                                  icon: Icons.rotate_left_rounded,
+                                  label: AppStrings.rotateLeft,
+                                  onTap: _rotateCounterClockwise,
                                 ),
-                                const SizedBox(height: AppSpacing.md),
-
-                                // ACTION BUTTONS (RETAKE & USE PHOTO)
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: SecondaryButton(
-                                        label: AppStrings.retake,
-                                        onPressed: () => Navigator.pop(context, null),
-                                      ),
-                                    ),
-                                    const SizedBox(width: AppSpacing.sm),
-                                    Expanded(
-                                      child: PrimaryButton(
-                                        label: AppStrings.usePhoto,
-                                        icon: const Icon(Icons.check_rounded, size: 20),
-                                        onPressed: _applyCropAndReturn,
-                                      ),
-                                    ),
-                                  ],
+                                _buildToolButton(
+                                  icon: Icons.refresh_rounded,
+                                  label: AppStrings.resetCrop,
+                                  onTap: _resetCrop,
+                                ),
+                                _buildToolButton(
+                                  icon: Icons.rotate_right_rounded,
+                                  label: AppStrings.rotateRight,
+                                  onTap: _rotateClockwise,
                                 ),
                               ],
                             ),
-                          ),
+                            const SizedBox(height: AppSpacing.md),
+
+                            // ACTION BUTTONS (RETAKE & USE PHOTO)
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: SecondaryButton(
+                                    label: AppStrings.retake,
+                                    onPressed: () =>
+                                        Navigator.pop(context, null),
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: PrimaryButton(
+                                    label: AppStrings.usePhoto,
+                                    icon: const Icon(
+                                      Icons.check_rounded,
+                                      size: 20,
+                                    ),
+                                    onPressed: _applyCropAndReturn,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ],
-                    );
-                  },
-                ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
     );
   }
 
@@ -370,7 +405,10 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
             minWidth: AppSpacing.minTouchTarget,
             minHeight: AppSpacing.minTouchTarget,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: 4,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -378,7 +416,9 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
               const SizedBox(height: 2),
               Text(
                 label,
-                style: AppTypography.caption(context).copyWith(color: Colors.white70),
+                style: AppTypography.caption(
+                  context,
+                ).copyWith(color: Colors.white70),
               ),
             ],
           ),
@@ -391,10 +431,14 @@ class _ImageCropperScreenState extends State<ImageCropperScreen> {
     // 44 dp touch target radius (at least 22 radius = 44x44 dp)
     const handleRadius = 28.0;
 
-    if ((pos - crop.topLeft).distance <= handleRadius) return _HandleType.topLeft;
-    if ((pos - crop.topRight).distance <= handleRadius) return _HandleType.topRight;
-    if ((pos - crop.bottomLeft).distance <= handleRadius) return _HandleType.bottomLeft;
-    if ((pos - crop.bottomRight).distance <= handleRadius) return _HandleType.bottomRight;
+    if ((pos - crop.topLeft).distance <= handleRadius)
+      return _HandleType.topLeft;
+    if ((pos - crop.topRight).distance <= handleRadius)
+      return _HandleType.topRight;
+    if ((pos - crop.bottomLeft).distance <= handleRadius)
+      return _HandleType.bottomLeft;
+    if ((pos - crop.bottomRight).distance <= handleRadius)
+      return _HandleType.bottomRight;
     if (crop.contains(pos)) return _HandleType.body;
 
     return _HandleType.none;
@@ -433,13 +477,23 @@ class _CropperPainter extends CustomPainter {
     canvas.save();
 
     // 1. Draw source image
-    final src = Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
+    final src = Rect.fromLTWH(
+      0,
+      0,
+      image.width.toDouble(),
+      image.height.toDouble(),
+    );
     canvas.drawImageRect(image, src, imageRect, Paint());
 
     // 2. Draw dim overlay with hole for cropRect
-    final bgPath = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    final bgPath = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
     final cropPath = Path()..addRect(cropRect);
-    final overlayPath = Path.combine(PathOperation.difference, bgPath, cropPath);
+    final overlayPath = Path.combine(
+      PathOperation.difference,
+      bgPath,
+      cropPath,
+    );
     canvas.drawPath(overlayPath, _dimPaint);
 
     // 3. Draw crop border

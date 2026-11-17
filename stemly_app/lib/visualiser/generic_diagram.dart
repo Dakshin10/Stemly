@@ -86,7 +86,11 @@ class DiagramPainter extends CustomPainter {
 
         _cachedTextPainter.text = TextSpan(
           text: text,
-          style: TextStyle(color: baseColor, fontSize: 13, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: baseColor,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
         );
         _cachedTextPainter.layout();
         _cachedTextPainter.paint(canvas, Offset(x, y));
@@ -96,6 +100,7 @@ class DiagramPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant DiagramPainter oldDelegate) {
-    return oldDelegate.baseColor != baseColor || oldDelegate.primitives != primitives;
+    return oldDelegate.baseColor != baseColor ||
+        oldDelegate.primitives != primitives;
   }
 }

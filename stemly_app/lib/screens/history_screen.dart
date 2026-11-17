@@ -53,7 +53,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
 
     if (confirmed == true) {
-      final unstarred = HistoryStore.history.where((h) => !h.isStarred).toList();
+      final unstarred = HistoryStore.history
+          .where((h) => !h.isStarred)
+          .toList();
       for (var h in unstarred) {
         await HistoryStore.remove(h);
       }
@@ -118,7 +120,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
       ],
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.screenMargin,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -131,7 +135,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
                 itemCount: _filters.length,
-                separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
+                separatorBuilder: (_, _) =>
+                    const SizedBox(width: AppSpacing.xs),
                 itemBuilder: (context, index) {
                   final filter = _filters[index];
                   final isSelected = filter == _selectedFilter;
@@ -164,7 +169,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   final index = entry.key;
                   final item = entry.value;
                   final file = File(item.imagePath);
-                  final hasImage = item.imagePath.isNotEmpty && file.existsSync();
+                  final hasImage =
+                      item.imagePath.isNotEmpty && file.existsSync();
 
                   return Dismissible(
                     key: ValueKey(item.timestamp.toIso8601String()),
@@ -173,12 +179,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.only(right: AppSpacing.md),
                       color: AppColors.error(context),
-                      child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 24),
+                      child: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
                     confirmDismiss: (_) async {
                       if (item.isStarred) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Unstar this item before deleting.")),
+                          const SnackBar(
+                            content: Text("Unstar this item before deleting."),
+                          ),
                         );
                         return false;
                       }
@@ -192,13 +204,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text("${AppStrings.scanDeleted}: '${removedItem.topic}'"),
+                          content: Text(
+                            "${AppStrings.scanDeleted}: '${removedItem.topic}'",
+                          ),
                           duration: const Duration(seconds: 6),
                           action: SnackBarAction(
                             label: AppStrings.undo,
                             textColor: AppColors.accentText(context),
                             onPressed: () {
-                              HistoryStore.history.insert(removedIndex, removedItem);
+                              HistoryStore.history.insert(
+                                removedIndex,
+                                removedItem,
+                              );
                               HistoryStore.setHistory(HistoryStore.history);
                               setState(() {});
                             },
@@ -221,11 +238,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               : null,
                         ),
                         child: !hasImage
-                            ? Icon(Icons.science_outlined, color: textSecondary, size: 26)
+                            ? Icon(
+                                Icons.science_outlined,
+                                color: textSecondary,
+                                size: 26,
+                              )
                             : null,
                       ),
                       title: item.topic,
-                      subtitle: _formatRelativeDate(item.timestamp) +
+                      subtitle:
+                          _formatRelativeDate(item.timestamp) +
                           (item.variables.isNotEmpty
                               ? " • ${item.variables.take(3).join(', ')}"
                               : ""),
@@ -235,7 +257,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             : AppStrings.addToStarred,
                         iconSize: 22,
                         icon: Icon(
-                          item.isStarred ? Icons.star_rounded : Icons.star_border_rounded,
+                          item.isStarred
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
                           color: item.isStarred
                               ? Colors.amber.shade700
                               : textSecondary,

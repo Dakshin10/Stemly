@@ -66,7 +66,9 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Sign in with Apple is available on Apple devices.")),
+        const SnackBar(
+          content: Text("Sign in with Apple is available on Apple devices."),
+        ),
       );
     }
   }
@@ -113,9 +115,13 @@ class _LoginScreenState extends State<LoginScreen> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.screenMargin,
+                  ),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
                     child: IntrinsicHeight(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -133,7 +139,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: AppSpacing.sm),
                           Text(
                             AppStrings.loginSubtitle,
-                            style: AppTypography.body(context).copyWith(color: textSecondary),
+                            style: AppTypography.body(
+                              context,
+                            ).copyWith(color: textSecondary),
                           ),
 
                           const SizedBox(height: AppSpacing.lg),
@@ -143,30 +151,43 @@ class _LoginScreenState extends State<LoginScreen> {
                             Container(
                               padding: const EdgeInsets.all(AppSpacing.md),
                               decoration: BoxDecoration(
-                                color: AppColors.error(context).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(AppRadii.card),
-                                border: Border.all(color: AppColors.error(context).withValues(alpha: 0.3)),
+                                color: AppColors.error(
+                                  context,
+                                ).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadii.card,
+                                ),
+                                border: Border.all(
+                                  color: AppColors.error(
+                                    context,
+                                  ).withValues(alpha: 0.3),
+                                ),
                               ),
                               child: Row(
                                 children: [
-                                  Icon(Icons.error_outline_rounded, color: AppColors.error(context)),
+                                  Icon(
+                                    Icons.error_outline_rounded,
+                                    color: AppColors.error(context),
+                                  ),
                                   const SizedBox(width: AppSpacing.sm),
                                   Expanded(
                                     child: Text(
                                       _errorMessage!,
-                                      style: AppTypography.subhead(context).copyWith(
-                                        color: AppColors.error(context),
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                      style: AppTypography.subhead(context)
+                                          .copyWith(
+                                            color: AppColors.error(context),
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                     ),
                                   ),
                                   TextButton(
                                     onPressed: _handleGoogleSignIn,
                                     child: Text(
                                       AppStrings.retry,
-                                      style: AppTypography.headline(context).copyWith(
-                                        color: AppColors.primary(context),
-                                      ),
+                                      style: AppTypography.headline(context)
+                                          .copyWith(
+                                            color: AppColors.primary(context),
+                                          ),
                                     ),
                                   ),
                                 ],
@@ -207,111 +228,138 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
 
-                      const Spacer(),
-                      const SizedBox(height: AppSpacing.lg),
+                          const Spacer(),
+                          const SizedBox(height: AppSpacing.lg),
 
-                      // BOTTOM ACTION STACK (52 dp height, 12 dp spacing)
-                      PrimaryButton(
-                        label: AppStrings.continueWithGoogle,
-                        icon: const Icon(Icons.account_circle_outlined, size: 20),
-                        isLoading: _isLoading,
-                        onPressed: _isLoading ? null : _handleGoogleSignIn,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-
-                      SecondaryButton(
-                        label: AppStrings.continueWithApple,
-                        icon: const Icon(Icons.apple_rounded, size: 20),
-                        onPressed: _isLoading ? null : _handleAppleSignIn,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-
-                      Center(
-                        child: TextButton(
-                          onPressed: _isLoading ? null : _continueAsGuest,
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(double.infinity, AppSpacing.minTouchTarget),
+                          // BOTTOM ACTION STACK (52 dp height, 12 dp spacing)
+                          PrimaryButton(
+                            label: AppStrings.continueWithGoogle,
+                            icon: const Icon(
+                              Icons.account_circle_outlined,
+                              size: 20,
+                            ),
+                            isLoading: _isLoading,
+                            onPressed: _isLoading ? null : _handleGoogleSignIn,
                           ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                AppStrings.continueAsGuest,
-                                style: AppTypography.callout(context).copyWith(
-                                  color: AppColors.primary(context),
-                                  fontWeight: FontWeight.w600,
+                          const SizedBox(height: AppSpacing.sm),
+
+                          SecondaryButton(
+                            label: AppStrings.continueWithApple,
+                            icon: const Icon(Icons.apple_rounded, size: 20),
+                            onPressed: _isLoading ? null : _handleAppleSignIn,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+
+                          Center(
+                            child: TextButton(
+                              onPressed: _isLoading ? null : _continueAsGuest,
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(
+                                  double.infinity,
+                                  AppSpacing.minTouchTarget,
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                AppStrings.guestFootnote,
-                                style: AppTypography.caption(context).copyWith(color: textSecondary),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    AppStrings.continueAsGuest,
+                                    style: AppTypography.callout(context)
+                                        .copyWith(
+                                          color: AppColors.primary(context),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    AppStrings.guestFootnote,
+                                    style: AppTypography.caption(
+                                      context,
+                                    ).copyWith(color: textSecondary),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-
-                      // LEGAL FOOTNOTE
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                        child: Wrap(
-                          alignment: WrapAlignment.center,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
-                              AppStrings.legalPrefix,
-                              style: AppTypography.footnote(context),
                             ),
-                            InkWell(
-                              onTap: () => Navigator.pushNamed(context, '/terms'),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                                child: Text(
-                                  AppStrings.termsOfService,
-                                  style: AppTypography.footnote(context).copyWith(
-                                    color: AppColors.primary(context),
-                                    decoration: TextDecoration.underline,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+
+                          // LEGAL FOOTNOTE
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: AppSpacing.xs,
+                            ),
+                            child: Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(
+                                  AppStrings.legalPrefix,
+                                  style: AppTypography.footnote(context),
+                                ),
+                                InkWell(
+                                  onTap: () =>
+                                      Navigator.pushNamed(context, '/terms'),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 8,
+                                    ),
+                                    child: Text(
+                                      AppStrings.termsOfService,
+                                      style: AppTypography.footnote(context)
+                                          .copyWith(
+                                            color: AppColors.primary(context),
+                                            decoration:
+                                                TextDecoration.underline,
+                                          ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            Text(
-                              AppStrings.legalAnd,
-                              style: AppTypography.footnote(context),
-                            ),
-                            InkWell(
-                              onTap: () => Navigator.pushNamed(context, '/privacy'),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                                child: Text(
-                                  AppStrings.privacyPolicy,
-                                  style: AppTypography.footnote(context).copyWith(
-                                    color: AppColors.primary(context),
-                                    decoration: TextDecoration.underline,
+                                Text(
+                                  AppStrings.legalAnd,
+                                  style: AppTypography.footnote(context),
+                                ),
+                                InkWell(
+                                  onTap: () =>
+                                      Navigator.pushNamed(context, '/privacy'),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 8,
+                                    ),
+                                    child: Text(
+                                      AppStrings.privacyPolicy,
+                                      style: AppTypography.footnote(context)
+                                          .copyWith(
+                                            color: AppColors.primary(context),
+                                            decoration:
+                                                TextDecoration.underline,
+                                          ),
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            );
-          },
-        ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
-    ],
-  ),
-);
+    );
   }
 
-  Widget _buildBenefitRow(BuildContext context, {required IconData icon, required String text}) {
+  Widget _buildBenefitRow(
+    BuildContext context, {
+    required IconData icon,
+    required String text,
+  }) {
     return Row(
       children: [
         Icon(icon, size: 20, color: AppColors.primary(context)),
@@ -319,9 +367,9 @@ class _LoginScreenState extends State<LoginScreen> {
         Expanded(
           child: Text(
             text,
-            style: AppTypography.subhead(context).copyWith(
-              color: AppColors.textPrimary(context),
-            ),
+            style: AppTypography.subhead(
+              context,
+            ).copyWith(color: AppColors.textPrimary(context)),
           ),
         ),
       ],

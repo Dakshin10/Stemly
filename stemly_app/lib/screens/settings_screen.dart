@@ -71,9 +71,9 @@ class SettingsScreen extends StatelessWidget {
     if (confirmed == true) {
       await OfflineStorage.clearAll();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Local cache cleared.")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Local cache cleared.")));
       }
     }
   }
@@ -104,7 +104,9 @@ class SettingsScreen extends StatelessWidget {
       automaticallyImplyLeading: false,
       currentBottomNavIndex: 2,
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.screenMargin,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -158,7 +160,9 @@ class SettingsScreen extends StatelessWidget {
                   trailing: CupertinoSwitch(
                     value: themeProvider.notifications,
                     activeTrackColor: switchActiveTrack,
-                    thumbColor: themeProvider.notifications ? switchActiveThumb : null,
+                    thumbColor: themeProvider.notifications
+                        ? switchActiveThumb
+                        : null,
                     onChanged: (val) => themeProvider.toggleNotifications(val),
                   ),
                 ),
@@ -182,7 +186,9 @@ class SettingsScreen extends StatelessWidget {
                   trailing: CupertinoSwitch(
                     value: themeProvider.wifiOnly,
                     activeTrackColor: switchActiveTrack,
-                    thumbColor: themeProvider.wifiOnly ? switchActiveThumb : null,
+                    thumbColor: themeProvider.wifiOnly
+                        ? switchActiveThumb
+                        : null,
                     onChanged: (val) => themeProvider.toggleWifiOnly(val),
                   ),
                 ),

@@ -35,7 +35,9 @@ class EmptyStateView extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF5F5F7),
+                  color: isDark
+                      ? const Color(0xFF1C1C1E)
+                      : const Color(0xFFF5F5F7),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -143,7 +145,10 @@ class ErrorStateView extends StatelessWidget {
                   icon: const Icon(Icons.refresh_rounded, size: 18),
                   label: Text(retryButtonText),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ],
@@ -159,10 +164,7 @@ class ErrorStateView extends StatelessWidget {
 class LoadingStateView extends StatelessWidget {
   final String message;
 
-  const LoadingStateView({
-    super.key,
-    this.message = "Loading...",
-  });
+  const LoadingStateView({super.key, this.message = "Loading..."});
 
   @override
   Widget build(BuildContext context) {

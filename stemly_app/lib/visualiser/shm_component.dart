@@ -18,8 +18,7 @@ class SHMWidget extends StatefulWidget {
   State<SHMWidget> createState() => _SHMWidgetState();
 }
 
-class _SHMWidgetState extends State<SHMWidget>
-    with TickerProviderStateMixin {
+class _SHMWidgetState extends State<SHMWidget> with TickerProviderStateMixin {
   late AnimationController _controller;
   late double _omega;
   late double _period;
@@ -108,12 +107,14 @@ class SHMPainter extends CustomPainter {
   static final Paint _massBorderPaint = Paint()
     ..color = const Color(0x33000000)
     ..style = PaintingStyle.stroke;
-  static final Paint _massShadowPaint = Paint()..color = const Color(0x1A000000);
+  static final Paint _massShadowPaint = Paint()
+    ..color = const Color(0x1A000000);
   static final Paint _velVectorPaint = Paint()
     ..color = const Color(0xFFE53935)
     ..strokeWidth = 2.5
     ..style = PaintingStyle.stroke;
-  static final Paint _velArrowHeadPaint = Paint()..color = const Color(0xFFE53935);
+  static final Paint _velArrowHeadPaint = Paint()
+    ..color = const Color(0xFFE53935);
   static final Paint _graphBgPaint = Paint()..color = const Color(0xF2FFFFFF);
   static final Paint _graphBorderPaint = Paint()
     ..color = const Color(0x1F000000)
@@ -125,7 +126,8 @@ class SHMPainter extends CustomPainter {
     ..color = const Color(0xFF1E88E5)
     ..strokeWidth = 2.0
     ..style = PaintingStyle.stroke;
-  static final Paint _graphMarkerPaint = Paint()..color = const Color(0xFFE53935);
+  static final Paint _graphMarkerPaint = Paint()
+    ..color = const Color(0xFFE53935);
   static final Paint _panelBgPaint = Paint()
     ..color = const Color(0xE6FFFFFF)
     ..style = PaintingStyle.fill;
@@ -182,7 +184,14 @@ class SHMPainter extends CustomPainter {
         _dashPaint,
       );
     }
-    _drawText(canvas, 'Equilibrium', centerX - 80, centerY - 14, size: 9, color: const Color(0xFF2E7D32));
+    _drawText(
+      canvas,
+      'Equilibrium',
+      centerX - 80,
+      centerY - 14,
+      size: 9,
+      color: const Color(0xFF2E7D32),
+    );
 
     // Spring
     final massY = centerY + displacement * scale;
@@ -201,7 +210,13 @@ class SHMPainter extends CustomPainter {
     _drawInfoPanel(canvas, displacement, velocity);
   }
 
-  void _drawSpring(Canvas canvas, double x, double startY, double endY, double width) {
+  void _drawSpring(
+    Canvas canvas,
+    double x,
+    double startY,
+    double endY,
+    double width,
+  ) {
     const coils = 12;
     final height = max(10.0, endY - startY);
     final coilHeight = height / coils;
@@ -209,7 +224,10 @@ class SHMPainter extends CustomPainter {
     final path = Path()..moveTo(x, startY);
     for (int i = 0; i < coils; i++) {
       final y = startY + i * coilHeight;
-      path.lineTo(i.isEven ? x + width / 2.0 : x - width / 2.0, y + coilHeight / 2.0);
+      path.lineTo(
+        i.isEven ? x + width / 2.0 : x - width / 2.0,
+        y + coilHeight / 2.0,
+      );
       path.lineTo(x, y + coilHeight);
     }
 
@@ -218,11 +236,19 @@ class SHMPainter extends CustomPainter {
 
   void _drawMass(Canvas canvas, double x, double y) {
     const size = 36.0;
-    final rect = Rect.fromCenter(center: Offset(x, y), width: size, height: size);
+    final rect = Rect.fromCenter(
+      center: Offset(x, y),
+      width: size,
+      height: size,
+    );
 
     // Shadow
     canvas.drawOval(
-      Rect.fromCenter(center: Offset(x + 4, y + 4), width: size, height: size / 2.2),
+      Rect.fromCenter(
+        center: Offset(x + 4, y + 4),
+        width: size,
+        height: size / 2.2,
+      ),
       _massShadowPaint,
     );
 
@@ -237,7 +263,15 @@ class SHMPainter extends CustomPainter {
     canvas.drawRRect(rrect, Paint()..shader = blockShader);
     canvas.drawRRect(rrect, _massBorderPaint);
 
-    _drawText(canvas, '${m.toStringAsFixed(1)}kg', x - 13, y - 6, color: Colors.white, bold: true, size: 10);
+    _drawText(
+      canvas,
+      '${m.toStringAsFixed(1)}kg',
+      x - 13,
+      y - 6,
+      color: Colors.white,
+      bold: true,
+      size: 10,
+    );
   }
 
   void _drawVelocityVector(Canvas canvas, double x, double y, double velocity) {
@@ -256,7 +290,15 @@ class SHMPainter extends CustomPainter {
       ..close();
     canvas.drawPath(arrowPath, _velArrowHeadPaint);
 
-    _drawText(canvas, 'v', x + 5, y + length / 2 - 6, color: const Color(0xFFD32F2F), size: 10, bold: true);
+    _drawText(
+      canvas,
+      'v',
+      x + 5,
+      y + length / 2 - 6,
+      color: const Color(0xFFD32F2F),
+      size: 10,
+      bold: true,
+    );
   }
 
   void _drawGraph(Canvas canvas, Size size, double t, double displacement) {
@@ -324,10 +366,37 @@ class SHMPainter extends CustomPainter {
     // Energy: E = 0.5 * k * A^2
     final totalEnergy = 0.5 * k * A * A;
 
-    _drawText(canvas, 'Harmonic Oscillator', 20, 20, size: 12, bold: true, color: const Color(0xFF7B1FA2));
-    _drawText(canvas, 'x: ${displacement.toStringAsFixed(2)} m', 20, 38, size: 11);
-    _drawText(canvas, 'v: ${velocity.toStringAsFixed(2)} m/s', 20, 54, size: 11);
-    _drawText(canvas, 'Energy: ${totalEnergy.toStringAsFixed(2)} J', 20, 70, size: 11, color: Colors.grey.shade700);
+    _drawText(
+      canvas,
+      'Harmonic Oscillator',
+      20,
+      20,
+      size: 12,
+      bold: true,
+      color: const Color(0xFF7B1FA2),
+    );
+    _drawText(
+      canvas,
+      'x: ${displacement.toStringAsFixed(2)} m',
+      20,
+      38,
+      size: 11,
+    );
+    _drawText(
+      canvas,
+      'v: ${velocity.toStringAsFixed(2)} m/s',
+      20,
+      54,
+      size: 11,
+    );
+    _drawText(
+      canvas,
+      'Energy: ${totalEnergy.toStringAsFixed(2)} J',
+      20,
+      70,
+      size: 11,
+      color: Colors.grey.shade700,
+    );
   }
 
   void _drawText(

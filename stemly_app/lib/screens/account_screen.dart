@@ -13,7 +13,10 @@ import '../theme/theme.dart';
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
 
-  Future<void> _handleSignOut(BuildContext context, FirebaseAuthService authService) async {
+  Future<void> _handleSignOut(
+    BuildContext context,
+    FirebaseAuthService authService,
+  ) async {
     final confirmed = await AppDialogs.confirm(
       context: context,
       title: AppStrings.signOutConfirmTitle,
@@ -27,7 +30,10 @@ class AccountScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _handleDeleteAccount(BuildContext context, FirebaseAuthService authService) async {
+  Future<void> _handleDeleteAccount(
+    BuildContext context,
+    FirebaseAuthService authService,
+  ) async {
     final step1 = await AppDialogs.confirm(
       context: context,
       title: AppStrings.deleteAccountStep1Title,
@@ -81,10 +87,18 @@ class AccountScreen extends StatelessWidget {
       automaticallyImplyLeading: false,
       currentBottomNavIndex: 3,
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.screenMargin,
+        ),
         child: user == null
             ? _buildGuestView(context)
-            : _buildAuthenticatedView(context, user, authService, textPrimary, textSecondary),
+            : _buildAuthenticatedView(
+                context,
+                user,
+                authService,
+                textPrimary,
+                textSecondary,
+              ),
       ),
     );
   }
@@ -158,10 +172,7 @@ class AccountScreen extends StatelessWidget {
                 style: AppTypography.title2(context),
               ),
               const SizedBox(height: 2),
-              Text(
-                user.email ?? "",
-                style: AppTypography.subhead(context),
-              ),
+              Text(user.email ?? "", style: AppTypography.subhead(context)),
             ],
           ),
         ),
@@ -175,10 +186,15 @@ class AccountScreen extends StatelessWidget {
             GroupedRow(
               leading: Icon(Icons.bolt_rounded, color: textPrimary, size: 22),
               title: AppStrings.dailyAIUsage,
-              subtitle: "42 of 50 ${AppStrings.leftToday} • ${AppStrings.resetsAtMidnight}",
+              subtitle:
+                  "42 of 50 ${AppStrings.leftToday} • ${AppStrings.resetsAtMidnight}",
             ),
             GroupedRow(
-              leading: Icon(Icons.cloud_done_rounded, color: AppColors.success(context), size: 22),
+              leading: Icon(
+                Icons.cloud_done_rounded,
+                color: AppColors.success(context),
+                size: 22,
+              ),
               title: AppStrings.syncStatus,
               trailing: StatusPill.success(label: AppStrings.synced),
             ),
@@ -192,15 +208,31 @@ class AccountScreen extends StatelessWidget {
           title: "Legal",
           children: [
             GroupedRow(
-              leading: Icon(Icons.lock_outline_rounded, color: textPrimary, size: 22),
+              leading: Icon(
+                Icons.lock_outline_rounded,
+                color: textPrimary,
+                size: 22,
+              ),
               title: AppStrings.privacyPolicy,
-              trailing: Icon(Icons.chevron_right_rounded, color: textSecondary, size: 20),
+              trailing: Icon(
+                Icons.chevron_right_rounded,
+                color: textSecondary,
+                size: 20,
+              ),
               onTap: () => Navigator.pushNamed(context, '/privacy'),
             ),
             GroupedRow(
-              leading: Icon(Icons.description_outlined, color: textPrimary, size: 22),
+              leading: Icon(
+                Icons.description_outlined,
+                color: textPrimary,
+                size: 22,
+              ),
               title: AppStrings.termsOfService,
-              trailing: Icon(Icons.chevron_right_rounded, color: textSecondary, size: 20),
+              trailing: Icon(
+                Icons.chevron_right_rounded,
+                color: textSecondary,
+                size: 20,
+              ),
               onTap: () => Navigator.pushNamed(context, '/terms'),
             ),
           ],

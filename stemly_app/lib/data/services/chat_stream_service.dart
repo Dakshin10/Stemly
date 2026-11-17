@@ -54,7 +54,8 @@ class StreamEventEnvelope {
     if (json.containsKey('updates') && !mergedData.containsKey('updates')) {
       mergedData['updates'] = json['updates'];
     }
-    if (json.containsKey('suggestions') && !mergedData.containsKey('suggestions')) {
+    if (json.containsKey('suggestions') &&
+        !mergedData.containsKey('suggestions')) {
       mergedData['suggestions'] = json['suggestions'];
     }
 
@@ -145,7 +146,8 @@ class StreamEventEnvelope {
   }
 
   @override
-  String toString() => 'StreamEventEnvelope(v: $version, seq: $sequence, type: $type, data: $data)';
+  String toString() =>
+      'StreamEventEnvelope(v: $version, seq: $sequence, type: $type, data: $data)';
 }
 
 /// Service managing bidirectional communication and SSE streaming
@@ -159,9 +161,9 @@ class ChatStreamService {
     http.Client? httpClient,
     String? baseUrl,
     TokenProvider? tokenProvider,
-  })  : _httpClient = httpClient ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.baseUrl,
-        _tokenProvider = tokenProvider;
+  }) : _httpClient = httpClient ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.baseUrl,
+       _tokenProvider = tokenProvider;
 
   /// Helper to generate client-side idempotency keys.
   static String generateIdempotencyKey() {

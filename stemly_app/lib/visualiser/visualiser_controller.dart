@@ -11,13 +11,21 @@ class VisualiserController extends ChangeNotifier {
 
   VisualiserController({required this.api});
 
-  Future<void> loadTemplate(String topic, {List<String>? variables, String? userId}) async {
+  Future<void> loadTemplate(
+    String topic, {
+    List<String>? variables,
+    String? userId,
+  }) async {
     loading = true;
     error = null;
     notifyListeners();
 
     try {
-      final t = await api.generateTemplate(topic: topic, variables: variables, userId: userId);
+      final t = await api.generateTemplate(
+        topic: topic,
+        variables: variables,
+        userId: userId,
+      );
       template = t;
     } catch (e) {
       error = e.toString();

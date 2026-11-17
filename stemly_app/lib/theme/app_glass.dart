@@ -28,7 +28,7 @@ class AppGlass {
 
   // Tint Opacities
   static const double tintLightRegular = 0.65; // 60-68%
-  static const double tintDarkRegular = 0.55;  // 50-58%
+  static const double tintDarkRegular = 0.55; // 50-58%
   static const double tintClear = 0.08;
 
   // Specular Highlight
@@ -49,10 +49,26 @@ class AppGlass {
 
   // Saturation Boost ColorFilter Matrix (~1.6x saturation)
   static const ColorFilter saturationFilter = ColorFilter.matrix(<double>[
-    1.4, -0.2, -0.2, 0.0, 0.0,
-    -0.2, 1.4, -0.2, 0.0, 0.0,
-    -0.2, -0.2, 1.4, 0.0, 0.0,
-    0.0, 0.0, 0.0, 1.0, 0.0,
+    1.4,
+    -0.2,
+    -0.2,
+    0.0,
+    0.0,
+    -0.2,
+    1.4,
+    -0.2,
+    0.0,
+    0.0,
+    -0.2,
+    -0.2,
+    1.4,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
   ]);
 
   /// Checks if reduced transparency or high contrast is active
@@ -65,7 +81,9 @@ class AppGlass {
   static Color getTintColor(BuildContext context, GlassVariant variant) {
     final isDark = AppColors.isDark(context);
     if (variant == GlassVariant.clear) {
-      return (isDark ? Colors.black : Colors.white).withValues(alpha: tintClear);
+      return (isDark ? Colors.black : Colors.white).withValues(
+        alpha: tintClear,
+      );
     }
     return isDark
         ? AppColors.surfaceDark.withValues(alpha: tintDarkRegular)

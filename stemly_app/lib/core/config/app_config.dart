@@ -6,7 +6,10 @@ class AppConfig {
   AppConfig._();
 
   /// Toggle production vs development
-  static const bool isProduction = bool.fromEnvironment('dart.vm.product', defaultValue: false);
+  static const bool isProduction = bool.fromEnvironment(
+    'dart.vm.product',
+    defaultValue: false,
+  );
 
   /// Production backend endpoint
   static const String prodApiUrl = "https://stemly-backend.vercel.app";
@@ -14,7 +17,8 @@ class AppConfig {
   /// Local development backend endpoint (10.0.2.2 for Android emulator, localhost for web/desktop)
   static String get devApiUrl {
     if (kIsWeb) return "http://localhost:8080";
-    if (defaultTargetPlatform == TargetPlatform.android) return "http://10.0.2.2:8080";
+    if (defaultTargetPlatform == TargetPlatform.android)
+      return "http://10.0.2.2:8080";
     return "http://localhost:8080";
   }
 

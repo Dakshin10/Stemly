@@ -31,13 +31,15 @@ class VisualiserApi {
 
     final res = await http.post(url, headers: _headers(), body: body);
     if (res.statusCode >= 400) {
-      throw Exception('Failed generate template: ${res.statusCode} ${res.body}');
+      throw Exception(
+        'Failed generate template: ${res.statusCode} ${res.body}',
+      );
     }
     final data = jsonDecode(res.body);
     final templateJson = data['template'] as Map<String, dynamic>;
     // Inject history_id from root response if present
     if (data.containsKey('history_id')) {
-        templateJson['history_id'] = data['history_id'];
+      templateJson['history_id'] = data['history_id'];
     }
     return VisualTemplate.fromJson(templateJson);
   }

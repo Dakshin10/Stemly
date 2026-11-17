@@ -62,7 +62,8 @@ class AppStrings {
   static const String scanCardSubtitle = "Equations, diagrams, graphs";
   static const String chooseFromGallery = "Choose from gallery";
   static const String continueLastScan = "Continue last scan";
-  static const String noRecentScansExplanation = "No previous scan to continue.";
+  static const String noRecentScansExplanation =
+      "No previous scan to continue.";
   static const String recentScansSection = "Recent scans";
   static const String seeAll = "See all";
   static const String exploreTopics = "Explore topics";

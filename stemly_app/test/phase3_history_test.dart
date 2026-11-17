@@ -33,35 +33,32 @@ void main() {
       ]);
     });
 
-    testWidgets('HistoryScreen renders large title, filter chips, and 56 dp rows',
-        (WidgetTester tester) async {
+    testWidgets(
+      'HistoryScreen renders large title, filter chips, and 56 dp rows',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(theme: AppTheme.lightTheme, home: const HistoryScreen()),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(find.text(AppStrings.historyTitle), findsWidgets);
+        expect(find.text(AppStrings.filterAll), findsOneWidget);
+        expect(find.text(AppStrings.filterStarred), findsOneWidget);
+        expect(find.text("Projectile Motion"), findsOneWidget);
+        expect(find.text("Thin Lens Optics"), findsOneWidget);
+
+        // Star toggle tooltip / semantics
+        expect(find.byTooltip(AppStrings.addToStarred), findsOneWidget);
+        expect(find.byTooltip(AppStrings.removeFromStarred), findsOneWidget);
+      },
+    );
+
+    testWidgets('Filtering by Starred shows only starred items', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const HistoryScreen(),
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      expect(find.text(AppStrings.historyTitle), findsWidgets);
-      expect(find.text(AppStrings.filterAll), findsOneWidget);
-      expect(find.text(AppStrings.filterStarred), findsOneWidget);
-      expect(find.text("Projectile Motion"), findsOneWidget);
-      expect(find.text("Thin Lens Optics"), findsOneWidget);
-
-      // Star toggle tooltip / semantics
-      expect(find.byTooltip(AppStrings.addToStarred), findsOneWidget);
-      expect(find.byTooltip(AppStrings.removeFromStarred), findsOneWidget);
-    });
-
-    testWidgets('Filtering by Starred shows only starred items',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const HistoryScreen(),
-        ),
+        MaterialApp(theme: AppTheme.lightTheme, home: const HistoryScreen()),
       );
 
       await tester.pumpAndSettle();

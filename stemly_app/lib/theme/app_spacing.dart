@@ -65,7 +65,9 @@ class AppSpacing {
   static const double maxContentWidth = 600.0;
 
   // EdgeInsets presets
-  static const EdgeInsets screenPadding = EdgeInsets.symmetric(horizontal: screenMargin);
+  static const EdgeInsets screenPadding = EdgeInsets.symmetric(
+    horizontal: screenMargin,
+  );
   static const EdgeInsets cardPadding = EdgeInsets.all(cardPaddingVal);
   static const EdgeInsets compactCardPadding = EdgeInsets.all(space12);
 }

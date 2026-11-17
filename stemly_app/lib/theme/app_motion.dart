@@ -40,7 +40,10 @@ class AppMotion {
   }
 
   /// Returns effective duration honoring reduce-motion preferences
-  static Duration getEffectiveDuration(BuildContext context, Duration normalDuration) {
+  static Duration getEffectiveDuration(
+    BuildContext context,
+    Duration normalDuration,
+  ) {
     return isReducedMotion(context) ? reducedMotion : normalDuration;
   }
 }

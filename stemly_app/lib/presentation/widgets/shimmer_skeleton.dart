@@ -17,7 +17,8 @@ class ShimmerBox extends StatefulWidget {
   State<ShimmerBox> createState() => _ShimmerBoxState();
 }
 
-class _ShimmerBoxState extends State<ShimmerBox> with SingleTickerProviderStateMixin {
+class _ShimmerBoxState extends State<ShimmerBox>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _animation;
 
@@ -87,7 +88,9 @@ class NotesSkeleton extends StatelessWidget {
 
             // Concept Card
             Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: const Padding(
                 padding: EdgeInsets.all(16.0),
                 child: Column(
@@ -108,8 +111,12 @@ class NotesSkeleton extends StatelessWidget {
 
             // Formula Block
             Card(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              color: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: const Padding(
                 padding: EdgeInsets.all(16.0),
                 child: Column(
@@ -117,7 +124,13 @@ class NotesSkeleton extends StatelessWidget {
                   children: [
                     ShimmerBox(width: 160, height: 18),
                     SizedBox(height: 14),
-                    Center(child: ShimmerBox(width: 240, height: 32, borderRadius: 8)),
+                    Center(
+                      child: ShimmerBox(
+                        width: 240,
+                        height: 32,
+                        borderRadius: 8,
+                      ),
+                    ),
                     SizedBox(height: 14),
                     ShimmerBox(width: double.infinity, height: 14),
                     SizedBox(height: 6),
@@ -136,7 +149,9 @@ class NotesSkeleton extends StatelessWidget {
                 children: [
                   ShimmerBox(width: 10, height: 10, borderRadius: 5),
                   SizedBox(width: 12),
-                  Expanded(child: ShimmerBox(width: double.infinity, height: 14)),
+                  Expanded(
+                    child: ShimmerBox(width: double.infinity, height: 14),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -170,12 +185,18 @@ class QuizSkeleton extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            const ShimmerBox(width: double.infinity, height: 8, borderRadius: 4),
+            const ShimmerBox(
+              width: double.infinity,
+              height: 8,
+              borderRadius: 4,
+            ),
             const SizedBox(height: 24),
 
             // Question Card
             Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: const Padding(
                 padding: EdgeInsets.all(20.0),
                 child: Column(
@@ -193,14 +214,21 @@ class QuizSkeleton extends StatelessWidget {
             // 4 Multiple Choice Option Skeletons
             for (int i = 0; i < 4; i++) ...[
               Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 14.0,
+                  ),
                   child: Row(
                     children: [
                       ShimmerBox(width: 24, height: 24, borderRadius: 12),
                       SizedBox(width: 14),
-                      Expanded(child: ShimmerBox(width: double.infinity, height: 16)),
+                      Expanded(
+                        child: ShimmerBox(width: double.infinity, height: 16),
+                      ),
                     ],
                   ),
                 ),
@@ -211,7 +239,11 @@ class QuizSkeleton extends StatelessWidget {
             const Spacer(),
 
             // Submit Button Skeleton
-            const ShimmerBox(width: double.infinity, height: 50, borderRadius: 25),
+            const ShimmerBox(
+              width: double.infinity,
+              height: 50,
+              borderRadius: 25,
+            ),
           ],
         ),
       ),
