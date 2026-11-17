@@ -20,7 +20,7 @@ class DegradedModeBanner extends StatelessWidget {
     final divider = AppColors.divider(context);
     final textPrimary = AppColors.textPrimary(context);
     final textSecondary = AppColors.textSecondary(context);
-    final warningColor = AppColors.warning(context);
+    final warningColor = AppColors.accentText(context);
 
     return Semantics(
       label: "Degraded AI Mode Warning",
