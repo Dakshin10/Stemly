@@ -111,5 +111,72 @@ void main() {
       expect(find.text("Notes Generation Failed"), findsOneWidget);
       expect(find.text("Server connection timed out"), findsOneWidget);
     });
+
+    testWidgets('ScanResultScreen formats stepped examples with preamble, step badges, and final result', (WidgetTester tester) async {
+      final fakeAuth = FakeAuthService();
+
+      final exampleText = r"A soccer ball is kicked with V0 = 20.0 m/s at an angle \theta = 30.0^\circ above the horizontal. (1) Convert the angle to radians: \theta = 30^\circ \times \pi/180 = 0.524 rad. (2) Horizontal component: V0x = 20.0 \cdot cos0.524 = 17.3 m/s. (3) Vertical component: V0y = 20.0 \cdot sin0.524 = 10.0 m/s. (4) Maximum height: H = (20.0^2 \cdot sin^2 0.524)/(2 \cdot 9.81) = (400 \cdot 0.25)/(19.62) \approx 5.1 m. (5) Time of flight: T = (2 \cdot 20.0 \cdot sin0.524)/9.81 = (40 \cdot 0.5)/9.81 \approx 2.04 s. (6) Horizontal range: R = (20.0^2 \cdot sin(2 \cdot 0.524))/9.81 = (400 \cdot sin1.047)/9.81 \approx (400 \cdot 0.866)/9.81 \approx 35.3 m. Thus the ball rises to about 5.1 m, stays aloft for 2.04 s, and lands roughly 35 m away.";
+
+      final notesData = {
+        "example": exampleText,
+        "formulas": [r"R = \frac{v_0^2 \sin(2\theta)}{g}"],
+        "variable_breakdown": {
+          "v_0": "Initial launch velocity in m/s",
+          "theta": "Launch angle above horizontal",
+        },
+      };
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<FirebaseAuthService>.value(
+          value: fakeAuth,
+          child: MaterialApp(
+            home: ScanResultScreen(
+              topic: "Projectile Motion",
+              variables: const ["v0", "theta"],
+              notesJson: notesData,
+              imagePath: "",
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Switch to Notes Tab
+      await tester.tap(find.text("Notes"));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Expand "Example" accordion
+      final exampleTile = find.text("Example");
+      expect(exampleTile, findsOneWidget);
+      await tester.ensureVisible(exampleTile);
+      await tester.pumpAndSettle();
+      await tester.tap(exampleTile);
+      await tester.pumpAndSettle();
+
+      // Verify Problem Scenario preamble is rendered
+      expect(find.text("Problem Scenario"), findsOneWidget);
+
+      // Verify step badges 1, 2, 3, 4, 5, 6 exist
+      expect(find.text("1"), findsOneWidget);
+      expect(find.text("2"), findsOneWidget);
+      expect(find.text("3"), findsOneWidget);
+      expect(find.text("4"), findsOneWidget);
+      expect(find.text("5"), findsOneWidget);
+      expect(find.text("6"), findsOneWidget);
+
+      // Verify step titles are cleanly extracted
+      expect(find.text("Convert the angle to radians"), findsOneWidget);
+      expect(find.text("Horizontal component"), findsOneWidget);
+      expect(find.text("Vertical component"), findsOneWidget);
+      expect(find.text("Maximum height"), findsOneWidget);
+      expect(find.text("Time of flight"), findsOneWidget);
+      expect(find.text("Horizontal range"), findsOneWidget);
+
+      // Verify Final Result conclusion banner is rendered
+      expect(find.text("Final Result"), findsOneWidget);
+    });
   });
 }

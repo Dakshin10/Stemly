@@ -407,6 +407,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     final bool isDegraded = widget.isDegraded || (widget.notesJson["degraded"] == true);
     final surface = AppColors.surface(context);
     final divider = AppColors.divider(context);
+    final textPrimary = AppColors.textPrimary(context);
+    final textSecondary = AppColors.textSecondary(context);
+
+    final objectiveCard = _buildProblemObjectiveCard(context);
+    final bool hasObjective = objectiveCard is! SizedBox;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin, vertical: AppSpacing.md),
@@ -415,11 +420,14 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Problem Objective & Equation Card
-          _buildProblemObjectiveCard(context),
+          if (hasObjective) ...[
+            objectiveCard,
+            const SizedBox(height: AppSpacing.md),
+          ],
 
           if (isDegraded) ...[
             const DegradedModeBanner(),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.md),
           ],
 
           // Notes Accordions
@@ -428,31 +436,52 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             final isExpanded = _notesExpanded[key] ?? false;
 
             return Container(
-              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+              margin: const EdgeInsets.only(bottom: AppSpacing.md),
               child: Material(
                 color: surface,
                 borderRadius: BorderRadius.circular(AppRadii.card),
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(AppRadii.card),
-                    border: Border.all(color: divider),
+                    border: Border.all(color: divider, width: 1.0),
                   ),
                   child: Theme(
                     data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                     child: ExpansionTile(
-                      key: PageStorageKey<String>(key),
+                      key: ValueKey<String>('expansion_$key'),
                       initiallyExpanded: isExpanded,
                       onExpansionChanged: (val) {
                         setState(() => _notesExpanded[key] = val);
                       },
-                      tilePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
+                      tilePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
                       childrenPadding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
+                      iconColor: textSecondary,
+                      collapsedIconColor: textSecondary,
+                      shape: const RoundedRectangleBorder(side: BorderSide.none),
+                      collapsedShape: const RoundedRectangleBorder(side: BorderSide.none),
+                      leading: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface2(context),
+                          borderRadius: BorderRadius.circular(AppRadii.input),
+                          border: Border.all(color: divider, width: 0.5),
+                        ),
+                        child: Icon(
+                          _sectionIcon(key),
+                          size: 18,
+                          color: textPrimary,
+                        ),
+                      ),
                       title: Text(
                         _formatKey(key),
                         style: AppTypography.headline(context),
                       ),
+                      subtitle: _sectionSubtitle(context, key, entry.value),
                       children: [
-                        _buildNoteContent(context, entry.value),
+                        Divider(height: 1, thickness: 0.5, color: divider),
+                        const SizedBox(height: AppSpacing.md),
+                        _buildNoteContent(context, key, entry.value),
                       ],
                     ),
                   ),
@@ -467,35 +496,217 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     );
   }
 
-  Widget _buildNoteContent(BuildContext context, dynamic value) {
+  IconData _sectionIcon(String key) {
+    final lower = key.toLowerCase();
+    if (lower.contains('example')) return Icons.science_outlined;
+    if (lower.contains('formula') || lower.contains('equation')) return Icons.functions_rounded;
+    if (lower.contains('variable') || lower.contains('breakdown')) return Icons.tune_rounded;
+    if (lower.contains('mistake') || lower.contains('pitfall')) return Icons.warning_amber_rounded;
+    if (lower.contains('practice') || lower.contains('question')) return Icons.help_outline_rounded;
+    if (lower.contains('summary') || lower.contains('takeaway')) return Icons.checklist_rounded;
+    if (lower.contains('resource') || lower.contains('reference')) return Icons.bookmark_border_rounded;
+    return Icons.menu_book_rounded;
+  }
+
+  Widget? _sectionSubtitle(BuildContext context, String key, dynamic value) {
+    String? label;
+    final lower = key.toLowerCase();
+    if (value is List) {
+      label = "${value.length} items";
+    } else if (lower.contains('example')) {
+      label = "Step-by-step walkthrough";
+    } else if (lower.contains('explanation')) {
+      label = "Core conceptual guide";
+    } else if (value is Map) {
+      label = "${value.length} parameters";
+    }
+    if (label == null) return null;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Text(
+        label,
+        style: AppTypography.caption(context).copyWith(
+          color: AppColors.textSecondary(context),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoteContent(BuildContext context, String key, dynamic value) {
+    final divider = AppColors.divider(context);
+    final textPrimary = AppColors.textPrimary(context);
+    final textSecondary = AppColors.textSecondary(context);
+
+    // 1. STRING CONTENT (Examples, explanations, prose)
     if (value is String) {
-      if (value.contains(r'\') || value.contains('^') || value.contains('_')) {
-        return MathTexView(
-          formula: value,
-          textStyle: AppTypography.body(context),
+      final stepRegex = RegExp(r'(?:^|\s)(?:\((\d+)\)|(?:Step\s+(\d+)[:.]?)|(\d+)[.)])\s+');
+      final matches = stepRegex.allMatches(value).toList();
+
+      // If it contains step markers, render as a high-end stepped walkthrough
+      if (matches.length >= 2 || (matches.length == 1 && key.toLowerCase().contains('example'))) {
+        return _buildSteppedExample(context, value, matches);
+      }
+
+      // If multiple paragraphs, split and space nicely
+      final paragraphs = value.split(RegExp(r'\n{2,}|\r\n\r\n'));
+      if (paragraphs.length > 1) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: paragraphs.map((p) {
+            final trimmed = p.trim();
+            if (trimmed.isEmpty) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: _renderMathOrText(context, trimmed),
+            );
+          }).toList(),
         );
       }
-      return Text(
-        value,
-        style: AppTypography.body(context).copyWith(height: 1.4),
-      );
+
+      return _renderMathOrText(context, value);
     }
 
+    // 2. LIST CONTENT (Formulas, Common Mistakes, Practice Questions, Key Points)
     if (value is List) {
+      final lowerKey = key.toLowerCase();
+
+      // Dedicated Formula Cards
+      if (lowerKey.contains('formula') || lowerKey.contains('equation')) {
+        return Column(
+          children: value.map((item) {
+            final str = item.toString();
+            return Container(
+              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surface2(context),
+                borderRadius: BorderRadius.circular(AppRadii.input),
+                border: Border.all(color: divider, width: 0.5),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.functions_rounded, size: 16, color: textSecondary),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: MathTexView(
+                        formula: str,
+                        textStyle: AppTypography.subhead(context).copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      }
+
+      // Dedicated Common Mistakes / Pitfalls Cards
+      if (lowerKey.contains('mistake') || lowerKey.contains('pitfall')) {
+        return Column(
+          children: value.map((item) {
+            final str = item.toString();
+            return Container(
+              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.surface2(context),
+                borderRadius: BorderRadius.circular(AppRadii.input),
+                border: Border.all(color: divider, width: 0.5),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 18,
+                    color: AppColors.accentText(context),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      str,
+                      style: AppTypography.body(context).copyWith(height: 1.45),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      }
+
+      // Dedicated Practice Questions
+      if (lowerKey.contains('practice') || lowerKey.contains('question')) {
+        return Column(
+          children: value.asMap().entries.map((entry) {
+            final idx = entry.key + 1;
+            final str = entry.value.toString();
+            return Container(
+              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.surface2(context),
+                borderRadius: BorderRadius.circular(AppRadii.input),
+                border: Border.all(color: divider, width: 0.5),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface(context),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: divider, width: 0.5),
+                    ),
+                    child: Text(
+                      "Q$idx",
+                      style: AppTypography.caption(context).copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      str,
+                      style: AppTypography.body(context).copyWith(height: 1.45),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      }
+
+      // Standard Bulleted List (e.g. Summary, Resources)
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value.map((item) {
           final str = item.toString();
           return Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("• ", style: AppTypography.body(context).copyWith(color: AppColors.primary(context))),
+                Icon(
+                  Icons.check_circle_outline_rounded,
+                  size: 18,
+                  color: textSecondary,
+                ),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: str.contains(r'\')
                       ? MathTexView(formula: str, textStyle: AppTypography.body(context))
-                      : Text(str, style: AppTypography.body(context)),
+                      : Text(
+                          str,
+                          style: AppTypography.body(context).copyWith(height: 1.45),
+                        ),
                 ),
               ],
             ),
@@ -504,22 +715,286 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       );
     }
 
+    // 3. MAP CONTENT (Variable breakdown / Key-Value table)
     if (value is Map) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: value.entries.map((e) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-            child: Text(
-              "${_formatKey(e.key.toString())}: ${e.value}",
-              style: AppTypography.body(context),
-            ),
-          );
-        }).toList(),
+      final entriesList = value.entries.toList();
+      return Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface2(context),
+          borderRadius: BorderRadius.circular(AppRadii.input),
+          border: Border.all(color: divider, width: 0.5),
+        ),
+        child: Column(
+          children: entriesList.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final e = entry.value;
+            final isLast = idx == entriesList.length - 1;
+
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Monospace / math symbol badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface(context),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: divider, width: 0.5),
+                        ),
+                        child: Text(
+                          e.key.toString(),
+                          style: AppTypography.caption(context).copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'monospace',
+                            color: textPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      // Description
+                      Expanded(
+                        child: Text(
+                          e.value.toString(),
+                          style: AppTypography.body(context).copyWith(height: 1.35),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isLast)
+                  Divider(height: 1, thickness: 0.5, color: divider),
+              ],
+            );
+          }).toList(),
+        ),
       );
     }
 
-    return Text(value.toString(), style: AppTypography.body(context));
+    return Text(value.toString(), style: AppTypography.body(context).copyWith(height: 1.45));
+  }
+
+  Widget _renderMathOrText(BuildContext context, String text) {
+    if (text.contains(r'\') || text.contains('^') || text.contains('_')) {
+      return MathTexView(
+        formula: text,
+        textStyle: AppTypography.body(context),
+      );
+    }
+    return Text(
+      text,
+      style: AppTypography.body(context).copyWith(height: 1.5),
+    );
+  }
+
+  Widget _buildSteppedExample(BuildContext context, String rawText, List<RegExpMatch> matches) {
+    final divider = AppColors.divider(context);
+    final textPrimary = AppColors.textPrimary(context);
+    final textSecondary = AppColors.textSecondary(context);
+
+    String? preamble;
+    if (matches.isNotEmpty && matches.first.start > 0) {
+      preamble = rawText.substring(0, matches.first.start).trim();
+    }
+
+    String? conclusion;
+    final List<_StepItem> steps = [];
+
+    for (int i = 0; i < matches.length; i++) {
+      final m = matches[i];
+      final stepNum = m.group(1) ?? m.group(2) ?? m.group(3) ?? "${i + 1}";
+      final start = m.end;
+      final end = (i + 1 < matches.length) ? matches[i + 1].start : rawText.length;
+      String rawStepContent = rawText.substring(start, end).trim();
+
+      if (i == matches.length - 1) {
+        final conclusionMatch = RegExp(
+          r'(?<=\.)\s+(Thus|Therefore|Hence|In summary|In conclusion|Result:)\s+',
+          caseSensitive: false,
+        ).firstMatch(rawStepContent);
+
+        if (conclusionMatch != null) {
+          conclusion = rawStepContent.substring(conclusionMatch.start).trim();
+          rawStepContent = rawStepContent.substring(0, conclusionMatch.start).trim();
+        }
+      }
+
+      String? title;
+      String body = rawStepContent;
+      final colonIdx = rawStepContent.indexOf(':');
+      if (colonIdx > 0 && colonIdx < 50) {
+        title = rawStepContent.substring(0, colonIdx).trim();
+        body = rawStepContent.substring(colonIdx + 1).trim();
+      }
+
+      steps.add(_StepItem(number: stepNum, title: title, body: body));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Preamble / Problem Scenario
+        if (preamble != null && preamble.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.surface2(context),
+              borderRadius: BorderRadius.circular(AppRadii.input),
+              border: Border.all(color: divider, width: 0.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.help_outline_rounded, size: 16, color: textSecondary),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      "Problem Scenario",
+                      style: AppTypography.caption(context).copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  preamble,
+                  style: AppTypography.body(context).copyWith(height: 1.45, color: textPrimary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+
+        // Stepped Breakdown
+        ...steps.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final step = entry.value;
+          final isLast = idx == steps.length - 1 && (conclusion == null || conclusion.isEmpty);
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.md),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Step Number Circle Badge
+                Container(
+                  width: 28,
+                  height: 28,
+                  margin: const EdgeInsets.only(top: 2, right: AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface2(context),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: divider, width: 1.0),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    step.number,
+                    style: AppTypography.caption(context).copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: textPrimary,
+                    ),
+                  ),
+                ),
+
+                // Step Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (step.title != null && step.title!.isNotEmpty) ...[
+                        Text(
+                          step.title!,
+                          style: AppTypography.subhead(context).copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                      ],
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface2(context),
+                          borderRadius: BorderRadius.circular(AppRadii.input),
+                          border: Border.all(color: divider, width: 0.5),
+                        ),
+                        child: step.body.contains(r'\') || step.body.contains('^') || step.body.contains('_')
+                            ? SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: MathTexView(
+                                  formula: step.body,
+                                  textStyle: AppTypography.body(context),
+                                ),
+                              )
+                            : Text(
+                                step.body,
+                                style: AppTypography.body(context).copyWith(height: 1.45, color: textPrimary),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+
+        // Conclusion / Final Result
+        if (conclusion != null && conclusion.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.surface2(context),
+              borderRadius: BorderRadius.circular(AppRadii.input),
+              border: Border.all(color: divider, width: 0.5),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.verified_outlined,
+                  size: 20,
+                  color: AppColors.accentText(context),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Final Result",
+                        style: AppTypography.caption(context).copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.accentText(context),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        conclusion,
+                        style: AppTypography.body(context).copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: textPrimary,
+                          height: 1.45,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   // ==========================================================
@@ -1223,3 +1698,16 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         .replaceFirst(raw[0], raw[0].toUpperCase());
   }
 }
+
+class _StepItem {
+  final String number;
+  final String? title;
+  final String body;
+
+  const _StepItem({
+    required this.number,
+    this.title,
+    required this.body,
+  });
+}
+
