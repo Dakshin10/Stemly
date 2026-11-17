@@ -11,6 +11,7 @@ import 'package:stemly_app/visualiser/atom_component.dart';
 import 'package:stemly_app/visualiser/graph_component.dart';
 import 'package:stemly_app/visualiser/equation_plotter.dart';
 import 'package:stemly_app/visualiser/phet_visualiser_widget.dart';
+import 'package:stemly_app/visualiser/sandbox_visualiser_widget.dart';
 import 'package:stemly_app/visualiser/visualiser_factory.dart';
 import 'package:stemly_app/visualiser/visualiser_models.dart';
 
@@ -385,6 +386,47 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byType(DeclarativePhysicsWidget), findsOneWidget);
+    });
+
+    testWidgets('creates EquationPlotterWidget for equation_plotter template', (tester) async {
+      final template = VisualTemplate(
+        templateId: 'equation_plotter',
+        title: 'Function Plotter',
+        animationType: 'math_plot',
+        description: 'Test',
+        parameters: {
+          'min_x': TemplateParameter(name: 'min_x', value: -5, min: -100, max: 0),
+          'max_x': TemplateParameter(name: 'max_x', value: 5, min: 0, max: 100),
+        },
+        metadata: {'equation': 'x^3 - 3*x'},
+      );
+
+      final widget = VisualiserFactory.create(template);
+      await tester.pumpWidget(_wrap(widget));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(EquationPlotterWidget), findsOneWidget);
+    });
+
+    testWidgets('creates SandboxVisualiserWidget for sandbox micro-simulation template', (tester) async {
+      final template = VisualTemplate(
+        templateId: 'sandbox',
+        title: 'Dynamic Wave Simulation',
+        animationType: 'canvas_sandbox',
+        description: 'Test',
+        parameters: {},
+        metadata: {
+          'type': 'sandbox',
+          'html': '<!DOCTYPE html><html><body><canvas id="c"></canvas></body></html>',
+        },
+      );
+
+      final widget = VisualiserFactory.create(template);
+      await tester.pumpWidget(_wrap(widget));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(SandboxVisualiserWidget), findsOneWidget);
+      expect(find.text('Dynamic Wave Simulation'), findsOneWidget);
     });
   });
 }

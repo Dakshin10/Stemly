@@ -14,6 +14,7 @@ import 'shm_component.dart';
 import 'equation_plotter.dart';
 import 'generic_diagram.dart';
 import 'phet_visualiser_widget.dart';
+import 'sandbox_visualiser_widget.dart';
 
 class VisualiserFactory {
   /// Creates the appropriate visualiser widget based on the template ID.
@@ -122,6 +123,19 @@ class VisualiserFactory {
         if (url.isNotEmpty) {
            return PhetVisualiserWidget(url: url, title: title);
         }
+    }
+
+    // AI Micro-Simulation Sandbox
+    if (id.contains("sandbox") ||
+        id.contains("ai_canvas") ||
+        id.contains("micro_simulation") ||
+        (template.metadata.containsKey("type") && template.metadata["type"] == "sandbox") ||
+        (template.metadata.containsKey("html") && template.metadata["html"].toString().isNotEmpty)) {
+      final html = template.metadata["html"]?.toString() ?? "";
+      final title = template.title.isNotEmpty ? template.title : "Micro-Simulation";
+      if (html.isNotEmpty) {
+        return SandboxVisualiserWidget(htmlContent: html, title: title);
+      }
     }
 
     // Default Fallback

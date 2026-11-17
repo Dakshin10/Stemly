@@ -28,6 +28,10 @@ class VisualiserGenerateRequest(BaseModel):
     topic: str = Field(..., min_length=1, max_length=150, description="Topic or concept to visualize")
     variables: Optional[List[str]] = Field(default_factory=list, max_length=50)
     user_id: Optional[str] = Field(default=None, max_length=128)
+    allow_sandbox_fallback: bool = Field(
+        default=True,
+        description="Whether to automatically generate an AI micro-simulation if no template or PhET match exists"
+    )
 
 
 class VisualiserGenerateResponse(BaseModel):
@@ -69,3 +73,21 @@ class VisualiserChatResponse(BaseModel):
     parameter_updates: Dict[str, Any] = Field(default_factory=dict)
     update_type: str = "none"
     degraded: bool = False
+
+
+class VisualiserSandboxRequest(BaseModel):
+    topic: str = Field(..., min_length=1, max_length=200, description="STEM topic or physical concept")
+    prompt: Optional[str] = Field(default=None, max_length=2000, description="Custom prompt or instructions")
+    variables: Optional[List[str]] = Field(default_factory=list, max_length=50)
+
+
+class VisualiserSandboxResponse(BaseModel):
+    status: str = Field(default="success")
+    template_id: str = Field(default="sandbox")
+    title: str = Field(default="Interactive Simulation")
+    topic: str = Field(default="")
+    html: str = Field(default="")
+    template: Dict[str, Any] = Field(default_factory=dict)
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    history_id: str = Field(default="")
+    degraded: bool = Field(default=False)

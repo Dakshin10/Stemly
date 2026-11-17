@@ -1,6 +1,8 @@
+import copy
 import json
 import os
-from typing import Any, Dict, Optional
+import re
+from typing import Any, Dict, List, Optional
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "..", "templates", "visualiser")
 
@@ -55,7 +57,7 @@ _TEMPLATE_CACHE: Dict[str, Dict[str, Any]] = {}
 
 def _load_template_cached(filename: str) -> Optional[Dict[str, Any]]:
     if filename in _TEMPLATE_CACHE:
-        return dict(_TEMPLATE_CACHE[filename])
+        return copy.deepcopy(_TEMPLATE_CACHE[filename])
 
     path = os.path.join(TEMPLATES_DIR, filename)
     if not os.path.exists(path):
@@ -65,7 +67,7 @@ def _load_template_cached(filename: str) -> Optional[Dict[str, Any]]:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
             _TEMPLATE_CACHE[filename] = data
-            return dict(data)
+            return copy.deepcopy(data)
     except Exception:
         return None
 
@@ -82,5 +84,40 @@ async def get_template_by_topic(topic: str) -> Optional[Dict[str, Any]]:
     return _load_template_cached(filename)
 
 
-def fill_template_defaults(template: Dict[str, Any], variables=None) -> Dict[str, Any]:
-    return dict(template)
+def fill_template_defaults(template: Dict[str, Any], variables: Optional[List[str]] = None) -> Dict[str, Any]:
+    filled = copy.deepcopy(template)
+    if not variables:
+        return filled
+
+    parameters = filled.get("parameters", {})
+    metadata = filled.setdefault("metadata", {})
+
+    for var in variables:
+        if not isinstance(var, str) or "=" not in var:
+            continue
+        parts = var.split("=", 1)
+        raw_key = parts[0].strip().lower()
+        raw_val = parts[1].strip()
+
+        # Handle equation / formula parameter
+        if raw_key in {"equation", "formula", "eq", "fn", "y"} and filled.get("template_id") == "equation_plotter":
+            from services.llm.text import clean_raw_equation
+            metadata["equation"] = clean_raw_equation(raw_val)
+            continue
+
+        # Try to parse numerical variable value
+        num_match = re.search(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", raw_val)
+        if not num_match:
+            continue
+
+        val_num = float(num_match.group(0))
+
+        # Match against template parameters (case-insensitive)
+        for p_name, p_dict in parameters.items():
+            if p_name.lower() == raw_key and isinstance(p_dict, dict):
+                p_min = p_dict.get("min", -1e9)
+                p_max = p_dict.get("max", 1e9)
+                p_dict["value"] = max(p_min, min(p_max, val_num))
+                break
+
+    return filled

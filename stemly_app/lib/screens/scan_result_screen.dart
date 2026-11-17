@@ -62,6 +62,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   // Image Generation Fallback State
   String? _generatedImageUrl;
   bool _generatingImage = false;
+  bool _generatingSandbox = false;
 
   // AI Chat State
   final TextEditingController _chatController = TextEditingController();
@@ -209,6 +210,66 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       debugPrint("Image gen error: $e");
     } finally {
       if (mounted) setState(() => _generatingImage = false);
+    }
+  }
+
+  Future<void> _generateSandboxSimulation() async {
+    setState(() => _generatingSandbox = true);
+    try {
+      final auth = context.read<FirebaseAuthService>();
+      final token = await auth.getIdToken();
+      if (token == null) return;
+
+      final response = await http.post(
+        Uri.parse("$_serverIp/visualiser/generate-sandbox"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+        body: jsonEncode({
+          "topic": widget.topic,
+          "variables": widget.variables,
+          "prompt": widget.targetQuestion ?? widget.topic,
+        }),
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final templateJson = data["template"] ?? {
+          "template_id": "sandbox",
+          "title": data["title"] ?? widget.topic,
+          "metadata": {
+            "type": "sandbox",
+            "html": data["html"] ?? "",
+            "topic": widget.topic,
+          },
+        };
+        if (data.containsKey("history_id")) {
+          templateJson["history_id"] = data["history_id"];
+        }
+        final template = VisualTemplate.fromJson(templateJson);
+        setState(() {
+          _visualiserTemplate = template;
+          _visualiserWidget = VisualiserFactory.create(
+            template,
+            onSimulationUpdate: (stats) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _simulationStats = stats);
+              });
+            },
+          );
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to generate AI micro-simulation")),
+        );
+      }
+    } catch (e) {
+      debugPrint("Sandbox gen error: $e");
+    } finally {
+      if (mounted) setState(() => _generatingSandbox = false);
     }
   }
 
@@ -1339,7 +1400,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       );
     }
 
-    if (_visualiserWidget != null) {
+    if (_visualiserWidget != null && _visualiserTemplate?.templateId != "default-empty") {
       return _visualiserWidget!;
     }
 
@@ -1365,28 +1426,45 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     }
 
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.science_outlined, size: 48, color: AppColors.textSecondary(context)),
-            const SizedBox(height: AppSpacing.sm),
+            Icon(Icons.science_outlined, size: 36, color: AppColors.textSecondary(context)),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               "Interactive simulation unavailable for this topic.",
               style: AppTypography.subhead(context),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.md),
-            if (_generatingImage)
-              const CircularProgressIndicator(strokeWidth: 2.5)
-            else
-              SecondaryButton(
-                label: "Generate diagram",
-                icon: const Icon(Icons.auto_awesome, size: 18),
-                onPressed: _generateImage,
-                width: 200,
+            const SizedBox(height: AppSpacing.sm),
+            if (_generatingSandbox) ...[
+              CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary(context)),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                "Building interactive micro-simulation...",
+                style: AppTypography.caption(context),
               ),
+            ] else ...[
+              PrimaryButton(
+                label: "Generate AI simulation",
+                icon: const Icon(Icons.auto_awesome, size: 18),
+                onPressed: _generateSandboxSimulation,
+                width: 220,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              if (_generatingImage)
+                const CircularProgressIndicator(strokeWidth: 2.5)
+              else
+                SecondaryButton(
+                  label: "Generate diagram",
+                  icon: const Icon(Icons.image_outlined, size: 18),
+                  onPressed: _generateImage,
+                  width: 220,
+                ),
+            ],
           ],
         ),
       ),

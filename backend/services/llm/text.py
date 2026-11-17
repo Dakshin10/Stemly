@@ -29,7 +29,12 @@ from models.tools import TUTOR_TOOLS, SuggestFollowupsArgs, UpdateSimulationArgs
 from prompts.notes_prompts import NOTES_FOLLOWUP_PROMPT_V1, NOTES_GENERATION_PROMPT_V1
 from prompts.quiz_prompts import QUIZ_GENERATION_PROMPT_V1
 from prompts.tutor_prompts import TUTOR_CHAT_PROMPT_V1, TUTOR_STREAM_SYSTEM_PROMPT
-from prompts.visualiser_prompts import PARAM_UPDATE_PROMPT_V1, VISUALISER_CHAT_PROMPT_V1
+from prompts.visualiser_prompts import (
+    EQUATION_DETECTION_PROMPT_V1,
+    PARAM_UPDATE_PROMPT_V1,
+    SANDBOX_SIMULATION_PROMPT_V1,
+    VISUALISER_CHAT_PROMPT_V1,
+)
 
 from .cache import (
     get_cached_notes,
@@ -1099,3 +1104,491 @@ async def process_visualiser_chat_llm(
         message="I could not process the visualizer request.",
         degraded=True,
     )
+
+
+class EquationDetectionResponse(BaseModel):
+    is_equation: bool = False
+    equation: str = "x^2"
+    title: str = "Function Plotter"
+    description: str = "Dynamic Cartesian plot"
+    min_x: float = -10.0
+    max_x: float = 10.0
+    min_y: float = -10.0
+    max_y: float = 10.0
+
+
+def clean_raw_equation(raw: str) -> str:
+    """
+    Cleans raw mathematical expressions into standard single-variable (x) formula
+    for Dart function_tree evaluation.
+    """
+    if not raw or not isinstance(raw, str):
+        return "x^2"
+    eq = raw.strip()
+    if "=" in eq:
+        eq = eq.split("=")[-1].strip()
+    eq = eq.replace("$", "").strip()
+    # Latex frac
+    eq = re.sub(r"\\frac\{([^}]+)\}\{([^}]+)\}", r"(\1)/(\2)", eq)
+    # Latex sqrt
+    eq = re.sub(r"\\sqrt\{([^}]+)\}", r"sqrt(\1)", eq)
+    # Common trigonometric and mathematical functions
+    for fn in ["sin", "cos", "tan", "exp", "ln", "log", "sinh", "cosh", "tanh", "asin", "acos", "atan"]:
+        eq = re.sub(r"\\" + fn + r"\b", fn, eq)
+    eq = eq.replace(r"\cdot", "*").replace(r"\times", "*")
+    eq = eq.replace("{", "(").replace("}", ")")
+    # Replace variable t or theta with x if x is not present
+    if "x" not in eq.lower():
+        if "t" in eq.lower():
+            eq = re.sub(r"\bt\b", "x", eq, flags=re.IGNORECASE)
+        elif "theta" in eq.lower():
+            eq = re.sub(r"\btheta\b", "x", eq, flags=re.IGNORECASE)
+    # Normalize spaces
+    eq = re.sub(r"\s+", "", eq)
+    return eq if eq else "x^2"
+
+
+def make_equation_plotter_template(
+    equation: str,
+    title: str = "Function Equation Plotter",
+    description: Optional[str] = None,
+    min_x: float = -10.0,
+    max_x: float = 10.0,
+    min_y: float = -10.0,
+    max_y: float = 10.0,
+) -> Dict[str, Any]:
+    clean_eq = clean_raw_equation(equation)
+    desc = description or f"Dynamic Cartesian plot of f(x) = {clean_eq}"
+    return {
+        "template_id": "equation_plotter",
+        "templateId": "equation_plotter",
+        "title": title,
+        "animation_type": "math_plot",
+        "description": desc,
+        "parameters": {
+            "min_x": {"value": float(min_x), "min": -100.0, "max": 0.0, "unit": "", "label": "Min X"},
+            "max_x": {"value": float(max_x), "min": 0.0, "max": 100.0, "unit": "", "label": "Max X"},
+            "min_y": {"value": float(min_y), "min": -100.0, "max": 0.0, "unit": "", "label": "Min Y"},
+            "max_y": {"value": float(max_y), "min": 0.0, "max": 100.0, "unit": "", "label": "Max Y"},
+        },
+        "metadata": {
+            "type": "math_plot",
+            "equation": clean_eq,
+        },
+    }
+
+
+def quick_detect_equation(topic: str, variables: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
+    """
+    Fast regex & heuristic detection of equations to plot without requiring LLM latency.
+    """
+    if not topic:
+        return None
+
+    # Check variables for explicit equation=... or formula=...
+    if variables:
+        for v in variables:
+            v_clean = v.strip()
+            v_lower = v_clean.lower()
+            if v_lower.startswith("equation=") or v_lower.startswith("formula="):
+                eq_val = v_clean.split("=", 1)[1]
+                return make_equation_plotter_template(eq_val, title="Function Plotter")
+
+    topic_clean = topic.strip()
+
+    # Pattern 1: Explicit y = ... or f(x) = ...
+    m = re.search(r"(?:y|f\(x\)|g\(x\)|y\(x\))\s*=\s*([^,;]+)", topic_clean, re.IGNORECASE)
+    if m:
+        eq_val = m.group(1).strip()
+        return make_equation_plotter_template(eq_val, title="Function Equation Plotter")
+
+    # Pattern 2: Explicit command like "plot ...", "graph of ..."
+    m = re.search(r"(?:plot|graph\s+of|graph)\s+(?:the\s+function\s+|y\s*=\s*|f\(x\)\s*=\s*)?([^,;]+)", topic_clean, re.IGNORECASE)
+    if m:
+        cand = m.group(1).strip()
+        if any(token in cand.lower() for token in ["x^", "sin", "cos", "tan", "x", "+", "-", "*", "/"]):
+            return make_equation_plotter_template(cand, title="Function Plotter")
+
+    # Pattern 3: Common mathematical functions with x (e.g. x^2 - 4, sin(x), 2x+1)
+    if re.search(r"\b(x\^2|x\^3|sin\(x\)|cos\(x\)|tan\(x\)|sqrt\(x\))\b", topic_clean, re.IGNORECASE):
+        return make_equation_plotter_template(topic_clean, title="Function Plotter")
+
+    return None
+
+
+async def detect_or_resolve_equation_plotter(
+    topic: str,
+    variables: Optional[List[str]] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Checks if a topic/variables represents an equation or mathematical function.
+    Returns an equation_plotter template or None.
+    Uses fast heuristics first, falling back to LLM for complex/worded STEM problems.
+    """
+    # 1. Fast regex path
+    quick = quick_detect_equation(topic, variables)
+    if quick:
+        return quick
+
+    # 2. If topic contains math keywords, attempt LLM classification
+    math_keywords = {
+        "calculus", "algebra", "polynomial", "quadratic", "cubic",
+        "derivative", "integral", "parabola", "hyperbola", "exponential",
+        "logarithmic", "equation", "function", "graph"
+    }
+    topic_words = set(re.findall(r"\w+", topic.lower()))
+    if not (math_keywords & topic_words):
+        return None
+
+    if not settings.GROQ_TEXT_API_KEY:
+        # If offline but keyword matched, fallback to equation plotter
+        if "quadratic" in topic_words or "parabola" in topic_words:
+            return make_equation_plotter_template("x^2", title="Quadratic Plotter")
+        if "calculus" in topic_words or "derivative" in topic_words:
+            return make_equation_plotter_template("x^3 - 3*x", title="Calculus Function Plotter")
+        return None
+
+    client = get_text_client()
+    vars_str = ", ".join(variables) if variables else "None"
+    prompt = EQUATION_DETECTION_PROMPT_V1.format(
+        input_text=topic,
+        variables_context=vars_str,
+    )
+
+    try:
+        res = await call_groq_structured(
+            client=client,
+            model=settings.GROQ_TEXT_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            schema=EquationDetectionResponse,
+            temperature=0.1,
+            max_tokens=600,
+        )
+        if res and res.is_equation:
+            return make_equation_plotter_template(
+                equation=res.equation,
+                title=res.title,
+                description=res.description,
+                min_x=res.min_x,
+                max_x=res.max_x,
+                min_y=res.min_y,
+                max_y=res.max_y,
+            )
+    except Exception as exc:
+        logger.warning("LLM equation detection error: %s", exc)
+
+    return None
+
+
+class SandboxGenerationResponse(BaseModel):
+    title: str = "Interactive Micro-Simulation"
+    description: str = "STEM Interactive Simulation"
+    html: str = ""
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+
+
+def _generate_fallback_sandbox_html(topic: str, variables: Optional[List[str]] = None) -> str:
+    """
+    High-fidelity self-contained HTML5 Canvas simulation fallback when LLM is offline.
+    """
+    safe_topic = (topic or "Interactive Simulation").replace("<", "&lt;").replace(">", "&gt;")
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>{safe_topic}</title>
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{
+    background: #0B0F19;
+    color: #F8FAFC;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }}
+  .header {{
+    padding: 10px 16px;
+    background: rgba(17, 24, 39, 0.85);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }}
+  .title {{ font-size: 13px; font-weight: 600; color: #F8FAFC; }}
+  .badge {{
+    font-size: 11px;
+    padding: 2px 8px;
+    background: rgba(249, 115, 22, 0.2);
+    color: #F97316;
+    border-radius: 12px;
+    font-weight: 600;
+  }}
+  .canvas-container {{
+    flex: 1;
+    position: relative;
+    width: 100%;
+    min-height: 200px;
+  }}
+  canvas {{
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }}
+  .controls {{
+    padding: 10px 16px;
+    background: #111827;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }}
+  .slider-row {{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }}
+  .slider-label {{
+    font-size: 11px;
+    width: 75px;
+    color: #94A3B8;
+  }}
+  input[type="range"] {{
+    flex: 1;
+    accent-color: #F97316;
+  }}
+  .slider-val {{
+    font-size: 11px;
+    width: 35px;
+    text-align: right;
+    color: #F8FAFC;
+    font-family: monospace;
+  }}
+  .btn-row {{
+    display: flex;
+    gap: 8px;
+  }}
+  button {{
+    flex: 1;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: none;
+    background: #1E293B;
+    color: #F8FAFC;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }}
+  button.primary {{
+    background: #F97316;
+    color: #FFFFFF;
+  }}
+</style>
+</head>
+<body>
+  <div class="header">
+    <span class="title">{safe_topic}</span>
+    <span class="badge">AI Sandbox</span>
+  </div>
+  <div class="canvas-container">
+    <canvas id="simCanvas"></canvas>
+  </div>
+  <div class="controls">
+    <div class="slider-row">
+      <span class="slider-label">Frequency</span>
+      <input type="range" id="freqSlider" min="0.5" max="5.0" step="0.1" value="2.0">
+      <span class="slider-val" id="freqVal">2.0</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-label">Amplitude</span>
+      <input type="range" id="ampSlider" min="10" max="80" step="1" value="40">
+      <span class="slider-val" id="ampVal">40</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-label">Speed</span>
+      <input type="range" id="speedSlider" min="0.2" max="3.0" step="0.1" value="1.0">
+      <span class="slider-val" id="speedVal">1.0</span>
+    </div>
+    <div class="btn-row">
+      <button class="primary" id="toggleBtn">Pause</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+  </div>
+  <script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const freqSlider = document.getElementById('freqSlider');
+    const ampSlider = document.getElementById('ampSlider');
+    const speedSlider = document.getElementById('speedSlider');
+    const freqVal = document.getElementById('freqVal');
+    const ampVal = document.getElementById('ampVal');
+    const speedVal = document.getElementById('speedVal');
+    const toggleBtn = document.getElementById('toggleBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    let width, height, dpr;
+    let running = true;
+    let t = 0;
+
+    function resize() {{
+      dpr = window.devicePixelRatio || 1;
+      width = canvas.parentElement.clientWidth;
+      height = canvas.parentElement.clientHeight;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.scale(dpr, dpr);
+    }}
+    window.addEventListener('resize', resize);
+    resize();
+
+    freqSlider.addEventListener('input', (e) => freqVal.textContent = e.target.value);
+    ampSlider.addEventListener('input', (e) => ampVal.textContent = e.target.value);
+    speedSlider.addEventListener('input', (e) => speedVal.textContent = e.target.value);
+
+    toggleBtn.addEventListener('click', () => {{
+      running = !running;
+      toggleBtn.textContent = running ? 'Pause' : 'Play';
+    }});
+
+    resetBtn.addEventListener('click', () => {{
+      t = 0;
+      freqSlider.value = 2.0; freqVal.textContent = '2.0';
+      ampSlider.value = 40; ampVal.textContent = '40';
+      speedSlider.value = 1.0; speedVal.textContent = '1.0';
+    }});
+
+    function draw() {{
+      if (running) {{
+        t += 0.03 * parseFloat(speedSlider.value);
+      }}
+
+      ctx.fillStyle = '#0B0F19';
+      ctx.fillRect(0, 0, width, height);
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      const step = 40;
+      for (let x = 0; x < width; x += step) {{
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+      }}
+      for (let y = 0; y < height; y += step) {{
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+      }}
+
+      // Center axis
+      const cy = height / 2;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(width, cy); ctx.stroke();
+
+      const freq = parseFloat(freqSlider.value);
+      const amp = parseFloat(ampSlider.value);
+
+      // Wave 1 - Cyan primary
+      ctx.beginPath();
+      ctx.strokeStyle = '#38BDF8';
+      ctx.lineWidth = 3;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = 'rgba(56, 189, 248, 0.5)';
+      for (let x = 0; x < width; x += 2) {{
+        const y = cy + amp * Math.sin((x * 0.015 * freq) - t);
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }}
+      ctx.stroke();
+
+      // Wave 2 - Orange harmonic
+      ctx.beginPath();
+      ctx.strokeStyle = '#F97316';
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = 'rgba(249, 115, 22, 0.4)';
+      for (let x = 0; x < width; x += 2) {{
+        const y = cy + (amp * 0.6) * Math.cos((x * 0.02 * freq) + (t * 1.2));
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }}
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Particles along primary wave
+      const numParticles = 8;
+      for (let i = 0; i < numParticles; i++) {{
+        const px = ((i / numParticles) * width + (t * 50) % width) % width;
+        const py = cy + amp * Math.sin((px * 0.015 * freq) - t);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(px, py, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }}
+
+      // Metrics overlay
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.font = '11px monospace';
+      ctx.fillText('Wave State: λ = ' + (100 / freq).toFixed(1) + 'px | A = ' + amp + 'px', 16, 24);
+
+      requestAnimationFrame(draw);
+    }}
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html>"""
+
+
+async def generate_sandbox_simulation(
+    topic: str,
+    user_prompt: Optional[str] = None,
+    variables: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """
+    Generates a sandboxed HTML5 Canvas micro-simulation for any long-tail STEM topic.
+    """
+    client = get_text_client()
+    if not settings.GROQ_TEXT_API_KEY:
+        return {
+            "title": f"Simulation: {topic}",
+            "description": f"Sandboxed interactive simulation for {topic}",
+            "html": _generate_fallback_sandbox_html(topic, variables),
+            "parameters": {"speed": 1.0, "frequency": 2.0, "amplitude": 40.0},
+            "degraded": True,
+        }
+
+    vars_str = ", ".join(variables) if variables else "None"
+    prompt = SANDBOX_SIMULATION_PROMPT_V1.format(
+        topic=topic,
+        user_prompt=user_prompt or "Create an interactive physical canvas simulation demonstrating this concept.",
+        variables=vars_str,
+    )
+
+    try:
+        res = await call_groq_structured(
+            client=client,
+            model=settings.GROQ_TEXT_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            schema=SandboxGenerationResponse,
+            temperature=0.3,
+            max_tokens=4000,
+        )
+        if res and res.html and "<canvas" in res.html and "</script>" in res.html:
+            # Enforce safety: ensure no external script injections
+            clean_html = re.sub(r'<script\s+[^>]*src=[\'"][^>]+[\'"][^>]*>.*?</script>', '', res.html, flags=re.IGNORECASE)
+            return {
+                "title": res.title or f"Simulation: {topic}",
+                "description": res.description or f"Interactive simulation for {topic}",
+                "html": clean_html,
+                "parameters": res.parameters or {},
+                "degraded": False,
+            }
+    except Exception as exc:
+        logger.error("Error generating AI micro-simulation sandbox: %s", exc)
+
+    return {
+        "title": f"Simulation: {topic}",
+        "description": f"Interactive simulation for {topic}",
+        "html": _generate_fallback_sandbox_html(topic, variables),
+        "parameters": {"speed": 1.0, "frequency": 2.0, "amplitude": 40.0},
+        "degraded": True,
+    }
+

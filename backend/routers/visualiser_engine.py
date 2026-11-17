@@ -1,4 +1,5 @@
 from typing import Any, Dict
+from urllib.parse import urlparse
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
@@ -15,9 +16,16 @@ from database.visualiser_model import (
 from models.visualiser_models import (
     VisualiserGenerateRequest,
     VisualiserGenerateResponse,
+    VisualiserSandboxRequest,
+    VisualiserSandboxResponse,
     VisualiserStatesListResponse,
     VisualiserUpdateRequest,
     VisualiserUpdateResponse,
+)
+from services.llm import (
+    clean_raw_equation,
+    detect_or_resolve_equation_plotter,
+    generate_sandbox_simulation,
 )
 from services.phet_service import phet_service
 from services.visualiser_loader import fill_template_defaults, get_template_by_topic
@@ -52,6 +60,9 @@ WHITELISTED_TEMPLATE_IDS = {
     "declarative_physics",
     "generic_diagram",
     "phet-webview",
+    "sandbox",
+    "ai_canvas",
+    "micro_simulation",
     "default-empty",
 }
 
@@ -59,8 +70,6 @@ WHITELISTED_TEMPLATE_IDS = {
 def _is_allowed_phet_url(url: str) -> bool:
     if not url or not isinstance(url, str):
         return False
-    from urllib.parse import urlparse
-
     try:
         parsed = urlparse(url)
         return (
@@ -75,43 +84,71 @@ def _is_allowed_phet_url(url: str) -> bool:
 async def generate_visualiser_entry(request: Request, req: VisualiserGenerateRequest):
     topic = req.topic
 
-    # 1. Try Internal Visualiser
-    template = await get_template_by_topic(topic)
+    # 1. Step 2: Try Equation & Math Function Plotter Detection
+    equation_template = await detect_or_resolve_equation_plotter(topic, req.variables)
 
-    if template and template.get("template_id") in WHITELISTED_TEMPLATE_IDS:
-        # Internal template found
-        filled = fill_template_defaults(template, req.variables)
-        template_id = filled["template_id"]
+    if equation_template and equation_template.get("template_id") in WHITELISTED_TEMPLATE_IDS:
+        template_id = equation_template["template_id"]
+        filled = equation_template
         parameters = filled.get("parameters", {})
     else:
-        # 2. Try PhET Fallback
-        phet_match = phet_service.find_simulation(topic)
+        # 2. Try Internal Visualiser
+        template = await get_template_by_topic(topic)
 
-        if phet_match and _is_allowed_phet_url(phet_match.get("url", "")):
-            template_id = "phet-webview"
-            filled = {
-                "template_id": template_id,
-                "templateId": template_id,
-                "parameters": {},
-                "metadata": {
-                    "type": "phet",
-                    "url": phet_match["url"],
-                    "title": phet_match["title"],
-                    "slug": phet_match["slug"],
-                    "subject": phet_match.get("subject", "general"),
-                },
-            }
-            parameters = {}
+        if template and template.get("template_id") in WHITELISTED_TEMPLATE_IDS:
+            filled = fill_template_defaults(template, req.variables)
+            template_id = filled["template_id"]
+            parameters = filled.get("parameters", {})
         else:
-            # 3. Safe Whitelisted Fallback
-            template_id = "default-empty"
-            filled = {
-                "template_id": template_id,
-                "templateId": template_id,
-                "parameters": {},
-                "metadata": {"type": "none"},
-            }
-            parameters = {}
+            # 3. Step 1: Try PhET Simulation Fallback (124+ official sims)
+            phet_match = phet_service.find_simulation(topic)
+
+            if phet_match and _is_allowed_phet_url(phet_match.get("url", "")):
+                template_id = "phet-webview"
+                filled = {
+                    "template_id": template_id,
+                    "templateId": template_id,
+                    "parameters": {},
+                    "metadata": {
+                        "type": "phet",
+                        "url": phet_match["url"],
+                        "title": phet_match["title"],
+                        "slug": phet_match["slug"],
+                        "subject": phet_match.get("subject", "general"),
+                    },
+                }
+                parameters = {}
+            elif req.allow_sandbox_fallback:
+                # 4. Step 3: AI Micro-Simulation Sandbox for long-tail topics
+                sandbox_data = await generate_sandbox_simulation(
+                    topic=topic,
+                    variables=req.variables,
+                )
+                template_id = "sandbox"
+                parameters = sanitize_simulation_parameters(sandbox_data.get("parameters", {}))
+                filled = {
+                    "template_id": template_id,
+                    "templateId": template_id,
+                    "title": sandbox_data["title"],
+                    "animation_type": "canvas_sandbox",
+                    "description": sandbox_data.get("description", ""),
+                    "parameters": parameters,
+                    "metadata": {
+                        "type": "sandbox",
+                        "html": sandbox_data["html"],
+                        "topic": topic,
+                    },
+                }
+            else:
+                # 5. Safe Whitelisted Fallback
+                template_id = "default-empty"
+                filled = {
+                    "template_id": template_id,
+                    "templateId": template_id,
+                    "parameters": {},
+                    "metadata": {"type": "none"},
+                }
+                parameters = {}
 
     # Clamp parameters for safety
     parameters = sanitize_simulation_parameters(parameters)
@@ -125,11 +162,11 @@ async def generate_visualiser_entry(request: Request, req: VisualiserGenerateReq
         history_id=None,
     )
 
-    if template_id == "phet-webview" and visualiser_collection is not None:
+    if (template_id in {"phet-webview", "equation_plotter", "sandbox", "ai_canvas"}) and visualiser_collection is not None and history_id:
         try:
             await visualiser_collection.update_one(
                 {"_id": ObjectId(history_id)},
-                {"$set": {"metadata": filled["metadata"]}},
+                {"$set": {"metadata": filled.get("metadata", {}), "title": filled.get("title", "")}},
             )
         except Exception:
             pass
@@ -138,6 +175,64 @@ async def generate_visualiser_entry(request: Request, req: VisualiserGenerateReq
         status="success",
         template=filled,
         history_id=history_id,
+    )
+
+
+@router.post("/generate-sandbox", response_model=VisualiserSandboxResponse)
+@limiter.limit(LIMIT_STANDARD)
+async def generate_sandbox_entry(request: Request, req: VisualiserSandboxRequest):
+    """
+    Step 3: Dedicated endpoint to generate dynamic HTML5 Canvas animations
+    inside a secured sandbox container for any STEM topic.
+    """
+    user_id = request.state.user["uid"]
+    sandbox_data = await generate_sandbox_simulation(
+        topic=req.topic,
+        user_prompt=req.prompt,
+        variables=req.variables,
+    )
+    template_id = "sandbox"
+    parameters = sanitize_simulation_parameters(sandbox_data.get("parameters", {}))
+    template_dict = {
+        "template_id": template_id,
+        "templateId": template_id,
+        "title": sandbox_data["title"],
+        "animation_type": "canvas_sandbox",
+        "description": sandbox_data.get("description", ""),
+        "parameters": parameters,
+        "metadata": {
+            "type": "sandbox",
+            "html": sandbox_data["html"],
+            "topic": req.topic,
+        },
+    }
+
+    history_id = await save_visualiser_entry(
+        user_id=user_id,
+        template_id=template_id,
+        parameters=parameters,
+        history_id=None,
+    )
+
+    if visualiser_collection is not None and history_id:
+        try:
+            await visualiser_collection.update_one(
+                {"_id": ObjectId(history_id)},
+                {"$set": {"metadata": template_dict["metadata"], "title": sandbox_data["title"]}},
+            )
+        except Exception:
+            pass
+
+    return VisualiserSandboxResponse(
+        status="success",
+        template_id=template_id,
+        title=sandbox_data["title"],
+        topic=req.topic,
+        html=sandbox_data["html"],
+        template=template_dict,
+        parameters=parameters,
+        history_id=history_id,
+        degraded=sandbox_data.get("degraded", False),
     )
 
 
@@ -176,6 +271,16 @@ async def update_visualiser(
             # Server-side clamp the AI-generated updates
             updated = sanitize_simulation_parameters(result.updated_parameters)
             ai_response = result.ai_response
+
+            # Special support for equation updates in equation_plotter
+            if req.template_id == "equation_plotter" and req.history_id and visualiser_collection is not None:
+                # Check if prompt requests a new formula
+                if "equation" in result.updated_parameters:
+                    new_eq = clean_raw_equation(str(result.updated_parameters["equation"]))
+                    await visualiser_collection.update_one(
+                        {"_id": ObjectId(req.history_id)},
+                        {"$set": {"metadata.equation": new_eq}},
+                    )
         except Exception:
             updated = {}
             ai_response = "Error processing request."
@@ -209,7 +314,7 @@ async def visualiser_history(
 ):
     user_id = request.state.user["uid"]
     entries, total = await get_visualiser_entries_paginated(user_id, limit=limit, skip=skip)
-    has_more = total > (skip + len(entries))
+    has_more = (skip + len(entries)) < total
     return VisualiserStatesListResponse(
         items=entries,
         history=entries,
@@ -220,58 +325,26 @@ async def visualiser_history(
     )
 
 
-@router.get("/{history_id}")
+@router.get("/entry/{history_id}")
 @limiter.limit(LIMIT_STANDARD)
 async def get_visualiser_entry(request: Request, history_id: str):
     if not visualiser_collection:
-        raise HTTPException(status_code=503, detail="Database disabled")
-
-    if not ObjectId.is_valid(history_id):
-        raise HTTPException(status_code=400, detail="Invalid history ID format")
+        raise HTTPException(
+            status_code=503,
+            detail="Visualiser database is currently unavailable",
+        )
 
     user_id = request.state.user["uid"]
     try:
-        # Enforce record ownership to prevent IDOR vulnerabilities across accounts
-        query = {
-            "_id": ObjectId(history_id),
-            "$or": [{"user_id": user_id}, {"user_id": {"$exists": False}}],
-        }
+        query = {"_id": ObjectId(history_id), "user_id": user_id}
         doc = await visualiser_collection.find_one(query)
         if not doc:
             raise HTTPException(status_code=404, detail="Entry not found")
 
-        template_id = doc.get("template_id", "")
-        response_template: Dict[str, Any] = {}
-
-        if template_id == "phet-webview":
-            response_template = {
-                "template_id": template_id,
-                "templateId": template_id,
-                "parameters": doc.get("parameters", {}),
-                "metadata": doc.get("metadata", {}),
-            }
-        else:
-            raw_template = await get_template_by_topic(template_id)
-            if raw_template:
-                filled = fill_template_defaults(raw_template)
-                db_params = doc.get("parameters", {})
-                for k, v in db_params.items():
-                    if k in filled["parameters"]:
-                        filled["parameters"][k]["value"] = v
-                response_template = filled
-            else:
-                response_template = {
-                    "template_id": template_id,
-                    "parameters": doc.get("parameters", {}),
-                    "metadata": {"error": "Template definition missing"},
-                }
-
-        return {
-            "template_id": template_id,
-            "history_id": str(doc["_id"]),
-            "template": response_template,
-        }
+        doc["id"] = str(doc["_id"])
+        doc.pop("_id", None)
+        return doc
     except HTTPException:
         raise
-    except Exception:
-        raise HTTPException(status_code=400, detail="Error fetching entry")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid entry ID") from exc

@@ -1,0 +1,772 @@
+# backend/scripts/generate_phet_sims.py
+"""
+Generates the comprehensive PhET HTML5 simulations catalog (~130-150 sims)
+covering Physics, Chemistry, Math, Biology, and Earth Science.
+"""
+import json
+import os
+
+SIMULATIONS = [
+    # ==================== PHYSICS ====================
+    {
+        "slug": "projectile-motion",
+        "title": "Projectile Motion",
+        "keywords": ["projectile", "trajectory", "cannon", "angle", "velocity", "gravity", "kinematics", "parabola", "range", "height", "time of flight"],
+        "subject": "physics"
+    },
+    {
+        "slug": "forces-and-motion-basics",
+        "title": "Forces and Motion: Basics",
+        "keywords": ["force", "motion", "friction", "acceleration", "newton", "pull", "push", "sum of forces", "net force", "tug of war"],
+        "subject": "physics"
+    },
+    {
+        "slug": "energy-skate-park",
+        "title": "Energy Skate Park",
+        "keywords": ["energy", "kinetic", "potential", "conservation", "track", "roller coaster", "skater", "friction", "mechanical energy", "pie chart", "bar graph"],
+        "subject": "physics"
+    },
+    {
+        "slug": "energy-skate-park-basics",
+        "title": "Energy Skate Park: Basics",
+        "keywords": ["energy", "kinetic energy", "potential energy", "conservation of energy", "skater", "track", "ramp", "friction"],
+        "subject": "physics"
+    },
+    {
+        "slug": "circuit-construction-kit-dc",
+        "title": "Circuit Construction Kit: DC",
+        "keywords": ["circuit", "electricity", "resistor", "battery", "light bulb", "voltage", "current", "ohm", "switch", "series", "parallel", "dc"],
+        "subject": "physics"
+    },
+    {
+        "slug": "circuit-construction-kit-dc-virtual-lab",
+        "title": "Circuit Construction Kit: DC - Virtual Lab",
+        "keywords": ["circuit", "ammeter", "voltmeter", "virtual lab", "internal resistance", "wire resistance", "battery", "light bulb", "dc"],
+        "subject": "physics"
+    },
+    {
+        "slug": "circuit-construction-kit-ac",
+        "title": "Circuit Construction Kit: AC",
+        "keywords": ["ac circuit", "alternating current", "inductor", "capacitor", "resistor", "rlc", "resonance", "impedance", "frequency", "ac generator"],
+        "subject": "physics"
+    },
+    {
+        "slug": "circuit-construction-kit-ac-virtual-lab",
+        "title": "Circuit Construction Kit: AC - Virtual Lab",
+        "keywords": ["ac circuit", "virtual lab", "oscilloscope", "ac voltage", "current phase", "capacitance", "inductance", "impedance"],
+        "subject": "physics"
+    },
+    {
+        "slug": "bending-light",
+        "title": "Bending Light",
+        "keywords": ["optics", "refraction", "reflection", "snell", "index of refraction", "prism", "laser", "light", "critical angle", "total internal reflection"],
+        "subject": "physics"
+    },
+    {
+        "slug": "geometric-optics",
+        "title": "Geometric Optics",
+        "keywords": ["optics", "lens", "convex lens", "concave lens", "focal length", "ray tracing", "real image", "virtual image", "magnification", "mirror"],
+        "subject": "physics"
+    },
+    {
+        "slug": "geometric-optics-basics",
+        "title": "Geometric Optics: Basics",
+        "keywords": ["lens", "focal point", "convex lens", "magnification", "inverted image", "optics", "light rays", "focus"],
+        "subject": "physics"
+    },
+    {
+        "slug": "pendulum-lab",
+        "title": "Pendulum Lab",
+        "keywords": ["pendulum", "oscillation", "period", "gravity", "simple harmonic motion", "length", "shm", "damping", "frequency"],
+        "subject": "physics"
+    },
+    {
+        "slug": "wave-on-a-string",
+        "title": "Wave on a String",
+        "keywords": ["wave", "string", "frequency", "amplitude", "tension", "damping", "standing wave", "transverse wave", "wavelength", "harmonics"],
+        "subject": "physics"
+    },
+    {
+        "slug": "wave-interference",
+        "title": "Wave Interference",
+        "keywords": ["wave", "interference", "slit", "double slit", "diffraction", "superposition", "sound", "light", "water", "constructive", "destructive"],
+        "subject": "physics"
+    },
+    {
+        "slug": "waves-intro",
+        "title": "Waves Intro",
+        "keywords": ["wave properties", "wavelength", "frequency", "amplitude", "water ripple", "sound wave", "light beam", "crest", "trough"],
+        "subject": "physics"
+    },
+    {
+        "slug": "sound-waves",
+        "title": "Sound Waves",
+        "keywords": ["sound", "sound waves", "longitudinal wave", "pitch", "frequency", "amplitude", "loudness", "speed of sound", "compression", "rarefaction"],
+        "subject": "physics"
+    },
+    {
+        "slug": "fourier-making-waves",
+        "title": "Fourier: Making Waves",
+        "keywords": ["fourier", "fourier transform", "harmonics", "superposition", "wave synthesis", "sine waves", "frequency domain", "square wave"],
+        "subject": "physics"
+    },
+    {
+        "slug": "hookes-law",
+        "title": "Hooke's Law",
+        "keywords": ["hooke", "spring", "spring constant", "restoring force", "elastic", "displacement", "potential energy", "stiffness"],
+        "subject": "physics"
+    },
+    {
+        "slug": "masses-and-springs",
+        "title": "Masses and Springs",
+        "keywords": ["spring", "mass", "oscillation", "hooke", "harmonic", "shm", "gravity", "damping", "elasticity", "spring constant"],
+        "subject": "physics"
+    },
+    {
+        "slug": "masses-and-springs-basics",
+        "title": "Masses and Springs: Basics",
+        "keywords": ["spring", "mass", "stretch", "harmonic motion", "spring constant", "period", "oscillation"],
+        "subject": "physics"
+    },
+    {
+        "slug": "collision-lab",
+        "title": "Collision Lab",
+        "keywords": ["collision", "momentum", "elastic", "inelastic", "kinetic energy", "velocity", "mass", "1d collision", "2d collision", "impulse"],
+        "subject": "physics"
+    },
+    {
+        "slug": "gravity-and-orbits",
+        "title": "Gravity and Orbits",
+        "keywords": ["gravity", "orbit", "planet", "sun", "earth", "moon", "satellite", "kepler", "gravitational force", "orbital period", "escape velocity"],
+        "subject": "physics"
+    },
+    {
+        "slug": "gravity-force-lab",
+        "title": "Gravity Force Lab",
+        "keywords": ["gravity", "gravitational attraction", "newton", "inverse square law", "mass", "distance", "gravitational constant"],
+        "subject": "physics"
+    },
+    {
+        "slug": "gravity-force-lab-basics",
+        "title": "Gravity Force Lab: Basics",
+        "keywords": ["gravity", "gravitational force", "mass", "distance", "force vectors", "attraction"],
+        "subject": "physics"
+    },
+    {
+        "slug": "keplers-laws",
+        "title": "Kepler's Laws",
+        "keywords": ["kepler", "planetary orbits", "ellipse", "semi-major axis", "eccentricity", "orbital period", "equal areas", "gravitation"],
+        "subject": "physics"
+    },
+    {
+        "slug": "my-solar-system",
+        "title": "My Solar System",
+        "keywords": ["solar system", "orbital mechanics", "n-body", "gravity", "planetary motion", "slingshot", "binary star"],
+        "subject": "physics"
+    },
+    {
+        "slug": "coulombs-law",
+        "title": "Coulomb's Law",
+        "keywords": ["coulomb", "electric force", "electrostatic", "charge", "attraction", "repulsion", "inverse square law", "point charge"],
+        "subject": "physics"
+    },
+    {
+        "slug": "charges-and-fields",
+        "title": "Charges and Fields",
+        "keywords": ["electric field", "electric potential", "voltage", "equipotential", "field lines", "point charge", "dipole", "coulomb"],
+        "subject": "physics"
+    },
+    {
+        "slug": "balloons-and-static-electricity",
+        "title": "Balloons and Static Electricity",
+        "keywords": ["static electricity", "electrostatic", "charge", "induction", "friction", "electrons", "balloon", "wall"],
+        "subject": "physics"
+    },
+    {
+        "slug": "john-travoltage",
+        "title": "John Travoltage",
+        "keywords": ["static electricity", "charge buildup", "grounding", "spark", "electric shock", "electrons"],
+        "subject": "physics"
+    },
+    {
+        "slug": "ohms-law",
+        "title": "Ohm's Law",
+        "keywords": ["ohm", "voltage", "current", "resistance", "v=ir", "battery", "resistor", "circuit equation"],
+        "subject": "physics"
+    },
+    {
+        "slug": "resistance-in-a-wire",
+        "title": "Resistance in a Wire",
+        "keywords": ["resistance", "resistivity", "wire length", "cross-sectional area", "rho", "conductivity", "conductor"],
+        "subject": "physics"
+    },
+    {
+        "slug": "capacitor-lab-basics",
+        "title": "Capacitor Lab: Basics",
+        "keywords": ["capacitor", "capacitance", "parallel plates", "dielectric", "stored energy", "electric field", "voltage", "charge"],
+        "subject": "physics"
+    },
+    {
+        "slug": "faradays-law",
+        "title": "Faraday's Law",
+        "keywords": ["faraday", "induction", "magnetic flux", "coil", "magnet", "galvanometer", "lenz law", "induced current", "emf"],
+        "subject": "physics"
+    },
+    {
+        "slug": "faradays-electromagnetic-lab",
+        "title": "Faraday's Electromagnetic Lab",
+        "keywords": ["electromagnetism", "faraday", "induction", "transformer", "generator", "pickup coil", "magnetic flux"],
+        "subject": "physics"
+    },
+    {
+        "slug": "magnet-and-compass",
+        "title": "Magnet and Compass",
+        "keywords": ["magnet", "compass", "magnetic field", "magnetic poles", "north pole", "south pole", "earth magnetism"],
+        "subject": "physics"
+    },
+    {
+        "slug": "magnets-and-electromagnets",
+        "title": "Magnets and Electromagnets",
+        "keywords": ["magnet", "electromagnet", "coil", "current", "magnetic field", "solenoid", "compass"],
+        "subject": "physics"
+    },
+    {
+        "slug": "generator",
+        "title": "Generator",
+        "keywords": ["generator", "hydroelectric", "wind turbine", "induction", "magnet", "coil", "ac power", "electricity generation"],
+        "subject": "physics"
+    },
+    {
+        "slug": "color-vision",
+        "title": "Color Vision",
+        "keywords": ["color", "color vision", "rgb", "red green blue", "color mixing", "light perception", "retina", "photons", "filters"],
+        "subject": "physics"
+    },
+    {
+        "slug": "blackbody-spectrum",
+        "title": "Blackbody Spectrum",
+        "keywords": ["blackbody", "blackbody radiation", "planck", "wien law", "stefan boltzmann", "peak wavelength", "temperature", "stars", "thermal spectrum"],
+        "subject": "physics"
+    },
+    {
+        "slug": "photoelectric-effect",
+        "title": "Photoelectric Effect",
+        "keywords": ["photoelectric", "photons", "work function", "threshold frequency", "stopping potential", "einstein", "electron emission", "quanta"],
+        "subject": "physics"
+    },
+    {
+        "slug": "models-of-the-hydrogen-atom",
+        "title": "Models of the Hydrogen Atom",
+        "keywords": ["hydrogen atom", "bohr model", "de broglie", "energy levels", "emission spectra", "absorption", "schrodinger", "quantum"],
+        "subject": "physics"
+    },
+    {
+        "slug": "rutherford-scattering",
+        "title": "Rutherford Scattering",
+        "keywords": ["rutherford", "alpha particles", "gold foil", "nucleus", "scattering", "plum pudding", "atomic structure"],
+        "subject": "physics"
+    },
+    {
+        "slug": "fluid-pressure-and-flow",
+        "title": "Fluid Pressure and Flow",
+        "keywords": ["fluids", "pressure", "bernoulli", "continuity equation", "fluid speed", "pipe flow", "venturi", "water pressure"],
+        "subject": "physics"
+    },
+    {
+        "slug": "under-pressure",
+        "title": "Under Pressure",
+        "keywords": ["pressure", "hydrostatic pressure", "fluid depth", "atmosphere", "density", "manometer", "barometer", "fluid pressure"],
+        "subject": "physics"
+    },
+    {
+        "slug": "buoyancy",
+        "title": "Buoyancy",
+        "keywords": ["buoyancy", "archimedes", "buoyant force", "density", "submerged", "floating", "sinking", "fluid displacement"],
+        "subject": "physics"
+    },
+    {
+        "slug": "buoyancy-basics",
+        "title": "Buoyancy: Basics",
+        "keywords": ["buoyancy", "floating", "sinking", "density", "fluid", "wood", "brick", "ice"],
+        "subject": "physics"
+    },
+    {
+        "slug": "density",
+        "title": "Density",
+        "keywords": ["density", "mass", "volume", "water displacement", "materials", "floating", "sinking"],
+        "subject": "physics"
+    },
+    {
+        "slug": "balancing-act",
+        "title": "Balancing Act",
+        "keywords": ["torque", "lever", "balance", "center of gravity", "fulcrum", "rotational equilibrium", "seesaw", "weights"],
+        "subject": "physics"
+    },
+    {
+        "slug": "vector-addition",
+        "title": "Vector Addition",
+        "keywords": ["vector", "vector addition", "resultant", "components", "magnitude", "direction", "polar coordinates", "cartesian"],
+        "subject": "physics"
+    },
+    {
+        "slug": "vector-addition-equations",
+        "title": "Vector Addition: Equations",
+        "keywords": ["vector algebra", "unit vectors", "vector equations", "dot product", "components", "i hat", "j hat"],
+        "subject": "physics"
+    },
+    {
+        "slug": "friction",
+        "title": "Friction",
+        "keywords": ["friction", "microscopic friction", "heat", "thermal energy", "contact surface", "atomic friction"],
+        "subject": "physics"
+    },
+    {
+        "slug": "energy-forms-and-changes",
+        "title": "Energy Forms and Changes",
+        "keywords": ["thermal energy", "mechanical energy", "electrical energy", "light energy", "heat transfer", "conduction", "energy transformation"],
+        "subject": "physics"
+    },
+    {
+        "slug": "normal-modes",
+        "title": "Normal Modes",
+        "keywords": ["normal modes", "coupled oscillators", "eigenfrequencies", "standing waves", "harmonics", "resonance"],
+        "subject": "physics"
+    },
+    {
+        "slug": "quantum-bound-states",
+        "title": "Quantum Bound States",
+        "keywords": ["quantum mechanics", "schrodinger equation", "potential well", "wave function", "probability density", "eigenvalues"],
+        "subject": "physics"
+    },
+    {
+        "slug": "quantum-wave-interference",
+        "title": "Quantum Wave Interference",
+        "keywords": ["wave-particle duality", "de broglie", "matter waves", "double slit", "quantum interference", "diffraction"],
+        "subject": "physics"
+    },
+    {
+        "slug": "xray-diffraction",
+        "title": "X-Ray Diffraction",
+        "keywords": ["x-ray", "diffraction", "bragg law", "crystal lattice", "constructive interference", "interplanar spacing"],
+        "subject": "physics"
+    },
+
+    # ==================== CHEMISTRY ====================
+    {
+        "slug": "build-an-atom",
+        "title": "Build an Atom",
+        "keywords": ["atom", "proton", "neutron", "electron", "nucleus", "element", "atomic number", "mass number", "ion", "charge"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "build-a-molecule",
+        "title": "Build a Molecule",
+        "keywords": ["molecule", "covalent bond", "chemical formula", "water", "methane", "carbon dioxide", "atom bonding", "molecules"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "build-a-nucleus",
+        "title": "Build a Nucleus",
+        "keywords": ["nucleus", "protons", "neutrons", "nuclear stability", "strong nuclear force", "isotopes", "nuclides"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "molecule-shapes",
+        "title": "Molecule Shapes",
+        "keywords": ["vsepr", "molecular geometry", "electron geometry", "bond angle", "lone pair", "tetrahedral", "trigonal", "linear", "chemistry"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "molecule-shapes-basics",
+        "title": "Molecule Shapes: Basics",
+        "keywords": ["molecule shapes", "bond angle", "central atom", "geometry", "electron pairs"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "molecule-polarity",
+        "title": "Molecule Polarity",
+        "keywords": ["polarity", "polar", "nonpolar", "electronegativity", "dipole moment", "partial charge", "molecular dipole"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "molecules-and-light",
+        "title": "Molecules and Light",
+        "keywords": ["molecules", "light absorption", "infrared", "uv", "microwave", "molecular vibration", "greenhouse gases"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "atomic-interactions",
+        "title": "Atomic Interactions",
+        "keywords": ["van der waals", "lennard-jones", "interatomic forces", "potential energy well", "bond length", "noble gases"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "isotopes-and-atomic-mass",
+        "title": "Isotopes and Atomic Mass",
+        "keywords": ["isotopes", "atomic mass", "mass number", "isotopic abundance", "average atomic weight", "neutrons"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "balancing-chemical-equations",
+        "title": "Balancing Chemical Equations",
+        "keywords": ["chemical equation", "balancing", "reactants", "products", "stoichiometry", "coefficients", "conservation of mass", "molecules"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "reactants-products-and-leftovers",
+        "title": "Reactants, Products and Leftovers",
+        "keywords": ["stoichiometry", "limiting reactant", "excess reactant", "chemical reaction", "theoretical yield", "leftovers"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "molarity",
+        "title": "Molarity",
+        "keywords": ["molarity", "concentration", "moles", "liters", "solute", "solvent", "dilution", "solution concentration"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "concentration",
+        "title": "Concentration",
+        "keywords": ["concentration", "solute", "solvent", "saturation", "evaporation", "dissolution", "dilute", "colored solution"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "beers-law-lab",
+        "title": "Beer's Law Lab",
+        "keywords": ["beer's law", "absorbance", "transmittance", "spectrophotometry", "path length", "molar absorptivity", "concentration"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "ph-scale",
+        "title": "pH Scale",
+        "keywords": ["ph", "acid", "base", "hydronium", "hydroxide", "alkaline", "neutral", "poh", "indicator", "logarithmic scale"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "ph-scale-basics",
+        "title": "pH Scale: Basics",
+        "keywords": ["ph scale", "acidic", "basic", "coffee", "blood", "soap", "battery acid", "household fluids"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "acid-base-solutions",
+        "title": "Acid-Base Solutions",
+        "keywords": ["acid", "base", "strong acid", "weak acid", "equilibrium", "dissociation", "ph", "neutralization", "conjugate acid"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "states-of-matter",
+        "title": "States of Matter",
+        "keywords": ["solid", "liquid", "gas", "phase change", "temperature", "melting", "boiling", "freezing", "condensation", "phase diagram"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "states-of-matter-basics",
+        "title": "States of Matter: Basics",
+        "keywords": ["solid liquid gas", "phase changes", "heating cooling", "molecules", "temperature"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "gas-properties",
+        "title": "Gas Properties",
+        "keywords": ["gas", "ideal gas", "pv=nrt", "pressure", "temperature", "volume", "kinetic theory", "boyle", "charles"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "gases-intro",
+        "title": "Gases Intro",
+        "keywords": ["gas pressure", "temperature", "gas particles", "volume", "kinetic motion", "gas collisions"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "diffusion",
+        "title": "Diffusion",
+        "keywords": ["diffusion", "particle diffusion", "concentration gradient", "brownian motion", "molecular mass", "gas diffusion"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "alpha-decay",
+        "title": "Alpha Decay",
+        "keywords": ["alpha decay", "radioactivity", "alpha particle", "helium nucleus", "half life", "nuclear decay", "polonium", "lead"],
+        "subject": "chemistry"
+    },
+    {
+        "slug": "beta-decay",
+        "title": "Beta Decay",
+        "keywords": ["beta decay", "radioactivity", "beta particle", "electron", "positron", "neutrino", "carbon 14", "half life"],
+        "subject": "chemistry"
+    },
+
+    # ==================== BIOLOGY & EARTH SCIENCE ====================
+    {
+        "slug": "gene-expression-essentials",
+        "title": "Gene Expression Essentials",
+        "keywords": ["gene expression", "transcription", "translation", "dna", "mrna", "ribosome", "rna polymerase", "protein synthesis", "genetics"],
+        "subject": "biology"
+    },
+    {
+        "slug": "natural-selection",
+        "title": "Natural Selection",
+        "keywords": ["natural selection", "evolution", "mutation", "adaptation", "predator", "camouflage", "survival of fittest", "bunnies", "genetics"],
+        "subject": "biology"
+    },
+    {
+        "slug": "neuron",
+        "title": "Neuron",
+        "keywords": ["neuron", "action potential", "nerve impulse", "depolarization", "sodium potassium", "synapse", "axon", "membrane potential"],
+        "subject": "biology"
+    },
+    {
+        "slug": "membrane-transport",
+        "title": "Membrane Transport",
+        "keywords": ["cell membrane", "passive transport", "active transport", "diffusion", "osmosis", "ion channels", "carrier proteins"],
+        "subject": "biology"
+    },
+    {
+        "slug": "eating-exercise-and-energy",
+        "title": "Eating and Exercise",
+        "keywords": ["nutrition", "calories", "metabolism", "exercise", "bmi", "body mass index", "energy balance", "diet"],
+        "subject": "biology"
+    },
+    {
+        "slug": "greenhouse-effect",
+        "title": "The Greenhouse Effect",
+        "keywords": ["greenhouse effect", "global warming", "greenhouse gases", "carbon dioxide", "methane", "infrared", "atmosphere", "climate change"],
+        "subject": "earth-science"
+    },
+
+    # ==================== MATHEMATICS ====================
+    {
+        "slug": "graphing-lines",
+        "title": "Graphing Lines",
+        "keywords": ["linear equation", "slope", "y-intercept", "line", "y=mx+b", "slope intercept", "cartesian coordinates", "graphing"],
+        "subject": "math"
+    },
+    {
+        "slug": "graphing-slope-intercept",
+        "title": "Graphing: Slope-Intercept",
+        "keywords": ["slope intercept", "rise over run", "slope", "intercept", "linear function", "line graph"],
+        "subject": "math"
+    },
+    {
+        "slug": "graphing-quadratics",
+        "title": "Graphing Quadratics",
+        "keywords": ["quadratic", "parabola", "vertex", "axis of symmetry", "roots", "discriminant", "standard form", "polynomial"],
+        "subject": "math"
+    },
+    {
+        "slug": "function-builder",
+        "title": "Function Builder",
+        "keywords": ["function", "domain", "range", "input output", "linear function", "quadratic function", "composite function"],
+        "subject": "math"
+    },
+    {
+        "slug": "function-builder-basics",
+        "title": "Function Builder: Basics",
+        "keywords": ["function patterns", "input output machine", "mystery rule", "operations", "math patterns"],
+        "subject": "math"
+    },
+    {
+        "slug": "calculus-grapher",
+        "title": "Calculus Grapher",
+        "keywords": ["calculus", "derivative", "integral", "tangent line", "slope of curve", "rate of change", "area under curve", "differentiation", "integration"],
+        "subject": "math"
+    },
+    {
+        "slug": "trig-tour",
+        "title": "Trig Tour",
+        "keywords": ["trigonometry", "unit circle", "sine", "cosine", "tangent", "radians", "degrees", "coordinates", "trig functions"],
+        "subject": "math"
+    },
+    {
+        "slug": "area-model-algebra",
+        "title": "Area Model Algebra",
+        "keywords": ["algebra", "polynomial", "factoring", "distributive property", "foil", "binomial expansion", "area model", "quadratic"],
+        "subject": "math"
+    },
+    {
+        "slug": "area-model-multiplication",
+        "title": "Area Model Multiplication",
+        "keywords": ["multiplication", "area model", "factors", "products", "partial products", "grid multiplication"],
+        "subject": "math"
+    },
+    {
+        "slug": "area-model-decimals",
+        "title": "Area Model Decimals",
+        "keywords": ["decimals", "decimal multiplication", "area model", "partial products", "place value"],
+        "subject": "math"
+    },
+    {
+        "slug": "area-model-introduction",
+        "title": "Area Model Introduction",
+        "keywords": ["area model", "multiplication array", "factors", "dimensions", "intro to multiplication"],
+        "subject": "math"
+    },
+    {
+        "slug": "area-builder",
+        "title": "Area Builder",
+        "keywords": ["area", "perimeter", "grid", "dimensions", "surface", "geometry", "shapes"],
+        "subject": "math"
+    },
+    {
+        "slug": "expression-exchange",
+        "title": "Expression Exchange",
+        "keywords": ["algebraic expressions", "like terms", "coefficients", "combining like terms", "simplification", "variables"],
+        "subject": "math"
+    },
+    {
+        "slug": "equality-explorer",
+        "title": "Equality Explorer",
+        "keywords": ["solving equations", "balance scale", "inverse operations", "linear equations", "algebraic balance", "solve for x"],
+        "subject": "math"
+    },
+    {
+        "slug": "equality-explorer-basics",
+        "title": "Equality Explorer: Basics",
+        "keywords": ["equality", "balance scale", "adding weights", "subtracting weights", "equal balance"],
+        "subject": "math"
+    },
+    {
+        "slug": "equality-explorer-two-variables",
+        "title": "Equality Explorer: Two Variables",
+        "keywords": ["systems of equations", "two variables", "x and y", "substitution", "elimination", "linear system"],
+        "subject": "math"
+    },
+    {
+        "slug": "fractions-intro",
+        "title": "Fractions: Intro",
+        "keywords": ["fractions", "numerator", "denominator", "fraction bar", "fraction circle", "parts of whole"],
+        "subject": "math"
+    },
+    {
+        "slug": "fractions-equality",
+        "title": "Fractions: Equality",
+        "keywords": ["equivalent fractions", "simplifying fractions", "equal fractions", "fraction equality"],
+        "subject": "math"
+    },
+    {
+        "slug": "fractions-mixed-numbers",
+        "title": "Fractions: Mixed Numbers",
+        "keywords": ["mixed numbers", "improper fractions", "fraction conversion", "number line fractions"],
+        "subject": "math"
+    },
+    {
+        "slug": "fraction-matcher",
+        "title": "Fraction Matcher",
+        "keywords": ["matching fractions", "visual fractions", "equivalent fractions", "fraction game"],
+        "subject": "math"
+    },
+    {
+        "slug": "fraction-comparison",
+        "title": "Fraction Comparison",
+        "keywords": ["comparing fractions", "greater than", "less than", "common denominator", "benchmark fractions"],
+        "subject": "math"
+    },
+    {
+        "slug": "build-a-fraction",
+        "title": "Build a Fraction",
+        "keywords": ["build fraction", "fraction representation", "numerator denominator", "fraction shapes"],
+        "subject": "math"
+    },
+    {
+        "slug": "curve-fitting",
+        "title": "Curve Fitting",
+        "keywords": ["curve fitting", "linear regression", "best fit line", "residuals", "chi-squared", "scatter plot", "correlation"],
+        "subject": "math"
+    },
+    {
+        "slug": "least-squares-regression",
+        "title": "Least Squares Regression",
+        "keywords": ["least squares", "regression line", "r squared", "correlation coefficient", "residuals", "scatter plot"],
+        "subject": "math"
+    },
+    {
+        "slug": "plinko-probability",
+        "title": "Plinko Probability",
+        "keywords": ["probability", "binomial distribution", "normal distribution", "galton board", "bell curve", "central limit theorem"],
+        "subject": "math"
+    },
+    {
+        "slug": "center-and-variability",
+        "title": "Center and Variability",
+        "keywords": ["statistics", "mean", "median", "standard deviation", "interquartile range", "variability", "box plot", "outliers"],
+        "subject": "math"
+    },
+    {
+        "slug": "mean-share-and-balance",
+        "title": "Mean: Share and Balance",
+        "keywords": ["arithmetic mean", "average", "fair share", "balancing point", "deviations"],
+        "subject": "math"
+    },
+    {
+        "slug": "proportion-playground",
+        "title": "Proportion Playground",
+        "keywords": ["proportions", "ratios", "scaling", "cross multiplication", "unit rate", "proportional relationship"],
+        "subject": "math"
+    },
+    {
+        "slug": "unit-rates",
+        "title": "Unit Rates",
+        "keywords": ["unit rates", "unit price", "speed", "constant of proportionality", "rate of change", "double number line"],
+        "subject": "math"
+    },
+    {
+        "slug": "ratio-and-proportion",
+        "title": "Ratio and Proportion",
+        "keywords": ["ratio", "proportion", "equivalent ratios", "rate", "scaling"],
+        "subject": "math"
+    },
+    {
+        "slug": "number-line-integers",
+        "title": "Number Line: Integers",
+        "keywords": ["integers", "negative numbers", "positive numbers", "number line", "absolute value", "coordinate"],
+        "subject": "math"
+    },
+    {
+        "slug": "number-line-operations",
+        "title": "Number Line: Operations",
+        "keywords": ["number line", "integer addition", "integer subtraction", "directed motion", "adding negatives"],
+        "subject": "math"
+    },
+    {
+        "slug": "number-line-distance",
+        "title": "Number Line: Distance",
+        "keywords": ["distance", "number line", "absolute value", "displacement", "subtraction on number line"],
+        "subject": "math"
+    },
+    {
+        "slug": "quadrilateral",
+        "title": "Quadrilateral",
+        "keywords": ["quadrilateral", "parallelogram", "rectangle", "rhombus", "trapezoid", "square", "geometry", "interior angles"],
+        "subject": "math"
+    },
+    {
+        "slug": "make-a-ten",
+        "title": "Make a Ten",
+        "keywords": ["ten frame", "make a ten", "addition", "number bonds", "early arithmetic", "place value"],
+        "subject": "math"
+    },
+    {
+        "slug": "arithmetic",
+        "title": "Arithmetic",
+        "keywords": ["arithmetic", "multiplication", "division", "factors", "times table", "mental math"],
+        "subject": "math"
+    },
+    {
+        "slug": "projectile-data-lab",
+        "title": "Projectile Data Lab",
+        "keywords": ["data analysis", "error bars", "projectile trajectories", "sampling distribution", "uncertainty"],
+        "subject": "math"
+    }
+]
+
+def main():
+    dest_path = os.path.join(os.path.dirname(__file__), "..", "data", "phet_simulations.json")
+    dest_path = os.path.abspath(dest_path)
+    print(f"Writing {len(SIMULATIONS)} PhET simulations to {dest_path}...")
+    with open(dest_path, "w", encoding="utf-8") as f:
+        json.dump(SIMULATIONS, f, indent=4)
+    print("Successfully generated PhET simulation catalog!")
+
+if __name__ == "__main__":
+    main()
