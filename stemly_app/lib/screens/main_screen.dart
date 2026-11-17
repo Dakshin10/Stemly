@@ -280,6 +280,7 @@ class _MainScreenState extends State<MainScreen> {
         AppScaffold(
           title: AppStrings.homeTitle,
           isLargeTitle: true,
+          automaticallyImplyLeading: false,
           currentBottomNavIndex: 0,
           body: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),

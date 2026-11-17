@@ -15,6 +15,7 @@ class AppScaffold extends StatelessWidget {
   final bool isLargeTitle;
   final List<Widget>? actions;
   final Widget? leading;
+  final bool automaticallyImplyLeading;
   final int? currentBottomNavIndex;
   final ValueChanged<int>? onBottomNavTap;
   final FloatingActionButton? floatingActionButton;
@@ -27,6 +28,7 @@ class AppScaffold extends StatelessWidget {
     this.isLargeTitle = false,
     this.actions,
     this.leading,
+    this.automaticallyImplyLeading = true,
     this.currentBottomNavIndex,
     this.onBottomNavTap,
     this.floatingActionButton,
@@ -38,6 +40,8 @@ class AppScaffold extends StatelessWidget {
     final bg = backgroundColor ?? AppColors.background(context);
     final hasBottomBar = currentBottomNavIndex != null;
     final extraBottomPadding = hasBottomBar ? AppSpacing.scrollBottomPadding : AppSpacing.space20;
+    // Primary bottom nav tab destinations (Home, History, Settings, Account) must never imply a back button
+    final bool shouldImplyLeading = automaticallyImplyLeading && currentBottomNavIndex == null;
 
     Widget content;
 
@@ -63,6 +67,7 @@ class AppScaffold extends StatelessWidget {
                     backgroundColor: Colors.transparent,
                     scrolledUnderElevation: 0,
                     elevation: 0,
+                    automaticallyImplyLeading: shouldImplyLeading,
                     leading: leading,
                     actions: actions,
                     pinned: true,
@@ -115,7 +120,8 @@ class AppScaffold extends StatelessWidget {
           backgroundColor: Colors.transparent,
           scrolledUnderElevation: 0,
           elevation: 0,
-          leading: leading ?? _buildDefaultLeading(context),
+          automaticallyImplyLeading: shouldImplyLeading,
+          leading: leading ?? (shouldImplyLeading ? _buildDefaultLeading(context) : null),
           actions: actions,
         ),
         body: SafeArea(

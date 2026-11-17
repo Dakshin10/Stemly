@@ -99,6 +99,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return AppScaffold(
       title: AppStrings.historyTitle,
       isLargeTitle: true,
+      automaticallyImplyLeading: false,
       currentBottomNavIndex: 1,
       actions: [
         if (allHistory.any((h) => !h.isStarred))

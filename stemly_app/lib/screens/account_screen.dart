@@ -78,6 +78,7 @@ class AccountScreen extends StatelessWidget {
     return AppScaffold(
       title: AppStrings.accountTitle,
       isLargeTitle: true,
+      automaticallyImplyLeading: false,
       currentBottomNavIndex: 3,
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),

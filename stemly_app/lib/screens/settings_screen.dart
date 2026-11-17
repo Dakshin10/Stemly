@@ -101,6 +101,7 @@ class SettingsScreen extends StatelessWidget {
     return AppScaffold(
       title: AppStrings.settingsTitle,
       isLargeTitle: true,
+      automaticallyImplyLeading: false,
       currentBottomNavIndex: 2,
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
