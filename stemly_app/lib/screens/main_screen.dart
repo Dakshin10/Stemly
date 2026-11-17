@@ -288,63 +288,58 @@ class _MainScreenState extends State<MainScreen> {
               children: [
                 const SizedBox(height: AppSpacing.sm),
 
-                // 1. HERO SCAN CARD (THE ONLY FILLED PRIMARY ELEMENT)
+                // 1. HERO SCAN CARD (SOLID SURFACE, HIG 15-20% ORANGE RULE, ZERO SHADOW)
                 Semantics(
                   button: true,
                   label: "Scan a problem using camera",
                   hint: AppStrings.cameraPermissionRationale,
-                  child: InkWell(
-                    onTap: _isProcessing ? null : () => _pickImage(ImageSource.camera),
-                    borderRadius: BorderRadius.circular(AppRadii.card),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.lg,
-                        vertical: AppSpacing.xl,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary(context),
-                        borderRadius: BorderRadius.circular(AppRadii.card),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary(context).withValues(alpha: 0.25),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface(context),
+                      borderRadius: BorderRadius.circular(AppRadii.card),
+                      border: Border.all(color: AppColors.divider(context), width: 1.0),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceVariant(context),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.divider(context)),
                           ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.camera_alt_rounded,
-                              color: Colors.white,
-                              size: 32,
-                            ),
+                          child: Icon(
+                            Icons.camera_alt_rounded,
+                            color: textPrimary,
+                            size: 26,
                           ),
-                          const SizedBox(height: AppSpacing.md),
-                          Text(
-                            AppStrings.scanCardTitle,
-                            style: AppTypography.title2(context).copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          AppStrings.scanCardTitle,
+                          style: AppTypography.title2(context).copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            AppStrings.scanCardSubtitle,
-                            style: AppTypography.subhead(context).copyWith(
-                              color: Colors.white.withValues(alpha: 0.85),
-                            ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          AppStrings.scanCardSubtitle,
+                          style: AppTypography.subhead(context).copyWith(
+                            color: AppColors.textSecondary(context),
                           ),
-                        ],
-                      ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        PrimaryButton(
+                          label: AppStrings.scanCardTitle,
+                          icon: const Icon(Icons.document_scanner_rounded, size: 20),
+                          onPressed: _isProcessing ? null : () => _pickImage(ImageSource.camera),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -382,7 +377,7 @@ class _MainScreenState extends State<MainScreen> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 SizedBox(
-                  height: 38,
+                  height: 36,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
@@ -390,20 +385,9 @@ class _MainScreenState extends State<MainScreen> {
                     separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
                     itemBuilder: (context, index) {
                       final topic = _exploreTopics[index];
-                      return ActionChip(
-                        label: Text(
-                          topic,
-                          style: AppTypography.footnote(context).copyWith(
-                            color: textPrimary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        backgroundColor: AppColors.surface(context),
-                        side: BorderSide(color: AppColors.divider(context)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadii.chip),
-                        ),
-                        onPressed: () {
+                      return AppChip(
+                        label: topic,
+                        onTap: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text("Explore $topic: scan a problem to begin."),
@@ -432,7 +416,7 @@ class _MainScreenState extends State<MainScreen> {
                         child: Text(
                           AppStrings.seeAll,
                           style: AppTypography.subhead(context).copyWith(
-                            color: AppColors.primary(context),
+                            color: AppColors.accentText(context),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -470,7 +454,7 @@ class _MainScreenState extends State<MainScreen> {
                           child: !hasImage
                               ? Icon(
                                   Icons.science_outlined,
-                                  color: AppColors.primary(context),
+                                  color: textSecondary,
                                   size: 26,
                                 )
                               : null,
