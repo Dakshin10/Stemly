@@ -337,13 +337,34 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 borderRadius: BorderRadius.circular(AppRadii.capsule),
               ),
               child: TabBar(
+                splashBorderRadius: BorderRadius.circular(AppRadii.capsule),
+                splashFactory: InkSparkle.splashFactory,
+                indicatorAnimation: TabIndicatorAnimation.elastic,
+                overlayColor: WidgetStateProperty.resolveWith<Color?>((states) {
+                  if (states.contains(WidgetState.pressed)) {
+                    return AppColors.accentFill(context).withValues(alpha: 0.14);
+                  }
+                  if (states.contains(WidgetState.hovered)) {
+                    return AppColors.accentFill(context).withValues(alpha: 0.06);
+                  }
+                  return Colors.transparent;
+                }),
                 indicator: BoxDecoration(
                   color: AppColors.surface(context),
                   borderRadius: BorderRadius.circular(AppRadii.capsule),
+                  border: Border.all(
+                    color: AppColors.accentFill(context).withValues(alpha: 0.22),
+                    width: 1.0,
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 4,
+                      color: AppColors.accentFill(context).withValues(alpha: 0.08),
+                      blurRadius: 6,
+                      offset: const Offset(0, 1),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 3,
                       offset: const Offset(0, 1),
                     ),
                   ],

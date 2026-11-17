@@ -123,6 +123,18 @@ class AppTheme {
         thickness: 1,
         space: 1,
       ),
+
+      // Tab Bar Theme (Rounded capsule splash & elastic indicator)
+      tabBarTheme: TabBarThemeData(
+        splashFactory: InkSparkle.splashFactory,
+        overlayColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.pressed)) {
+            return AppColors.orangeFillLight.withValues(alpha: 0.14);
+          }
+          return Colors.transparent;
+        }),
+        indicatorSize: TabBarIndicatorSize.tab,
+      ),
     );
   }
 
@@ -240,6 +252,18 @@ class AppTheme {
         color: AppColors.dividerDark,
         thickness: 1,
         space: 1,
+      ),
+
+      // Tab Bar Theme (Rounded capsule splash & elastic indicator)
+      tabBarTheme: TabBarThemeData(
+        splashFactory: InkSparkle.splashFactory,
+        overlayColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.pressed)) {
+            return AppColors.orangeFillDark.withValues(alpha: 0.14);
+          }
+          return Colors.transparent;
+        }),
+        indicatorSize: TabBarIndicatorSize.tab,
       ),
     );
   }
