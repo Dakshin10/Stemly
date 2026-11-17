@@ -114,11 +114,7 @@ class QuizResultScreen extends StatelessWidget {
                                   strokeWidth: 8,
                                   backgroundColor: divider,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    percentage >= 80
-                                        ? AppColors.success(context)
-                                        : percentage >= 50
-                                            ? AppColors.warning(context)
-                                            : AppColors.error(context),
+                                    AppColors.primary(context),
                                   ),
                                 ),
                                 Center(
@@ -189,11 +185,7 @@ class QuizResultScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: surface,
                           borderRadius: BorderRadius.circular(AppRadii.card),
-                          border: Border.all(
-                            color: isCorrect
-                                ? AppColors.success(context).withValues(alpha: 0.3)
-                                : AppColors.error(context).withValues(alpha: 0.3),
-                          ),
+                          border: Border.all(color: divider),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

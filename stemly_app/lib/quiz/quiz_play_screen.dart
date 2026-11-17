@@ -206,25 +206,23 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? AppColors.primary(context).withValues(alpha: 0.08)
+                                      ? AppColors.surfaceVariant(context)
                                       : surface,
                                   borderRadius: BorderRadius.circular(AppRadii.card),
                                   border: Border.all(
-                                    color: isSelected
-                                        ? AppColors.primary(context)
-                                        : divider,
+                                    color: isSelected ? textPrimary : divider,
                                     width: isSelected ? 2.0 : 1.0,
                                   ),
                                 ),
                                 child: Row(
                                   children: [
-                                    // Letter badge
+                                    // Letter badge (solid textPrimary when selected, surfaceVariant when unselected)
                                     Container(
                                       width: 32,
                                       height: 32,
                                       decoration: BoxDecoration(
                                         color: isSelected
-                                            ? AppColors.primary(context)
+                                            ? textPrimary
                                             : AppColors.surfaceVariant(context),
                                         shape: BoxShape.circle,
                                       ),
@@ -233,7 +231,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                                         letter,
                                         style: AppTypography.headline(context).copyWith(
                                           color: isSelected
-                                              ? AppColors.onPrimary(context)
+                                              ? (AppColors.isDark(context) ? Colors.black : Colors.white)
                                               : textPrimary,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -256,13 +254,13 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
 
                                     const SizedBox(width: AppSpacing.sm),
 
-                                    // Radio Indicator
+                                    // Radio Indicator (solid textPrimary when selected, NOT orange)
                                     Icon(
                                       isSelected
                                           ? Icons.radio_button_checked_rounded
                                           : Icons.radio_button_off_rounded,
                                       color: isSelected
-                                          ? AppColors.primary(context)
+                                          ? textPrimary
                                           : textSecondary,
                                       size: 22,
                                     ),
