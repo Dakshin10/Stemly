@@ -1,388 +1,655 @@
+# STEMLY — Technical Architecture Specification
 
-# Architecture
+Welcome to the technical architecture reference for **STEMLY** ("Scan. Visualise. Learn."). This document details the end-to-end software architecture, component boundaries, data pipelines, AI agent orchestrations, resilience mechanisms, and database models across the Flutter mobile application and FastAPI cloud backend.
 
-Technical architecture reference for Stemly contributors.
+---
 
-## High-Level Overview
+## Table of Contents
+
+- [1. System Topology](#1-system-topology)
+- [2. Component Breakdown](#2-component-breakdown)
+  - [2.1 Flutter Mobile Client (`stemly_app/`)](#21-flutter-mobile-client-stemly_app)
+  - [2.2 FastAPI Cloud Backend (`backend/`)](#22-fastapi-cloud-backend-backend)
+- [3. End-to-End Data Pipelines](#3-end-to-end-data-pipelines)
+  - [3.1 Scan-to-Simulation Pipeline](#31-scan-to-simulation-pipeline)
+  - [3.2 Adaptive Quiz Generation Pipeline (Up to 20 Questions)](#32-adaptive-quiz-generation-pipeline-up-to-20-questions)
+  - [3.3 Socratic Streaming Chat Pipeline (Protocol v2)](#33-socratic-streaming-chat-pipeline-protocol-v2)
+  - [3.4 Apple HIG Splash Entrance & Handoff Pipeline](#34-apple-hig-splash-entrance--handoff-pipeline)
+  - [3.5 Multi-Tenant Authentication & Guest Mode Flow](#35-multi-tenant-authentication--guest-mode-flow)
+- [4. AI Agent & Inference Engine (`services/agents/`)](#4-ai-agent--inference-engine-servicesagents)
+  - [4.1 Multi-Tier Model Routing](#41-multi-tier-model-routing)
+  - [4.2 Two-Tier Semantic LLM Caching](#42-two-tier-semantic-llm-caching)
+  - [4.3 Circuit Breaker & Emergency Fallbacks](#43-circuit-breaker--emergency-fallbacks)
+  - [4.4 Daily Per-User LLM Quota Limiting](#44-daily-per-user-llm-quota-limiting)
+- [5. Universal Visualiser Engine](#5-universal-visualiser-engine)
+  - [5.1 Template Factory & Physics Models](#51-template-factory--physics-models)
+  - [5.2 Real-Time Kinematic Telemetry](#52-real-time-kinematic-telemetry)
+  - [5.3 Parameter Sanitization & Natural Language Control](#53-parameter-sanitization--natural-language-control)
+- [6. Database & Storage Architecture](#6-database--storage-architecture)
+  - [6.1 MongoDB Atlas Collections & Schema Definitions](#61-mongodb-atlas-collections--schema-definitions)
+  - [6.2 Client-Side Offline Storage Schema v3](#62-client-side-offline-storage-schema-v3)
+  - [6.3 Connection Pool Resilience](#63-connection-pool-resilience)
+- [7. Security, Privacy & IDOR Prevention](#7-security-privacy--idor-prevention)
+- [8. Visual Architecture Showcase](#8-visual-architecture-showcase)
+
+---
+
+## 1. System Topology
 
 ```mermaid
 graph TB
-    subgraph Client ["Flutter App"]
-        UI[Screens & Widgets]
-        SM[Provider State Management]
-        SVC[Services Layer]
-        VIS[Visualiser Engine]
-        OCR[Google ML Kit OCR]
+    subgraph MobileClient ["Flutter Mobile Client (stemly_app)"]
+        UI["Apple HIG UI Layer (Dark Mode Default)"]
+        SM["Provider State Layer (Auth, Theme, Groq)"]
+        VIS_ENG["Universal Visualiser Engine (60-120 FPS CustomPainter)"]
+        MLKIT["Google ML Kit OCR (On-Device Vision)"]
+        LOCAL_V3["OfflineStorage (Schema v3 Scoped Cache)"]
     end
 
-    subgraph Backend ["FastAPI Backend"]
-        MW[Auth Middleware]
-        RT[Routers]
-        AI[AI Services]
-        DB_L[Database Layer]
+    subgraph API_Gateway ["FastAPI Application Gateway"]
+        ROUTER["API Routers (/scan, /notes, /visualiser, /quiz, /chat)"]
+        AUTH_GUARD["Firebase Auth Guard (JWT Bearer & Guest Mode)"]
+        RATE_LIMIT["SlowAPI Limiter & Daily Usage Limiter"]
+        CIRCUIT_BRK["Circuit Breaker (Failure Threshold: 5, Cooldown: 30s)"]
     end
 
-    subgraph External ["External Services"]
-        FB[Firebase Auth]
-        GEM[Google Gemini]
-        MDB[(MongoDB Atlas)]
-        AIML[AIML API]
+    subgraph Agent_Layer ["Unified AI Agent Layer (backend/services/agents/)"]
+        VISION_AGENT["Vision Agent (Groq Llama 3.2 11B Vision)"]
+        TEXT_AGENT_FAST["Fast Text Agent (Groq GPT-OSS 20b)"]
+        TEXT_AGENT_HIGH["High-Capacity Agent (Groq GPT-OSS 120b)"]
+        TUTOR_STREAM["Socratic Streaming Agent (Protocol v2 SSE)"]
+        LOCAL_FALLBACK["Emergency Deterministic STEM Engine"]
     end
 
-    UI --> SM --> SVC
-    UI --> VIS
-    UI --> OCR
-    SVC -->|REST API + Bearer Token| MW
-    MW -->|Verify Token| FB
-    MW --> RT
-    RT --> AI
-    RT --> DB_L
-    AI --> GEM
-    AI --> AIML
-    DB_L --> MDB
+    subgraph Caching_Tier ["Semantic Cache & Cost Bounds"]
+        MEM_LRU["In-Memory LRU Cache (Capacity: 500 entries)"]
+        MONGO_CACHE[("MongoDB llm_cache (7-Day TTL Index)")]
+        USAGE_COLL[("MongoDB usage_counters (48h TTL Index)")]
+    end
+
+    subgraph Persistence ["Cloud Persistence Infrastructure"]
+        FIREBASE_AUTH["Firebase Authentication (Identity Provider)"]
+        MONGO_ATLAS[("MongoDB Atlas (Motor Async Connection Pool)")]
+    end
+
+    UI --> SM
+    UI --> VIS_ENG
+    UI --> MLKIT
+    UI --> LOCAL_V3
+
+    SM -->|Bearer JWT or Guest Token| AUTH_GUARD
+    UI -->|HTTPS REST & SSE Stream| ROUTER
+
+    ROUTER --> AUTH_GUARD
+    AUTH_GUARD -->|Verify Cryptographic Claims| FIREBASE_AUTH
+    ROUTER --> RATE_LIMIT
+    RATE_LIMIT --> USAGE_COLL
+    ROUTER --> CIRCUIT_BRK
+
+    CIRCUIT_BRK --> VISION_AGENT
+    CIRCUIT_BRK --> TEXT_AGENT_FAST
+    CIRCUIT_BRK --> TEXT_AGENT_HIGH
+    CIRCUIT_BRK --> TUTOR_STREAM
+    CIRCUIT_BRK --> LOCAL_FALLBACK
+
+    TEXT_AGENT_FAST <--> MEM_LRU
+    TEXT_AGENT_FAST <--> MONGO_CACHE
+    TEXT_AGENT_HIGH <--> MEM_LRU
+    TEXT_AGENT_HIGH <--> MONGO_CACHE
+
+    ROUTER --> MONGO_ATLAS
 ```
 
-## Component Breakdown
+---
 
-### Flutter App (`stemly_app/lib/`)
+## 2. Component Breakdown
+
+### 2.1 Flutter Mobile Client (`stemly_app/`)
+
+The mobile client is built with Flutter 3.x and Dart 3.x, targeting Android and iOS with Apple Human Interface Guidelines (HIG) compliance:
 
 ```
-lib/
-├── main.dart                       # Entry point, route definitions, providers
-├── firebase_options.dart           # Generated Firebase config
+stemly_app/lib/
+├── main.dart                       # App entrypoint, Provider registration & route definitions
+├── firebase_options.dart           # Generated Firebase multi-platform configuration
 │
-├── services/                       # Backend communication
-│   ├── firebase_auth_service.dart  # Auth + token management (ChangeNotifier)
-│   └── groq_service.dart           # Multi-AI provider abstraction (ChangeNotifier)
+├── core/                           # Foundation configurations
+│   ├── app_config.dart             # Dynamic base URL resolution (LAN, emulator, web)
+│   ├── app_dialogs.dart            # Standard Apple HIG alert dialogs & action sheets
+│   └── app_motion.dart             # 240-260ms Curves.easeOutCubic & Reduce Motion utilities
 │
-├── screens/                        # Full-page UI
-│   ├── splash_screen.dart          # Init, auth check
-│   ├── main_screen.dart            # Camera scan + upload
-│   ├── scan_result_screen.dart     # Notes + actions after scan
-│   ├── history_screen.dart         # Past scans list
-│   ├── history_detail_screen.dart  # Single scan detail
-│   ├── settings_screen.dart        # Theme, API keys, preferences
-│   └── account_screen.dart         # Profile, sign-out
+├── data/                           # Data models & local storage
+│   ├── offline_storage.dart        # Multi-tenant Schema v3 storage scoped by user UID
+│   └── scan_history.dart           # Scan history entity model
 │
-├── models/
-│   └── scan_history.dart           # ScanHistory data model
+├── presentation/                   # Shared HIG components
+│   ├── app_scaffold.dart           # Edge-to-edge scaffold with translucent HIG navigation
+│   ├── app_segmented_control.dart  # Smooth animated sliding pill toggle
+│   ├── buttons.dart                # Primary, Secondary, and Destructive buttons
+│   └── form_fields.dart            # Apple-style text fields with clear buttons & icons
 │
-├── storage/
-│   └── history_store.dart          # SharedPreferences persistence (singleton)
+├── quiz/                           # Interactive Quiz Suite
+│   ├── quiz_play_screen.dart       # Timed/untimed MCQ runner with instant feedback
+│   └── quiz_result_screen.dart     # Diagnostic score breakdown, review & retake view
 │
-├── visualiser/                     # Physics simulation engine
-│   ├── visualiser_factory.dart     # Factory: templateId → Widget
-│   ├── visualiser_models.dart      # VisualTemplate, TemplateParameter
-│   ├── visualiser_api.dart         # Backend API calls
-│   ├── visualiser_screen.dart      # Simulation container + sliders
-│   ├── projectile_motion.dart      # Trajectory simulation
-│   ├── free_fall_component.dart    # Drop simulation
-│   ├── shm_component.dart          # Spring/oscillation
-│   ├── kinematics_component.dart   # Motion equations
-│   ├── optics_component.dart       # Lens ray tracing
-│   ├── atom_component.dart         # Atomic structure
-│   ├── graph_component.dart        # Quadratic plotter
-│   ├── equation_plotter.dart       # General math plotter
-│   └── generic_diagram.dart        # Primitive shapes renderer
+├── screens/                        # Full-Page Screen Implementations
+│   ├── splash_screen.dart          # Apple HIG 1.2s entrance sequence (scan line + arc)
+│   ├── scan_arc_painter.dart       # CustomPainter for projectile parabolic arc
+│   ├── login_screen.dart           # Auth suite (Sign In, Create Account, Google, Guest)
+│   ├── home_screen.dart            # Dashboard, camera viewfinder, quick action tiles
+│   ├── scan_result_screen.dart     # Scan tabs: Visualiser, AI Notes, Socratic Chat, Quiz Setup
+│   ├── history_screen.dart         # Multi-tenant past scans with search & filter chips
+│   ├── history_detail_screen.dart  # Rehydrated scan detail with actions
+│   ├── settings_screen.dart        # Dark mode default, theme provider, API key overrides
+│   └── account_screen.dart         # User profile, cloud sync stats, sign-out & account deletion
 │
-├── quiz/
-│   ├── quiz_play_screen.dart       # MCQ interface
-│   └── quiz_result_screen.dart     # Score + feedback
+├── services/                       # Client Service Layer
+│   ├── firebase_auth_service.dart  # Multi-auth manager (Email, Google, Apple, Guest)
+│   ├── api_service.dart            # HTTP client with token injection & error unwrapping
+│   └── groq_service.dart           # Multimodal client manager
 │
-├── theme/
-│   └── theme_provider.dart         # Light/dark/system (ChangeNotifier)
+├── theme/                          # Apple HIG Design System Tokens
+│   ├── app_colors.dart             # Pure black (#000000), #1C1C1E surfaces, #FF8A3D accents
+│   ├── app_typography.dart         # SF Pro / system font hierarchy with 200% dynamic scaling
+│   └── theme_provider.dart         # Light / Dark mode notifier (Default: Dark)
 │
-└── widgets/
-    └── bottom_nav_bar.dart         # Curved navigation bar
+└── visualiser/                     # Universal Physics Visualiser Engine (60-120 FPS)
+    ├── visualiser_factory.dart     # Factory: templateId → Simulation Widget
+    ├── visualiser_models.dart      # Parameter definitions, ranges, units & AST models
+    ├── visualiser_screen.dart      # Container with Hero 4:3 canvas, parameter sliders & chat
+    ├── projectile_motion.dart      # 2D parabolic projectile simulation with drag
+    ├── shm_component.dart          # Mass-spring & pendulum harmonic oscillators
+    ├── optics_component.dart       # Ray tracing, thin lens equation & refraction
+    ├── kinematics_component.dart   # Rectilinear motion with live x-t, v-t, a-t graphs
+    ├── free_fall_component.dart    # Gravitational acceleration & impact telemetry
+    ├── atom_component.dart         # Bohr model multi-shell orbital electrons (Z=1 to 20)
+    ├── graph_component.dart        # Quadratic & polynomial curve plotter
+    ├── equation_plotter.dart       # AST math expression plotter with discontinuity shields
+    ├── declarative_physics.dart    # Inclined plane, Atwood pulleys & elastic collisions
+    └── phet_simulation_widget.dart # Secure sandboxed bridge for PhET Colorado simulations
 ```
 
-**State management**: Provider with `ChangeNotifier`. Three global providers (`FirebaseAuthService`, `ThemeProvider`, `GroqService`) injected at the app root.
+### 2.2 FastAPI Cloud Backend (`backend/`)
 
-**Navigation**: Named routes via `onGenerateRoute` with custom fade+slide transitions.
-
-**Local storage**: `SharedPreferences` for scan history (max 20 items), `FlutterSecureStorage` for auth tokens and API keys.
-
-### FastAPI Backend (`backend/`)
+The backend is built with Python 3.12 and FastAPI, orchestrated with Astral `uv`:
 
 ```
 backend/
-├── main.py              # App init, CORS, router registration
-├── config.py            # Env vars, Gemini config, model URLs
+├── main.py                         # FastAPI initialization, CORS, global error handlers
+├── config.py                       # Pydantic BaseSettings, model IDs & timeout configurations
 │
-├── auth/
-│   ├── firebase.py          # Token verification via firebase-admin
-│   ├── auth_middleware.py   # require_firebase_user dependency
-│   └── auth_router.py      # GET /auth/me
+├── auth/                           # Authentication & Authorization Guard
+│   ├── auth_middleware.py          # require_firebase_user with Dev & Guest bypass protocol
+│   ├── firebase.py                 # Firebase Admin SDK cryptographic JWT verification
+│   └── auth_router.py              # Profile inspection & GDPR data deletion
 │
-├── routers/
-│   ├── scan.py              # POST /scan/upload, GET /scan/history, /scan/ping
-│   ├── notes.py             # POST /notes/generate, POST /notes/ask
-│   ├── visualiser.py        # POST /visualiser/generate, states, chat, image
-│   ├── visualiser_engine.py # POST /visualiser/generate, /visualiser/update
-│   ├── quiz_router.py       # GET /quiz/questions, /quiz/generate, POST /quiz/submit
-│   └── chat.py              # POST /chat/ask
+├── core/                           # Resilience, Safety & Observability
+│   ├── circuit_breaker.py          # Upstream failure detection with cooldown states
+│   ├── usage_limiter.py            # Daily per-user LLM invocation quota with MongoDB TTL
+│   ├── rate_limiter.py             # SlowAPI token-bucket rate limiting
+│   ├── guardrails.py               # Pre-flight prompt inspection & academic deflection
+│   ├── safety.py                   # Post-generation content filtering
+│   ├── parameter_sanitizer.py      # Mathematical clamp & AST validation for simulation params
+│   └── observability.py            # Sentry APM tracing with PII scrubbing
 │
-├── services/
-│   ├── ai_detector.py       # Topic detection (vision → text → keyword fallback)
-│   ├── ai_notes.py          # Notes generation via Gemini (JSON mode)
-│   ├── ai_quiz.py           # Quiz generation with fallback samples
-│   ├── ai_visualiser.py     # Parameter adjustment + image generation
-│   ├── ai_chat.py           # Conversational AI (Gemini/Ollama)
-│   ├── storage.py           # File upload with magic-byte validation
-│   ├── quiz_service.py      # Static quiz dataset + evaluation
-│   └── history_service.py   # In-memory history (legacy)
+├── database/                       # Async MongoDB Storage Tier
+│   ├── db.py                       # Motor async client with resilient short timeouts
+│   ├── user_model.py               # User profile schema & upsert operations
+│   ├── history_model.py            # Multi-tenant scan history CRUD
+│   ├── notes_model.py              # Structured notes persistence
+│   └── visualiser_model.py         # Visualiser state persistence
 │
-├── database/
-│   ├── db.py                # Motor async client, optional MongoDB
-│   ├── user_model.py        # User upsert
-│   ├── history_model.py     # Scan history CRUD
-│   ├── notes_model.py       # Notes persistence
-│   └── visualiser_model.py  # Visualiser state persistence
+├── models/                         # Strongly-Typed Pydantic v2 Models
+│   ├── quiz.py                     # QuizQuestion, QuizResponse, QuizSubmission, QuizResult
+│   ├── chat_protocol.py            # StreamEventEnvelope for Protocol v2 SSE streaming
+│   ├── tools.py                    # Tool call definitions (UpdateSimulation, SuggestFollowups)
+│   ├── scan.py                     # ScanUploadResponse, ScanHistoryItem
+│   └── visualiser_models.py        # VisualTemplate, ParameterUpdateResponse
 │
-└── models/
-    ├── quiz.py              # QuizQuestion, QuizSubmission Pydantic models
-    ├── notes_models.py      # NotesRequest, NotesResponse
-    └── visualiser_models.py # TemplateRequest, ParameterUpdate
+├── prompts/                        # System & Agent Prompts
+│   ├── quiz_prompts.py             # V1 Prompt with exact count & difficulty controls
+│   ├── notes_prompts.py            # V1 Comprehensive LaTeX study note prompts
+│   ├── socratic_prompts.py         # Guided step-by-step Socratic pedagogy prompts
+│   └── visualiser_prompts.py       # Template matching & natural language update prompts
+│
+├── routers/                        # REST & Streaming API Routers
+│   ├── scan.py                     # POST /scan/upload, GET /scan/history, DELETE /scan/{id}
+│   ├── notes.py                    # POST /notes/generate, GET /notes, POST /notes/ask
+│   ├── visualiser.py               # POST /visualiser/generate, POST /visualiser/update
+│   ├── quiz_router.py              # GET /quiz/generate (count, difficulty), POST /quiz/submit
+│   └── chat.py                     # POST /chat/stream (Protocol v2 SSE streaming)
+│
+└── services/
+    ├── agents/                     # Centralized Unified AI Engine
+    │   ├── client.py               # Async HTTPX clients for Groq and Gemini
+    │   ├── engine.py               # Structured JSON caller with auto-repair retry
+    │   ├── text.py                 # High-performance notes, quiz & chat orchestrator
+    │   ├── vision.py               # Llama 3.2 Vision OCR & problem classifier
+    │   ├── cache.py                # In-memory LRU + MongoDB persistent semantic cache
+    │   ├── fallback.py             # Deterministic keyword detector & emergency question bank
+    │   ├── context_manager.py      # Multi-turn conversation windowing & token truncation
+    │   └── tutor_stream.py         # Async generator for Protocol v2 SSE streaming
+    ├── ocr.py                      # Multi-pass OCR preprocessor
+    └── storage.py                  # Magic-byte file validation (PNG, JPEG) & storage
 ```
 
-**Design principles**:
-- Routers are thin — they validate input and delegate to services
-- Services contain all AI/business logic
-- Database layer is optional — the app degrades gracefully without MongoDB
-- Every protected endpoint uses `Depends(require_firebase_user)`
+---
 
-## Data Flows
+## 3. End-to-End Data Pipelines
 
-### Scan-to-Simulation Pipeline
+### 3.1 Scan-to-Simulation Pipeline
 
-This is Stemly's core flow — from a camera photo to an interactive physics simulation.
+The primary workflow transforms an unconstrained photo of a textbook problem into a real-time, parameter-driven physics canvas:
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant App as Flutter App
-    participant MLKit as Google ML Kit
-    participant API as FastAPI
-    participant Gemini as Google Gemini
-    participant DB as MongoDB
+    autonumber
+    actor User as Student
+    participant Flutter as Flutter App
+    participant MLKit as Google ML Kit OCR
+    participant Gateway as FastAPI Router
+    participant VisionAgent as Groq Vision Agent
+    participant TextAgent as Groq Text Agent
+    participant VisFactory as VisualiserFactory
+    participant Canvas as CustomPainter Canvas
 
-    U->>App: Take photo of physics problem
-    App->>MLKit: Extract text (OCR)
-    MLKit-->>App: Raw text
+    User->>Flutter: Snaps photo of textbook problem
+    Flutter->>MLKit: Extract text locally on device
+    MLKit-->>Flutter: Raw extracted OCR string
+    Flutter->>Gateway: POST /scan/upload (image_bytes + ocr_text)
+    Gateway->>Gateway: Validate magic bytes (PNG/JPEG) & file size (<5MB)
+    Gateway->>VisionAgent: Analyze image + OCR with Llama 3.2 11B Vision
+    VisionAgent-->>Gateway: {topic: "Projectile Motion", variables: ["v0", "theta", "g"]}
+    Gateway-->>Flutter: ScanUploadResponse {topic, variables, scan_id}
 
-    App->>API: POST /scan/upload (image + ocr_text)
-    API->>API: Validate file (magic bytes, size)
-    API->>API: Save to static/scans/
-
-    alt OCR text has 10+ chars
-        API->>Gemini: Analyze text for topic
-    else Image-based detection
-        API->>Gemini: Vision API on image
+    par Parallel Pipeline Generation
+        Flutter->>Gateway: POST /notes/generate (topic, variables)
+        Gateway->>TextAgent: Generate structured notes (LaTeX KaTeX)
+        TextAgent-->>Gateway: NotesResponse (Formulas, Derivations, Pitfalls)
+        Gateway-->>Flutter: Render Notes Tab
+    and Visualiser Synthesis
+        Flutter->>Gateway: POST /visualiser/generate (topic, variables)
+        Gateway->>TextAgent: Synthesize simulation template & parameters
+        TextAgent-->>Gateway: VisualTemplate {templateId: "projectile", parameters: {...}}
+        Gateway-->>Flutter: VisualTemplate response
     end
-    alt AI fails
-        API->>API: Keyword fallback (36+ terms)
-    end
 
-    Gemini-->>API: {topic, variables}
-    API->>DB: Save scan history
-    API-->>App: {topic, variables, image_path}
-
-    App->>API: POST /notes/generate
-    API->>Gemini: Generate structured notes (JSON mode)
-    Gemini-->>API: Notes JSON (8192 tokens)
-    API-->>App: {explanation, formulas, examples, ...}
-
-    App->>App: Save to local SharedPreferences
-    App->>App: Display ScanResultScreen
-
-    U->>App: Tap "Visualize"
-    App->>API: POST /visualiser/generate
-    API-->>App: {templateId, parameters, metadata}
-
-    App->>App: VisualiserFactory.create(template)
-    App->>App: Render simulation (CustomPaint + AnimationController)
-    App->>App: Display interactive sliders
+    Flutter->>VisFactory: create(templateId="projectile", params)
+    VisFactory-->>Canvas: Initialize ProjectileMotionWidget
+    Canvas->>Canvas: Start 60-120 FPS AnimationController
+    Canvas-->>User: Displays interactive simulation with live sliders & graphs
 ```
 
-### Authentication Flow
+---
+
+### 3.2 Adaptive Quiz Generation Pipeline (Up to 20 Questions)
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant App as Flutter App
-    participant FB as Firebase Auth
-    participant API as FastAPI
-    participant FBA as Firebase Admin SDK
+    autonumber
+    actor User as Student
+    participant UI as ScanResultScreen
+    participant Router as /quiz/generate Router
+    participant Limiter as Usage & Rate Limiter
+    participant Cache as Semantic Cache Tier
+    participant TextAgent as Text Agent (Groq)
+    participant Fallback as Emergency Fallback
+    participant Player as QuizPlayScreen
 
-    U->>App: Tap "Sign in with Google"
-    App->>FB: Google Sign-In flow
-    FB-->>App: Firebase User + ID Token
-    App->>App: Store token in SecureStorage
+    User->>UI: Selects Question Count (1-20) & Difficulty (Easy/Medium/Hard)
+    User->>UI: Taps "Generate Quiz"
+    UI->>UI: Presents Apple HIG QuizSkeleton modal
+    UI->>Router: GET /quiz/generate?topic=...&count=20&difficulty=hard
+    Router->>Limiter: check_and_increment_daily_usage(user_id)
+    Limiter-->>Router: Quota OK (within daily limit)
 
-    App->>API: GET /auth/me (Bearer token)
-    API->>FBA: verify_id_token(token)
-    FBA-->>API: {uid, email, name, picture}
-    API-->>App: User profile confirmed
+    Router->>Cache: get_cached_quiz(topic, count, difficulty)
+    alt In-Memory or MongoDB Cache Hit
+        Cache-->>Router: Return cached QuizResponse
+    else Cache Miss
+        alt count <= 10
+            Router->>TextAgent: call_groq_structured(model=openai/gpt-oss-20b)
+        else count > 10 (11 to 20 questions)
+            Router->>TextAgent: call_groq_structured(model=openai/gpt-oss-120b, concise_prompt=true)
+        end
+        alt Groq Generation Succeeded
+            TextAgent-->>Router: Validated QuizResponse (20 MCQs with explanations)
+            Router->>Cache: set_cached_quiz (Memory + Async Mongo background write)
+        else Upstream Error / Timeout
+            Router->>Fallback: get_fallback_quiz(topic, count=20, difficulty=hard)
+            Fallback-->>Router: Padded curated emergency quiz (degraded=true)
+        end
+    end
 
-    Note over App,API: All subsequent requests include Bearer token
+    Router-->>UI: QuizResponse JSON
+    UI->>Player: Push QuizPlayScreen(quizData)
+    Player-->>User: Interactive MCQ quiz ready with timer & explanations
 ```
 
-### Quiz Flow
+---
+
+### 3.3 Socratic Streaming Chat Pipeline (Protocol v2)
+
+The Socratic tutor implements **Protocol v2** with Server-Sent Events (SSE) streaming envelopes, grounding every conversation turn in the scanned problem context:
 
 ```mermaid
 sequenceDiagram
-    participant App as Flutter App
-    participant API as FastAPI
-    participant Gemini as Google Gemini
+    autonumber
+    actor User as Student
+    participant UI as Socratic Chat Tab
+    participant StreamRouter as /chat/stream Router
+    participant Guard as Guardrails Engine
+    participant TutorEngine as Groq Socratic Agent
+    participant Canvas as Visualiser Canvas
 
-    App->>API: GET /quiz/generate?topic=Kinematics&count=10
-    API->>Gemini: Generate MCQs with explanations
-    alt AI available
-        Gemini-->>API: Questions array
-    else Fallback
-        API->>API: Return built-in sample quizzes
+    User->>UI: Types "What happens if we double the launch angle?"
+    UI->>StreamRouter: POST /chat/stream (message, active_template, current_params)
+    StreamRouter->>Guard: evaluate_guardrails(prompt)
+    alt Off-Topic or Harmful Query
+        Guard-->>StreamRouter: Deflection message triggered
+        StreamRouter-->>UI: event: text_delta -> "Let's stay focused on the physics of your problem."
+    else Approved Academic Query
+        StreamRouter->>TutorEngine: Stream chat completion with tool calling
+        loop Token-by-Token SSE Stream
+            TutorEngine-->>StreamRouter: Token chunk
+            StreamRouter-->>UI: data: {"type": "text_delta", "delta": "Doubling "}
+            StreamRouter-->>UI: data: {"type": "text_delta", "delta": "the angle..."}
+        end
+        opt Tool Call Triggered (e.g., UpdateSimulation)
+            TutorEngine-->>StreamRouter: tool_call: update_simulation(theta=60.0)
+            StreamRouter-->>UI: data: {"type": "tool_call", "name": "update_simulation", "args": {"theta": 60}}
+            UI->>Canvas: Update parameter slider to 60°
+            Canvas->>Canvas: Re-render trajectory in real time
+        end
+        StreamRouter-->>UI: data: {"type": "suggested_followups", "questions": ["Compare flight times", ...]}
+        StreamRouter-->>UI: data: {"type": "done"}
     end
-    API-->>App: {topic, questions[]}
-
-    App->>App: QuizPlayScreen (user answers)
-    App->>API: POST /quiz/submit (answers[])
-    API-->>App: {score, total, correct_questions[]}
-    App->>App: QuizResultScreen (score + feedback)
 ```
 
-## AI Service Architecture
+---
 
-Stemly integrates multiple AI providers with a resilience-first approach.
+### 3.4 Apple HIG Splash Entrance & Handoff Pipeline
 
 ```mermaid
-graph LR
-    subgraph "AI Services"
-        DET[ai_detector.py]
-        NOT[ai_notes.py]
-        QUI[ai_quiz.py]
-        VIZ[ai_visualiser.py]
-        CHT[ai_chat.py]
+sequenceDiagram
+    autonumber
+    participant App as Native Launch
+    participant Splash as SplashScreen (HIG)
+    participant Painter as ScanArcPainter
+    participant Init as Async App Initializer
+    participant Router as App Navigation
+
+    App->>Splash: Plain black native launch screen hands off to Flutter
+    Splash->>Init: Start Firebase auth restore & OfflineStorage v3 load
+    Splash->>Painter: Start 1200ms AnimationController (Curves.easeOutCubic)
+
+    alt Normal Motion
+        Note over Splash,Painter: Phase 1: 0 to 600ms — Scan line sweeps top to bottom
+        Painter->>Painter: Render vertical orange beam inside glyph brackets
+        Note over Splash,Painter: Phase 2: 400 to 1000ms — Parabolic trajectory arc draws
+        Painter->>Painter: CustomPainter traces y = -4h(x - 0.5)^2 arc with end dot
+        Note over Splash,Painter: Phase 3: 600 to 1200ms — Wordmark & Tagline fade & rise 8pt
+    else Reduce Motion (MediaQuery.disableAnimationsOf = true)
+        Splash->>Splash: Skip scan sweep and trajectory arc
+        Splash->>Splash: Render static branded frame with gentle 150ms fade
     end
 
-    subgraph "Providers"
-        GEM[Google Gemini 2.5 Flash]
-        AIML[AIML flux/schnell]
+    alt Init finishes in < 400ms
+        Splash->>Splash: Progress indicator remains completely hidden
+    else Init takes > 400ms
+        Splash->>Splash: Fade in subtle indeterminate loader with "Loading" label
     end
 
-    subgraph "Fallback Chain"
-        F1[Custom API Key]
-        F2[System Key]
-        F3[Built-in Fallback Key]
-        F4[Keyword / Sample Data]
+    Init-->>Splash: Initialization Complete (Auth restored: SignedIn or Guest)
+    Splash->>Router: 240ms cross-fade to Home ('/') or Welcome ('/login')
+```
+
+---
+
+### 3.5 Multi-Tenant Authentication & Guest Mode Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Student
+    participant App as Flutter App
+    participant FBA as Firebase Auth
+    participant MW as Backend Auth Middleware
+    participant Mongo as MongoDB Atlas
+
+    alt Email / Password
+        User->>App: Submits Name, Email, Password
+        App->>FBA: createUserWithEmailAndPassword()
+        FBA-->>App: UserCredential + ID Token
+    else Google One-Tap
+        User->>App: Taps "Continue with Google"
+        App->>FBA: signInWithCredential(GoogleAuthProvider)
+        FBA-->>App: UserCredential + ID Token
+    else Continue as Guest
+        User->>App: Taps "Continue as Guest"
+        App->>App: Sets is_guest = true, token = "test-token"
     end
 
-    DET --> GEM
-    NOT --> GEM
-    QUI --> GEM
-    VIZ --> GEM
-    VIZ --> AIML
-    CHT --> GEM
+    App->>MW: Request with Authorization: Bearer <token>
+    alt Authenticated Token
+        MW->>MW: Verify token with Firebase Admin SDK
+        MW->>Mongo: Find / Upsert user document by UID
+    else Guest Token (test-token or guest-*)
+        MW->>MW: Check ALLOW_DEV_AUTH_BYPASS == true
+        MW->>MW: Assign guest user context (guest-user-123)
+    end
 
-    GEM -.->|401/403| F1
-    F1 -.->|Fail| F2
-    F2 -.->|429 Rate Limit| F3
-    F3 -.->|All fail| F4
+    MW-->>App: Request authorized with isolated UID tenant scope
 ```
 
-**Resilience patterns**:
-- 3 retries with exponential backoff (1s, 3s, 7s)
-- Automatic key rotation on auth failures
-- Keyword-based topic detection as ultimate fallback
-- Sample quiz data when Gemini is unavailable
-- Graceful JSON parsing with multiple extraction strategies
+---
 
-## Visualiser Engine (Frontend)
+## 4. AI Agent & Inference Engine (`services/agents/`)
 
-The visualiser uses a factory pattern to map backend templates to Flutter widgets.
+### 4.1 Multi-Tier Model Routing
+
+STEMLY orchestrates multiple specialized models to optimize for latency, reasoning depth, and cost efficiency:
+
+| Workload | Primary Model | Failover Provider | Target Latency | Max Tokens |
+| :--- | :--- | :--- | :---: | :---: |
+| **Problem OCR & Topic Classification** | `llama-3.2-11b-vision-preview` | Google Gemini 1.5 Flash | $\sim 1.2\text{ s}$ | 1,024 |
+| **LaTeX Study Notes Generation** | `openai/gpt-oss-20b` | Google Gemini 2.0 Flash | $\sim 3.5\text{ s}$ | 2,500 |
+| **Quizzes ($\le 10$ Questions)** | `openai/gpt-oss-20b` | Emergency Static Bank | $\sim 3.0\text{ s}$ | 3,500 |
+| **Quizzes ($11\text{--}20$ Questions)** | `openai/gpt-oss-120b` | Emergency Static Bank | $\sim 9.5\text{ s}$ | 4,096 |
+| **Socratic Guided Tutoring** | `openai/gpt-oss-120b` | Google Gemini 1.5 Pro | Token Stream | 1,500 |
+| **Simulation Parameter Updates** | `openai/gpt-oss-20b` | Rule-Based Sanitizer | $\sim 800\text{ ms}$ | 800 |
+
+### 4.2 Two-Tier Semantic LLM Caching
+
+To prevent redundant API invocations and bound cloud operating costs, STEMLY uses a two-tier semantic caching engine:
+
+1. **Tier 1: In-Memory LRU Cache**:
+   - Capacity: 500 entries.
+   - Zero-latency retrieval ($\le 1\text{ ms}$).
+   - Thread-safe `OrderedDict` with timestamp invalidation.
+2. **Tier 2: MongoDB Persistent Collection (`llm_cache`)**:
+   - Document key: SHA-256 hash of `type:version:normalized_topic:params:difficulty`.
+   - 7-day automatic TTL expiration via MongoDB index:
+     ```javascript
+     db.llm_cache.createIndex({ "created_at": 1 }, { expireAfterSeconds: 604800 })
+     ```
+   - **Non-blocking execution**: Cache reads enforce a strict $1.0\text{ s}$ timeout; cache writes are executed asynchronously in detached background tasks (`asyncio.create_task`).
+
+### 4.3 Circuit Breaker & Emergency Fallbacks
+
+The backend protects upstream LLM dependencies via `GroqCircuitBreaker`:
+- **State Machine**: `CLOSED` $\rightarrow$ `OPEN` $\rightarrow$ `HALF_OPEN`.
+- **Threshold**: 5 consecutive $5xx$ or $429$ HTTP responses trip the breaker into `OPEN`.
+- **Cooldown**: 30.0 seconds cooldown period before entering `HALF_OPEN` to probe upstream recovery.
+- **Graceful Degradation**: When tripped or during complete network outages, the system immediately routes to `get_fallback_quiz` and `_fallback_notes`, returning structured responses flagged with `degraded: true`.
+
+### 4.4 Daily Per-User LLM Quota Limiting
+
+To eliminate malicious or accidental cost explosions:
+- Every authenticated user is bound to a daily quota (`DAILY_LLM_QUOTA = 50` requests/day).
+- Enforced atomically via MongoDB `$inc` and `$setOnInsert`:
+  ```python
+  doc = await asyncio.wait_for(
+      usage_counters_collection.find_one_and_update(
+          {"_id": f"{user_id}:{today_str}"},
+          {"$inc": {"count": cost}, "$setOnInsert": {"expires_at": expires_at}},
+          upsert=True,
+          return_document=ReturnDocument.AFTER,
+      ),
+      timeout=1.5,
+  )
+  ```
+- Automatically resets at 00:00 UTC via date-keyed documents with a 48-hour TTL index.
+
+---
+
+## 5. Universal Visualiser Engine
+
+### 5.1 Template Factory & Physics Models
+
+The Flutter frontend features a custom, high-performance computational simulation engine capable of rendering 60 to 120 FPS on modern mobile displays:
+
+| Template ID | Visualizer Widget | Key Parameters | Governing Physics Equations |
+| :--- | :--- | :--- | :--- |
+| `projectile` | `ProjectileMotionWidget` | $v_0 \in [0, 100]\text{ m/s}$<br>$\theta \in [0, 90]^\circ$<br>$g \in [1, 25]\text{ m/s}^2$ | $x(t) = v_0 \cos\theta \cdot t$<br>$y(t) = v_0 \sin\theta \cdot t - \frac{1}{2}gt^2$<br>$R = \frac{v_0^2 \sin(2\theta)}{g}$ |
+| `simple_harmonic` | `SHMWidget` | $m \in [0.1, 10]\text{ kg}$<br>$k \in [1, 100]\text{ N/m}$<br>$A \in [0.1, 5]\text{ m}$ | $\omega = \sqrt{\frac{k}{m}}$<br>$x(t) = A \cos(\omega t + \phi)$<br>$E = \frac{1}{2}kA^2$ |
+| `optics` | `OpticsWidget` | $f \in [-50, 50]\text{ cm}$<br>$d_o \in [5, 100]\text{ cm}$<br>$h_o \in [1, 20]\text{ cm}$ | $\frac{1}{f} = \frac{1}{d_o} + \frac{1}{d_i}$<br>$m = -\frac{d_i}{d_o} = \frac{h_i}{h_o}$<br>$n_1 \sin\theta_1 = n_2 \sin\theta_2$ |
+| `kinematics` | `KinematicsWidget` | $u \in [0, 50]\text{ m/s}$<br>$a \in [-10, 10]\text{ m/s}^2$<br>$t \in [0, 20]\text{ s}$ | $v = u + at$<br>$s = ut + \frac{1}{2}at^2$<br>$v^2 = u^2 + 2as$ |
+| `free_fall` | `FreeFallWidget` | $h \in [1, 200]\text{ m}$<br>$g \in [1, 25]\text{ m/s}^2$ | $v = \sqrt{2gh}$<br>$t = \sqrt{\frac{2h}{g}}$ |
+| `inclined_plane` | `DeclarativePhysicsWidget` | $\theta \in [0, 75]^\circ$<br>$\mu \in [0, 1]$<br>$m \in [1, 50]\text{ kg}$ | $a = g(\sin\theta - \mu\cos\theta)$<br>$N = mg\cos\theta$<br>$f_k = \mu N$ |
+| `pulley` | `DeclarativePhysicsWidget` | $m_1 \in [1, 20]\text{ kg}$<br>$m_2 \in [1, 20]\text{ kg}$ | $a = \frac{\|m_1 - m_2\|}{m_1 + m_2}g$<br>$T = \frac{2m_1 m_2}{m_1 + m_2}g$ |
+| `collision` | `DeclarativePhysicsWidget` | $m_1, m_2$<br>$u_1, u_2$<br>$e \in [0, 1]$ | $m_1 u_1 + m_2 u_2 = m_1 v_1 + m_2 v_2$<br>$v_2 - v_1 = e(u_1 - u_2)$ |
+| `bohr_atom` | `BohrAtomWidget` | $Z \in [1, 20]$ (Hydrogen to Calcium)<br>Orbit speed | $r_n = \frac{n^2 \hbar^2}{m_e k_e Z e^2}$<br>$E_n = -\frac{13.6\text{ eV} \cdot Z^2}{n^2}$ |
+| `equation_plotter` | `EquationPlotterWidget` | Math expression ($f(x)$)<br>$x_{\min}, x_{\max}$ | Abstract Syntax Tree evaluation with asymptote discontinuity clamping |
+
+### 5.2 Real-Time Kinematic Telemetry
+
+The simulation canvas synchronizes with real-time time-series plots:
+- **Position-Time ($x\text{-}t$)**: Displays displacement evolution.
+- **Velocity-Time ($v\text{-}t$)**: Area under curve indicates total displacement; slope represents acceleration.
+- **Acceleration-Time ($a\text{-}t$)**: Constant horizontal lines for uniform gravity ($a = -9.8\text{ m/s}^2$) or zero for inertial drift.
+
+### 5.3 Parameter Sanitization & Natural Language Control
+
+When a user prompts the Socratic assistant or modifies parameters via natural language:
+1. `backend/core/parameter_sanitizer.py` parses candidate numerical values.
+2. Validates against hard boundaries ($v_0 \ge 0$, $\theta \in [0, 90]$, $m > 0$).
+3. Rejects illegal or NaN/infinite inputs before relaying updates back to Flutter.
+
+---
+
+## 6. Database & Storage Architecture
+
+### 6.1 MongoDB Atlas Collections & Schema Definitions
 
 ```
-VisualiserFactory.create(templateId) → Widget
-
-templateId mapping:
-  "projectile_motion"  → ProjectileMotionWidget
-  "free_fall"          → FreeFallWidget
-  "simple_harmonic"    → SHMWidget
-  "kinematics"         → KinematicsWidget
-  "optics"             → OpticsWidget
-  "atom_structure"     → AtomWidget
-  "quadratic_graph"    → GraphWidget
-  "equation_plotter"   → EquationPlotterWidget
-  *                    → GenericDiagramWidget
+stemly_db/
+├── users
+│   ├── _id: ObjectId
+│   ├── uid: string (Firebase UID, unique index)
+│   ├── email: string (indexed)
+│   ├── name: string
+│   ├── picture: string
+│   └── last_login: datetime
+│
+├── scan_history
+│   ├── _id: ObjectId
+│   ├── user_id: string (Firebase UID, compound index with timestamp)
+│   ├── topic: string
+│   ├── variables: string[]
+│   ├── image_path: string
+│   ├── ocr_text: string
+│   └── timestamp: datetime (TTL or descending sort index)
+│
+├── notes
+│   ├── _id: ObjectId
+│   ├── user_id: string (Firebase UID, indexed)
+│   ├── topic: string
+│   ├── content: object (Pydantic NotesResponse)
+│   └── created_at: datetime
+│
+├── visualiser_states
+│   ├── _id: ObjectId
+│   ├── user_id: string (Firebase UID, indexed)
+│   ├── template_id: string
+│   ├── parameters: object (current simulation state)
+│   └── saved_at: datetime
+│
+├── chat_sessions
+│   ├── _id: ObjectId
+│   ├── user_id: string (Firebase UID, indexed)
+│   ├── session_id: string (unique index)
+│   ├── history: array of {role, content, timestamp}
+│   └── updated_at: datetime
+│
+├── llm_cache
+│   ├── _id: ObjectId
+│   ├── cache_key: string (SHA-256 hash, unique index)
+│   ├── type: string ("notes" | "quiz" | "tutor")
+│   ├── version: string ("v1")
+│   ├── payload: object
+│   └── created_at: datetime (7-day TTL index)
+│
+└── usage_counters
+    ├── _id: string ("{user_id}:{YYYY-MM-DD}")
+    ├── user_id: string
+    ├── date: string
+    ├── count: integer (incremented atomically)
+    └── expires_at: datetime (48-hour TTL index)
 ```
 
-Each simulation widget:
-1. Receives a `VisualTemplate` with parameters (value, min, max)
-2. Uses `AnimationController` for time-based physics
-3. Renders via `CustomPainter` on a `Canvas`
-4. Exposes parameter sliders that update simulation in real-time
-5. Reports statistics (range, velocity, height) via callbacks
+### 6.2 Client-Side Offline Storage Schema v3
 
-## Database Schema
+The mobile application persists user state offline using SharedPreferences with scoped user isolation keys:
+- **Scan History**: `stemly_history_v3_${uid}` — JSON array of past scans (max 50 items).
+- **Study Notes**: `stemly_notes_v3_${uid}` — Map of topic $\rightarrow$ full notes payload.
+- **Migration Handler**: Automatically detects schema version on startup (`v1` / `v2` $\rightarrow$ `v3`), migrating legacy records safely and stamping `stemly_schema_version = 3`.
 
-MongoDB collections in `stemly_db`:
+### 6.3 Connection Pool Resilience
 
-```
-users
-├── uid: string (Firebase UID, indexed)
-├── email: string
-├── name: string
-├── picture: string (avatar URL)
-└── last_login: datetime
+To prevent database hangs from blocking mobile clients, `backend/database/db.py` enforces fail-fast connection pooling:
+- `serverSelectionTimeoutMS`: **2500 ms** (aborts if Atlas replica set is unreachable).
+- `connectTimeoutMS`: **3000 ms** (aborts hanging socket connections).
+- `socketTimeoutMS`: **5000 ms** (aborts slow operational reads).
+- `maxPoolSize`: 50 | `minPoolSize`: 5.
 
-scan_history
-├── _id: ObjectId
-├── user_id: string (Firebase UID)
-├── topic: string
-├── variables: string[]
-├── image_path: string
-├── ocr_text: string
-└── timestamp: datetime
+---
 
-visualiser_states
-├── _id: ObjectId
-├── user_id: string
-├── template_id: string
-├── parameters: object
-└── saved_at: datetime
+## 7. Security, Privacy & IDOR Prevention
 
-notes
-├── _id: ObjectId
-├── user_id: string
-├── topic: string
-├── content: object (full notes JSON)
-└── created_at: datetime
-```
+1. **Insecure Direct Object Reference (IDOR) Protection**:
+   - Every read, update, or deletion query on `/scan/{scan_id}` or `/notes/{notes_id}` asserts:
+     ```python
+     query = {"_id": ObjectId(scan_id), "user_id": request.state.user["uid"]}
+     ```
+   - An authenticated user attempting to access another user's scan receives an immediate `404 Not Found` or `403 Forbidden`.
+2. **Cryptographic Token Verification**:
+   - Production requests verify Firebase JWT signatures, expiration (`exp`), audience (`aud`), and issuer (`iss`) via `firebase_admin.auth.verify_id_token`.
+3. **GDPR Account Wipe (`DELETE /auth/me/data`)**:
+   - Permanently deletes all scans, notes, chat transcripts, and simulation states belonging to the requesting UID across all collections in a single transactional operation.
+4. **Image Magic-Byte Validation**:
+   - Files uploaded to `/scan/upload` are validated against strict binary magic bytes (`\x89PNG` and `\xFF\xD8\xFF`). Executable file extensions and MIME-spoofing are rejected immediately.
+5. **PII Scrubbing in Telemetry**:
+   - Sentry APM integrations scrub email addresses, passwords, prompt text, and student names before emitting stack traces.
 
-Note: MongoDB is optional. When `MONGO_URI` is not set, the backend continues to function — database write operations are silently skipped and the app relies on the Flutter client's local storage.
+---
 
-## Security Model
+## 8. Visual Architecture Showcase
 
-| Layer | Mechanism |
-|-------|-----------|
-| Transport | HTTPS (enforced by Vercel in production) |
-| Authentication | Firebase ID tokens, verified via `firebase-admin` SDK |
-| Authorization | User isolation — all queries filtered by `uid` from token |
-| File upload | Magic-byte validation (PNG/JPEG only), 5 MB limit |
-| API keys | User keys passed via `X-AI-API-Key` header, never stored server-side |
-| Secrets | `.env` for server secrets, `FlutterSecureStorage` on client |
-| CORS | Open in development (`*`), should be restricted in production |
+| Architectural Subsystem | Visual Implementation Evidence |
+| :--- | :--- |
+| **Home Dashboard & Viewfinder** | <img src="screenShots/homescreen.png" width="300" alt="Home Dashboard Screen"/> |
+| **Universal Visualiser Engine** | <img src="screenShots/visualiser_screen.gif" width="300" alt="Universal Visualiser Live Simulation"/> |
+| **AI Structured LaTeX Notes** | <img src="screenShots/notes_screen.gif" width="300" alt="Structured LaTeX Notes Demo"/> |
+| **Adaptive Quiz Player (1–20 Qs)**| <img src="screenShots/quizscreen.png" width="300" alt="Quiz Setup and Difficulty Selector"/> |
+| **Multi-Tenant History Store** | <img src="screenShots/HistoryScreen.png" width="300" alt="History Screen"/> |
+| **User Privacy & Account Wipe** | <img src="screenShots/AccountScreen.png" width="300" alt="Account Management Screen"/> |
+| **Apple HIG Sign In Suite** | <img src="screenShots/signin.png" width="300" alt="Sign In Screen"/> |
+| **Apple HIG Registration** | <img src="screenShots/signup.png" width="300" alt="Create Account Screen"/> |
+| **Settings & Dark Mode System** | <img src="screenShots/settings.gif" width="300" alt="Settings Screen Demo"/> |
 
-## Deployment
+---
 
-```
-Production:
-  Backend  → Vercel (serverless Python, configured via vercel.json)
-  Database → MongoDB Atlas (cloud)
-  Auth     → Firebase (cloud)
-  Frontend → Built APK / App Bundle distributed to devices
-
-Local Development:
-  Backend  → uvicorn --reload (port 8000)
-  Database → Docker MongoDB or Atlas
-  Frontend → flutter run (connects to 10.0.2.2:8080 on Android emulator)
-```
+<div align="center">
+  <sub>STEMLY Architecture Specification v2.0 • Maintained by Team Mugiwara Coders</sub>
+</div>
