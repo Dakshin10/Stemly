@@ -175,6 +175,14 @@ class MyApp extends StatelessWidget {
               curve: Curves.easeOutCubic,
             );
 
+            // Splash exit and root landing use a pure, calm cross-fade over 240 ms
+            if (settings.name == '/' || settings.name == '/login') {
+              return FadeTransition(
+                opacity: curved,
+                child: page,
+              );
+            }
+
             return FadeTransition(
               opacity: curved,
               child: SlideTransition(
