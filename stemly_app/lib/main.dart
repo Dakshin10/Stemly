@@ -73,7 +73,7 @@ Future<void> bootstrapApp(AppFlavorConfig flavorConfig) async {
           Provider<StemlyApiService>.value(value: apiService),
         ],
         child: MyApp(
-          debugShowCheckedModeBanner: flavorConfig.enableDebugBanner,
+          debugShowCheckedModeBanner: false,
         ),
       ),
     );
