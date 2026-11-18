@@ -7,6 +7,7 @@ Generate high-quality multiple choice questions (MCQs) for the topic: {topic}.
 
 Requirements:
 - Create EXACTLY {num_questions} questions.
+- Difficulty level: {difficulty} (if easy: emphasize direct concepts and definitions; if medium: combine concepts with standard problem-solving; if hard: challenge with multi-step derivations and edge cases).
 - Balance conceptual understanding and numerical reasoning.
 - Every question must have EXACTLY 4 plausible options (index 0, 1, 2, 3).
 - Provide correct_index (an integer from 0 to 3).
@@ -17,7 +18,7 @@ Output Format:
 You MUST respond ONLY with a valid JSON object matching this schema:
 {{
   "topic": "{topic}",
-  "difficulty": "mixed",
+  "difficulty": "{difficulty}",
   "questions": [
     {{
       "question": "Question text here",

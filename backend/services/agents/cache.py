@@ -7,6 +7,7 @@ Includes:
 - In-memory LRU fallback for zero-latency hits and resilience during DB downtime.
 """
 
+import asyncio
 import hashlib
 import logging
 import re
@@ -50,9 +51,10 @@ def compute_notes_cache_key(topic: str, variables: Optional[List[str]] = None) -
     return hashlib.sha256(seed.encode("utf-8")).hexdigest()
 
 
-def compute_quiz_cache_key(topic: str, num_questions: int) -> str:
+def compute_quiz_cache_key(topic: str, num_questions: int, difficulty: str = "medium") -> str:
     norm_topic = normalize_topic(topic)
-    seed = f"quiz:{CACHE_VERSION}:{norm_topic}:{num_questions}"
+    norm_diff = difficulty.strip().lower()
+    seed = f"quiz:{CACHE_VERSION}:{norm_topic}:{num_questions}:{norm_diff}"
     return hashlib.sha256(seed.encode("utf-8")).hexdigest()
 
 
@@ -93,16 +95,19 @@ async def get_cached_notes(topic: str, variables: Optional[List[str]] = None) ->
         logger.info("Notes cache hit (in-memory) for topic='%s' (key=%s)", topic, key[:8])
         return mem_hit
 
-    # 2. Check MongoDB collection
+    # 2. Check MongoDB collection (with fast 1.0s timeout to never stall generation)
     if llm_cache_collection is not None:
         try:
-            doc = await llm_cache_collection.find_one({"cache_key": key})
+            doc = await asyncio.wait_for(
+                llm_cache_collection.find_one({"cache_key": key}),
+                timeout=1.0,
+            )
             if doc and "payload" in doc:
                 logger.info("Notes cache hit (MongoDB) for topic='%s' (key=%s)", topic, key[:8])
                 _set_to_memory(key, doc["payload"])
                 return doc["payload"]
         except Exception as exc:
-            logger.error("MongoDB error reading notes cache: %s. Continuing without cache.", exc)
+            logger.debug("MongoDB error reading notes cache: %s. Continuing without cache.", exc)
 
     return None
 
@@ -110,27 +115,36 @@ async def get_cached_notes(topic: str, variables: Optional[List[str]] = None) ->
 async def set_cached_notes(topic: str, variables: Optional[List[str]], payload: Dict[str, Any]) -> None:
     key = compute_notes_cache_key(topic, variables)
 
-    # 1. Store in memory
+    # 1. Store in memory immediately
     _set_to_memory(key, payload)
 
-    # 2. Store in MongoDB
+    # 2. Store in MongoDB asynchronously in background
     if llm_cache_collection is not None:
+        async def _write_bg():
+            try:
+                doc = {
+                    "cache_key": key,
+                    "type": "notes",
+                    "version": CACHE_VERSION,
+                    "topic": normalize_topic(topic),
+                    "payload": payload,
+                    "created_at": datetime.now(timezone.utc),
+                }
+                await asyncio.wait_for(
+                    llm_cache_collection.update_one(
+                        {"cache_key": key},
+                        {"$set": doc},
+                        upsert=True,
+                    ),
+                    timeout=2.0,
+                )
+            except Exception as exc:
+                logger.debug("MongoDB error writing notes cache: %s", exc)
+
         try:
-            doc = {
-                "cache_key": key,
-                "type": "notes",
-                "version": CACHE_VERSION,
-                "topic": normalize_topic(topic),
-                "payload": payload,
-                "created_at": datetime.now(timezone.utc),
-            }
-            await llm_cache_collection.update_one(
-                {"cache_key": key},
-                {"$set": doc},
-                upsert=True,
-            )
-        except Exception as exc:
-            logger.error("MongoDB error writing notes cache: %s", exc)
+            asyncio.create_task(_write_bg())
+        except Exception:
+            pass
 
 
 # ------------------------------------------------------------------------------
@@ -138,8 +152,8 @@ async def set_cached_notes(topic: str, variables: Optional[List[str]], payload: 
 # ------------------------------------------------------------------------------
 
 
-async def get_cached_quiz(topic: str, num_questions: int) -> Optional[Dict[str, Any]]:
-    key = compute_quiz_cache_key(topic, num_questions)
+async def get_cached_quiz(topic: str, num_questions: int, difficulty: str = "medium") -> Optional[Dict[str, Any]]:
+    key = compute_quiz_cache_key(topic, num_questions, difficulty)
 
     # 1. Check in-memory fast tier
     mem_hit = _get_from_memory(key)
@@ -147,44 +161,56 @@ async def get_cached_quiz(topic: str, num_questions: int) -> Optional[Dict[str, 
         logger.info("Quiz cache hit (in-memory) for topic='%s' (key=%s)", topic, key[:8])
         return mem_hit
 
-    # 2. Check MongoDB collection
+    # 2. Check MongoDB collection (with fast 1.0s timeout to never stall generation)
     if llm_cache_collection is not None:
         try:
-            doc = await llm_cache_collection.find_one({"cache_key": key})
+            doc = await asyncio.wait_for(
+                llm_cache_collection.find_one({"cache_key": key}),
+                timeout=1.0,
+            )
             if doc and "payload" in doc:
                 logger.info("Quiz cache hit (MongoDB) for topic='%s' (key=%s)", topic, key[:8])
                 _set_to_memory(key, doc["payload"])
                 return doc["payload"]
         except Exception as exc:
-            logger.error("MongoDB error reading quiz cache: %s. Continuing without cache.", exc)
+            logger.debug("MongoDB error reading quiz cache: %s. Continuing without cache.", exc)
 
     return None
 
 
-async def set_cached_quiz(topic: str, num_questions: int, payload: Dict[str, Any]) -> None:
-    key = compute_quiz_cache_key(topic, num_questions)
+async def set_cached_quiz(topic: str, num_questions: int, payload: Dict[str, Any], difficulty: str = "medium") -> None:
+    key = compute_quiz_cache_key(topic, num_questions, difficulty)
 
-    # 1. Store in memory
+    # 1. Store in memory immediately
     _set_to_memory(key, payload)
 
-    # 2. Store in MongoDB
+    # 2. Store in MongoDB asynchronously in background
     if llm_cache_collection is not None:
+        async def _write_bg():
+            try:
+                doc = {
+                    "cache_key": key,
+                    "type": "quiz",
+                    "version": CACHE_VERSION,
+                    "topic": normalize_topic(topic),
+                    "payload": payload,
+                    "created_at": datetime.now(timezone.utc),
+                }
+                await asyncio.wait_for(
+                    llm_cache_collection.update_one(
+                        {"cache_key": key},
+                        {"$set": doc},
+                        upsert=True,
+                    ),
+                    timeout=2.0,
+                )
+            except Exception as exc:
+                logger.debug("MongoDB error writing quiz cache: %s", exc)
+
         try:
-            doc = {
-                "cache_key": key,
-                "type": "quiz",
-                "version": CACHE_VERSION,
-                "topic": normalize_topic(topic),
-                "payload": payload,
-                "created_at": datetime.now(timezone.utc),
-            }
-            await llm_cache_collection.update_one(
-                {"cache_key": key},
-                {"$set": doc},
-                upsert=True,
-            )
-        except Exception as exc:
-            logger.error("MongoDB error writing quiz cache: %s", exc)
+            asyncio.create_task(_write_bg())
+        except Exception:
+            pass
 
 
 def normalize_query(query: str) -> str:

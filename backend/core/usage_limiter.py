@@ -5,6 +5,7 @@ Resets automatically at 00:00 UTC via date-keyed documents with MongoDB TTL expi
 Includes in-memory fallback for offline/ephemeral resilience.
 """
 
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Tuple
@@ -48,18 +49,21 @@ async def check_and_increment_daily_usage(user_id: str, cost: int = 1) -> Tuple[
     if usage_counters_collection is not None:
         try:
             expires_at = datetime.now(timezone.utc) + timedelta(days=2)
-            doc = await usage_counters_collection.find_one_and_update(
-                {"_id": key},
-                {
-                    "$inc": {"count": cost},
-                    "$setOnInsert": {
-                        "user_id": user_id,
-                        "date": today_str,
-                        "expires_at": expires_at,
+            doc = await asyncio.wait_for(
+                usage_counters_collection.find_one_and_update(
+                    {"_id": key},
+                    {
+                        "$inc": {"count": cost},
+                        "$setOnInsert": {
+                            "user_id": user_id,
+                            "date": today_str,
+                            "expires_at": expires_at,
+                        },
                     },
-                },
-                upsert=True,
-                return_document=ReturnDocument.AFTER,
+                    upsert=True,
+                    return_document=ReturnDocument.AFTER,
+                ),
+                timeout=1.5,
             )
             current_count = doc.get("count", 0)
         except Exception as exc:

@@ -189,7 +189,7 @@ def detect_topic_from_keywords(text: str) -> Tuple[str, List[str]]:
     return best_topic, detected_vars
 
 
-def get_fallback_quiz(topic: str, count: int = 5) -> dict:
+def get_fallback_quiz(topic: str, count: int = 5, difficulty: str = "medium") -> dict:
     """Return static emergency quiz questions for a topic."""
     normalized_topic = topic.strip()
     quiz = SAMPLE_QUIZZES.get(normalized_topic)
@@ -203,12 +203,23 @@ def get_fallback_quiz(topic: str, count: int = 5) -> dict:
                 break
 
     if not quiz:
-        quiz = SAMPLE_QUIZZES["General"]
+        quiz = SAMPLE_QUIZZES.get("General", SAMPLE_QUIZZES["Projectile Motion"])
 
-    questions = quiz["questions"][:count]
+    base_questions = quiz.get("questions", [])
+    if not base_questions:
+        base_questions = SAMPLE_QUIZZES["Projectile Motion"]["questions"]
+
+    questions = []
+    for i in range(count):
+        q = dict(base_questions[i % len(base_questions)])
+        if i >= len(base_questions):
+            q = dict(q)
+            q["question"] = f"[Review Q{i+1}] {q['question']}"
+        questions.append(q)
+
     return {
         "topic": quiz["topic"],
-        "difficulty": quiz["difficulty"],
+        "difficulty": difficulty or quiz.get("difficulty", "medium"),
         "questions": questions,
         "degraded": True,
     }

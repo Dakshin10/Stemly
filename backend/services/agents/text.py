@@ -250,16 +250,19 @@ def _fallback_notes(topic: str, variables: List[str]) -> NotesResponse:
 # ==============================================================================
 
 
-async def generate_quiz(topic: str, num_questions: int = 5) -> QuizResponse:
+async def generate_quiz(topic: str, num_questions: int = 5, difficulty: str = "medium") -> QuizResponse:
     """
     Generates MCQ questions with explanations using Groq.
     Checks semantic cache first for repeated topics.
     Falls back to curated sample quizzes if unavailable.
     """
     num_q = max(1, min(num_questions, 20))
+    diff = difficulty.strip().lower() if difficulty else "medium"
+    if diff not in ("easy", "medium", "hard"):
+        diff = "medium"
 
     # 1. Semantic Cache check
-    cached_data = await get_cached_quiz(topic, num_q)
+    cached_data = await get_cached_quiz(topic, num_q, diff)
     if cached_data:
         return QuizResponse.model_validate(cached_data)
 
@@ -267,31 +270,38 @@ async def generate_quiz(topic: str, num_questions: int = 5) -> QuizResponse:
 
     if not settings.GROQ_TEXT_API_KEY:
         logger.warning("GROQ_TEXT_API_KEY missing. Using fallback quiz.")
-        fallback = get_fallback_quiz(topic, count=num_q)
+        fallback = get_fallback_quiz(topic, count=num_q, difficulty=diff)
         return QuizResponse.model_validate(fallback)
 
-    prompt = QUIZ_GENERATION_PROMPT_V1.format(topic=topic, num_questions=num_q)
+    prompt = QUIZ_GENERATION_PROMPT_V1.format(topic=topic, num_questions=num_q, difficulty=diff)
+    if num_q > 10:
+        prompt += "\nNote: Keep explanations and takeaways concise (1-2 sentences each) to ensure complete structured output."
+
     messages = [
         {"role": "user", "content": prompt},
     ]
 
+    selected_model = settings.GROQ_FAST_MODEL if num_q <= 10 else settings.GROQ_TEXT_MODEL
+
     try:
         result = await call_groq_structured(
             client=client,
-            model=settings.GROQ_FAST_MODEL,
+            model=selected_model,
             messages=messages,
             schema=QuizResponse,
             temperature=0.4,
-            max_tokens=3500,
+            max_tokens=4096,
         )
         if result and len(result.questions) > 0:
             result.degraded = False
-            await set_cached_quiz(topic, num_q, result.model_dump())
+            result.difficulty = diff
+            result.questions = result.questions[:num_q]
+            await set_cached_quiz(topic, num_q, result.model_dump(), diff)
             return result
     except Exception as exc:
         logger.error("Groq quiz generation error: %s", exc)
 
-    fallback = get_fallback_quiz(topic, count=num_q)
+    fallback = get_fallback_quiz(topic, count=num_q, difficulty=diff)
     return QuizResponse.model_validate(fallback)
 
 

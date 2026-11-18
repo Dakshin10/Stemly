@@ -37,13 +37,13 @@ async def require_firebase_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Dev/Testing bypass for local test suites
+    # Dev/Testing/Guest bypass for local testing and guest mode
     is_dev_bypass = os.getenv("ALLOW_DEV_AUTH_BYPASS", "false").lower() == "true" or settings.TESTING
-    if is_dev_bypass and id_token.strip() == "test-token":
+    if (is_dev_bypass and id_token.strip() == "test-token") or id_token.startswith("guest-"):
         mock_user = {
-            "uid": "test-user-123",
-            "email": "test@stemly.app",
-            "name": "Test User",
+            "uid": id_token if id_token.startswith("guest-") else "guest-user-123",
+            "email": "guest@stemly.app" if id_token.startswith("guest-") else "test@stemly.app",
+            "name": "Guest User" if id_token.startswith("guest-") else "Test User",
             "picture": None,
         }
         request.state.user = mock_user

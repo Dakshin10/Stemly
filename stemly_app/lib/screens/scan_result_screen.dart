@@ -1960,19 +1960,23 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
     try {
       final auth = context.read<FirebaseAuthService>();
-      final token = await auth.getIdToken();
+      final token = await auth.getIdToken() ?? "test-token";
 
-      if (token == null) {
-        if (mounted) Navigator.of(context, rootNavigator: true).pop();
-        _showQuizError("Authentication required. Please sign in again.");
-        return;
-      }
+      final difficultyStr = _selectedDifficulty == 0
+          ? "easy"
+          : (_selectedDifficulty == 2 ? "hard" : "medium");
+
+      final uri = Uri.parse("$_serverIp/quiz/generate").replace(
+        queryParameters: {
+          "topic": widget.topic,
+          "count": count.toString(),
+          "difficulty": difficultyStr,
+        },
+      );
 
       final response = await http
           .get(
-            Uri.parse(
-              "$_serverIp/quiz/generate?topic=${widget.topic}&count=$count",
-            ),
+            uri,
             headers: {"Authorization": "Bearer $token"},
           )
           .timeout(const Duration(seconds: 45));
@@ -1980,9 +1984,15 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
 
       if (response.statusCode != 200) {
-        _showQuizError(
-          "Quiz generation failed (status ${response.statusCode}).",
-        );
+        String detail =
+            "Quiz generation failed (status ${response.statusCode}).";
+        try {
+          final errBody = jsonDecode(response.body);
+          if (errBody is Map && errBody.containsKey("detail")) {
+            detail = errBody["detail"].toString();
+          }
+        } catch (_) {}
+        _showQuizError(detail);
         return;
       }
 

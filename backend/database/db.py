@@ -36,8 +36,9 @@ else:
             "maxPoolSize": max_pool,
             "minPoolSize": min_pool,
             "maxIdleTimeMS": 45000,
-            "connectTimeoutMS": 10000,
-            "socketTimeoutMS": 20000,
+            "connectTimeoutMS": 3000,
+            "socketTimeoutMS": 5000,
+            "serverSelectionTimeoutMS": 2500,
             "retryWrites": True,
         }
         if is_atlas_or_tls:
