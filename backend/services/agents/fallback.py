@@ -205,21 +205,23 @@ def get_fallback_quiz(topic: str, count: int = 5, difficulty: str = "medium") ->
     if not quiz:
         quiz = SAMPLE_QUIZZES.get("General", SAMPLE_QUIZZES["Projectile Motion"])
 
-    base_questions = quiz.get("questions", [])
-    if not base_questions:
-        base_questions = SAMPLE_QUIZZES["Projectile Motion"]["questions"]
+    raw_questions = quiz.get("questions") if isinstance(quiz, dict) else None
+    if not isinstance(raw_questions, list) or not raw_questions:
+        raw_questions = list(SAMPLE_QUIZZES["Projectile Motion"]["questions"])
 
     questions = []
     for i in range(count):
-        q = dict(base_questions[i % len(base_questions)])
-        if i >= len(base_questions):
-            q = dict(q)
-            q["question"] = f"[Review Q{i+1}] {q['question']}"
+        item = raw_questions[i % len(raw_questions)]
+        q = dict(item) if isinstance(item, dict) else {"question": str(item), "options": ["A", "B", "C", "D"], "correct_index": 0}
+        if i >= len(raw_questions):
+            q["question"] = f"[Review Q{i+1}] {q.get('question', '')}"
         questions.append(q)
 
+    topic_name = quiz.get("topic", "General Science") if isinstance(quiz, dict) else "General Science"
+
     return {
-        "topic": quiz["topic"],
-        "difficulty": difficulty or quiz.get("difficulty", "medium"),
+        "topic": topic_name,
+        "difficulty": difficulty or (quiz.get("difficulty", "medium") if isinstance(quiz, dict) else "medium"),
         "questions": questions,
         "degraded": True,
     }
