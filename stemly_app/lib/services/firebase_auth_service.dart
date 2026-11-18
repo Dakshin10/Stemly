@@ -153,6 +153,123 @@ class FirebaseAuthService extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------------
+  // 🔵 EMAIL & PASSWORD AUTHENTICATION
+  // ---------------------------------------------------------------------------
+  Future<UserCredential> signInWithEmail(String email, String password) async {
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      _user = credential.user;
+      await _cacheAuthState(credential.user);
+      await warmUpBackend();
+      notifyListeners();
+      return credential;
+    } on FirebaseAuthException catch (e) {
+      debugPrint("FirebaseAuthException signInWithEmail: ${e.code} - ${e.message}");
+      String msg;
+      switch (e.code) {
+        case 'user-not-found':
+          msg = "No account found with this email address.";
+          break;
+        case 'wrong-password':
+        case 'invalid-credential':
+          msg = "Incorrect password. Please verify and try again.";
+          break;
+        case 'invalid-email':
+          msg = "Please enter a valid email address.";
+          break;
+        case 'user-disabled':
+          msg = "This account has been disabled. Please contact support.";
+          break;
+        case 'too-many-requests':
+          msg = "Too many failed attempts. Please try again later.";
+          break;
+        case 'network-request-failed':
+          msg = "Network error. Please check your internet connection.";
+          break;
+        default:
+          msg = e.message ?? "Authentication failed. Please try again.";
+      }
+      throw Exception(msg);
+    } catch (error) {
+      debugPrint("signInWithEmail unexpected error: $error");
+      rethrow;
+    }
+  }
+
+  Future<UserCredential> signUpWithEmail(
+    String email,
+    String password, {
+    String? displayName,
+  }) async {
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+
+      final user = credential.user;
+      if (user != null && displayName != null && displayName.trim().isNotEmpty) {
+        await user.updateDisplayName(displayName.trim());
+        await user.reload();
+        _user = _auth.currentUser;
+      } else {
+        _user = user;
+      }
+
+      await _cacheAuthState(_user);
+      await warmUpBackend();
+      notifyListeners();
+      return credential;
+    } on FirebaseAuthException catch (e) {
+      debugPrint("FirebaseAuthException signUpWithEmail: ${e.code} - ${e.message}");
+      String msg;
+      switch (e.code) {
+        case 'email-already-in-use':
+          msg = "An account already exists for this email address.";
+          break;
+        case 'invalid-email':
+          msg = "Please enter a valid email address.";
+          break;
+        case 'weak-password':
+          msg = "Password should be at least 6 characters.";
+          break;
+        case 'network-request-failed':
+          msg = "Network error. Please check your internet connection.";
+          break;
+        default:
+          msg = e.message ?? "Account creation failed. Please try again.";
+      }
+      throw Exception(msg);
+    } catch (error) {
+      debugPrint("signUpWithEmail unexpected error: $error");
+      rethrow;
+    }
+  }
+
+  Future<void> sendPasswordReset(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (e) {
+      debugPrint("FirebaseAuthException sendPasswordReset: ${e.code} - ${e.message}");
+      String msg;
+      switch (e.code) {
+        case 'user-not-found':
+          msg = "No account found with this email address.";
+          break;
+        case 'invalid-email':
+          msg = "Please enter a valid email address.";
+          break;
+        default:
+          msg = e.message ?? "Could not send password reset email.";
+      }
+      throw Exception(msg);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // 🔵 SIGN OUT
   // ---------------------------------------------------------------------------
   Future<void> signOut() async {

@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -28,6 +29,16 @@ import 'screens/terms_screen.dart';
 Future<void> bootstrapApp(AppFlavorConfig flavorConfig) async {
   AppFlavor.current = flavorConfig;
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Configure transparent edge-to-edge system navigation & status bar
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+    ),
+  );
 
   Future<void> startApp() async {
     // Initialize Firebase exactly once

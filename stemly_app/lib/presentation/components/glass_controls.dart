@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../theme/theme.dart';
@@ -33,82 +34,154 @@ class GlassTabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final isReducedTransparency = AppGlass.shouldUseOpaqueFallback(context);
+    final isDark = AppColors.isDark(context);
+    final Color tintBase = isDark ? Colors.black : Colors.white;
 
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.floatingTabBarInset,
-          0,
-          AppSpacing.floatingTabBarInset,
-          AppSpacing.floatingTabBarBottomClearance + bottomInset,
-        ),
-        child: SizedBox(
-          height: AppSpacing.floatingTabBarHeight,
-          child: GlassSurface.capsule(
-            padding: const EdgeInsets.all(4),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final tabWidth = constraints.maxWidth / items.length;
+    // Soft blur shelf radiating smoothly from center outwards without hard rectangular edges
+    final double blurShelfHeight = AppSpacing.floatingTabBarHeight +
+        AppSpacing.floatingTabBarBottomClearance +
+        bottomInset +
+        32.0;
 
-                return Stack(
-                  children: [
-                    // Sliding Neutral Glass Lens Indicator (12-16% opacity, NO orange)
-                    AnimatedPositioned(
-                      duration: AppMotion.getEffectiveDuration(
-                        context,
-                        const Duration(milliseconds: 320),
+    return SizedBox(
+      height: blurShelfHeight,
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        clipBehavior: Clip.none,
+        children: [
+          // 1. Soft radial frosted diffusion from center outward to bottom and sides (no hard edges)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: isReducedTransparency
+                  ? Container(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: const Alignment(0.0, 0.65),
+                          radius: 1.15,
+                          colors: [
+                            tintBase.withValues(alpha: 0.35),
+                            tintBase.withValues(alpha: 0.12),
+                            tintBase.withValues(alpha: 0.0),
+                          ],
+                          stops: const [0.0, 0.45, 1.0],
+                        ),
                       ),
-                      curve: Curves.easeOutCubic,
-                      left: selectedIndex * tabWidth,
-                      top: 0,
-                      width: tabWidth,
-                      height: constraints.maxHeight,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color:
-                              (AppColors.isDark(context)
-                                      ? Colors.white
-                                      : Colors.black)
-                                  .withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(
-                            color: AppColors.divider(
-                              context,
-                            ).withValues(alpha: 0.4),
-                            width: 1.0,
+                    )
+                  : ShaderMask(
+                      blendMode: BlendMode.dstIn,
+                      shaderCallback: (Rect bounds) {
+                        return RadialGradient(
+                          center: const Alignment(0.0, 0.65),
+                          radius: 1.15,
+                          colors: [
+                            Colors.white,
+                            Colors.white.withValues(alpha: 0.75),
+                            Colors.white.withValues(alpha: 0.0),
+                          ],
+                          stops: const [0.0, 0.45, 1.0],
+                        ).createShader(bounds);
+                      },
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: RadialGradient(
+                              center: const Alignment(0.0, 0.65),
+                              radius: 1.15,
+                              colors: [
+                                tintBase.withValues(alpha: 0.16),
+                                tintBase.withValues(alpha: 0.06),
+                                tintBase.withValues(alpha: 0.0),
+                              ],
+                              stops: const [0.0, 0.45, 1.0],
+                            ),
                           ),
                         ),
                       ),
                     ),
-
-                    // Tab Buttons
-                    Row(
-                      children: List.generate(items.length, (index) {
-                        final item = items[index];
-                        final isSelected = selectedIndex == index;
-
-                        return Expanded(
-                          child: _GlassTabButton(
-                            item: item,
-                            isSelected: isSelected,
-                            onTap: () {
-                              if (selectedIndex != index) {
-                                AppHaptics.selection();
-                                onTabSelected(index);
-                              }
-                            },
-                          ),
-                        );
-                      }),
-                    ),
-                  ],
-                );
-              },
             ),
           ),
-        ),
+
+          // 2. Floating Liquid Glass Tab Bar Capsule
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.floatingTabBarInset,
+                0,
+                AppSpacing.floatingTabBarInset,
+                AppSpacing.floatingTabBarBottomClearance + bottomInset,
+              ),
+              child: SizedBox(
+                height: AppSpacing.floatingTabBarHeight,
+                child: GlassSurface.capsule(
+                  padding: const EdgeInsets.all(4),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final tabWidth = constraints.maxWidth / items.length;
+
+                      return Stack(
+                        children: [
+                          // Sliding Neutral Glass Lens Indicator (12-16% opacity, NO orange)
+                          AnimatedPositioned(
+                            duration: AppMotion.getEffectiveDuration(
+                              context,
+                              const Duration(milliseconds: 320),
+                            ),
+                            curve: Curves.easeOutCubic,
+                            left: selectedIndex * tabWidth,
+                            top: 0,
+                            width: tabWidth,
+                            height: constraints.maxHeight,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color:
+                                    (AppColors.isDark(context)
+                                            ? Colors.white
+                                            : Colors.black)
+                                        .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(100),
+                                border: Border.all(
+                                  color: AppColors.divider(
+                                    context,
+                                  ).withValues(alpha: 0.4),
+                                  width: 1.0,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Tab Buttons
+                          Row(
+                            children: List.generate(items.length, (index) {
+                              final item = items[index];
+                              final isSelected = selectedIndex == index;
+
+                              return Expanded(
+                                child: _GlassTabButton(
+                                  item: item,
+                                  isSelected: isSelected,
+                                  onTap: () {
+                                    if (selectedIndex != index) {
+                                      AppHaptics.selection();
+                                      onTabSelected(index);
+                                    }
+                                  },
+                                ),
+                              );
+                            }),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

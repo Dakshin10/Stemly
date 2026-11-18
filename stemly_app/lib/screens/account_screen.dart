@@ -25,8 +25,12 @@ class AccountScreen extends StatelessWidget {
       isDestructive: true,
     );
 
-    if (confirmed == true) {
+    if (confirmed == true && context.mounted) {
+      OfflineStorage.flushMemory();
       await authService.signOut();
+      if (context.mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      }
     }
   }
 
@@ -63,6 +67,7 @@ class AccountScreen extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Account and data deleted.")),
           );
+          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
         }
       } catch (e) {
         if (context.mounted) {
@@ -114,7 +119,11 @@ class AccountScreen extends StatelessWidget {
               "Sign in to unlock synced history, study notes, and personalised visualisations across your devices.",
           action: PrimaryButton(
             label: AppStrings.continueWithGoogle,
-            icon: const Icon(Icons.login_rounded, size: 20),
+            icon: Image.asset(
+              'assets/icons/google_logo.png',
+              width: 20,
+              height: 20,
+            ),
             onPressed: () => Navigator.pushNamed(context, '/login'),
           ),
         ),

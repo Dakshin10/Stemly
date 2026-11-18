@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from typing import Any, Dict, List
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 
 from auth.auth_middleware import require_firebase_user
-from core.rate_limiter import LIMIT_GENERATION, limiter
+from core.rate_limiter import LIMIT_GENERATION, LIMIT_STANDARD, limiter
 from core.usage_limiter import check_and_increment_daily_usage
-from database.notes_model import save_notes_entry
+from database.notes_model import get_notes_for_user_paginated, save_notes_entry
 from models.notes_models import NotesEnvelopeResponse, NotesFollowUpRequest, NotesGenerateRequest
 from services.llm import follow_up_notes, generate_notes
 from utils.file_utils import resolve_scan_path, scan_path_to_relative
@@ -13,6 +15,33 @@ router = APIRouter(
     tags=["Notes"],
     dependencies=[Depends(require_firebase_user)],
 )
+
+
+class NotesListResponse(BaseModel):
+    notes: List[Dict[str, Any]] = Field(default_factory=list, description="User generated notes history")
+    total: int = Field(default=0)
+    limit: int = Field(default=20)
+    skip: int = Field(default=0)
+    has_more: bool = Field(default=False)
+
+
+@router.get("", response_model=NotesListResponse)
+@limiter.limit(LIMIT_STANDARD)
+async def list_user_notes(
+    request: Request,
+    limit: int = Query(20, ge=1, le=100),
+    skip: int = Query(0, ge=0),
+):
+    user_id = request.state.user["uid"]
+    notes_items, total = await get_notes_for_user_paginated(user_id, limit=limit, skip=skip)
+    has_more = total > (skip + len(notes_items))
+    return NotesListResponse(
+        notes=notes_items,
+        total=total,
+        limit=limit,
+        skip=skip,
+        has_more=has_more,
+    )
 
 
 @router.post("/generate", response_model=NotesEnvelopeResponse)

@@ -39,9 +39,10 @@ class AppScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = backgroundColor ?? AppColors.background(context);
     final hasBottomBar = currentBottomNavIndex != null;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     final extraBottomPadding = hasBottomBar
-        ? AppSpacing.scrollBottomPadding
-        : AppSpacing.space20;
+        ? AppSpacing.scrollBottomPadding + bottomInset
+        : AppSpacing.space20 + bottomInset;
     // Primary bottom nav tab destinations (Home, History, Settings, Account) must never imply a back button
     final bool shouldImplyLeading =
         automaticallyImplyLeading && currentBottomNavIndex == null;

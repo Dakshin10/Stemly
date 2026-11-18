@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from auth.auth_middleware import require_firebase_user
 from core.rate_limiter import LIMIT_STANDARD, limiter
 from core.usage_limiter import delete_user_usage_records
+from database.chat_history import delete_user_chat_sessions
 from database.history_model import delete_user_scans
 from database.notes_model import delete_user_notes
 from database.user_model import delete_user_profile
@@ -42,6 +43,7 @@ async def delete_my_data(request: Request, user=Depends(require_firebase_user)):
     deleted_scans = await delete_user_scans(user_id)
     deleted_notes = await delete_user_notes(user_id)
     deleted_visualiser = await delete_user_visualiser_entries(user_id)
+    deleted_chat = await delete_user_chat_sessions(user_id)
     deleted_profile = await delete_user_profile(user_id)
     deleted_usage = await delete_user_usage_records(user_id)
 
@@ -52,6 +54,7 @@ async def delete_my_data(request: Request, user=Depends(require_firebase_user)):
             "scans": deleted_scans,
             "notes": deleted_notes,
             "visualiser_entries": deleted_visualiser,
+            "chat_sessions": deleted_chat,
             "profile": deleted_profile,
             "usage_records": deleted_usage,
         },

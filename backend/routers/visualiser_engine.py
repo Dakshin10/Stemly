@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
 from bson import ObjectId
@@ -67,7 +67,7 @@ WHITELISTED_TEMPLATE_IDS = {
 }
 
 
-def _is_allowed_phet_url(url: str) -> bool:
+def _is_allowed_phet_url(url: Optional[str]) -> bool:
     if not url or not isinstance(url, str):
         return False
     try:

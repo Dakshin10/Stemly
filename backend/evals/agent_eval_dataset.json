@@ -1,0 +1,117 @@
+[
+  {
+    "id": "eval_kinematics_45",
+    "inputs": {
+      "query": "A ball is launched at velocity of 30 m/s at an angle of 45 degrees",
+      "topic": "projectile motion"
+    },
+    "expected_outputs": {
+      "has_math": true,
+      "max_height_m": 22.96,
+      "horizontal_range_m": 91.84,
+      "time_of_flight_s": 4.33,
+      "requires_sim": true
+    }
+  },
+  {
+    "id": "eval_kinematics_60",
+    "inputs": {
+      "query": "What is the trajectory if initial speed is 20 m/s and launch angle is 60 deg?",
+      "topic": "projectile motion"
+    },
+    "expected_outputs": {
+      "has_math": true,
+      "max_height_m": 15.31,
+      "horizontal_range_m": 35.35,
+      "time_of_flight_s": 3.53,
+      "requires_sim": true
+    }
+  },
+  {
+    "id": "eval_pendulum_shm",
+    "inputs": {
+      "query": "Calculate the period and frequency of a simple pendulum with length of 2.45 meters",
+      "topic": "simple harmonic motion"
+    },
+    "expected_outputs": {
+      "has_math": true,
+      "period_s": 3.14,
+      "frequency_hz": 0.32,
+      "requires_sim": false
+    }
+  },
+  {
+    "id": "eval_spring_mass_shm",
+    "inputs": {
+      "query": "Find the period of oscillation for a spring with mass 2 kg and spring constant 200 N/m",
+      "topic": "harmonic oscillator"
+    },
+    "expected_outputs": {
+      "has_math": true,
+      "period_s": 0.63,
+      "frequency_hz": 1.59,
+      "requires_sim": false
+    }
+  },
+  {
+    "id": "eval_misconception_freefall",
+    "inputs": {
+      "query": "Does a 10kg iron ball fall faster than a 1kg wooden ball in a vacuum?",
+      "topic": "gravity"
+    },
+    "expected_outputs": {
+      "has_misconception": true,
+      "misconception_name": "Free Fall Mass Independence",
+      "scaffolding_tier": "misconception_intervention"
+    }
+  },
+  {
+    "id": "eval_misconception_peak_accel",
+    "inputs": {
+      "query": "Why is acceleration 0 at the peak of the throw?",
+      "topic": "kinematics"
+    },
+    "expected_outputs": {
+      "has_misconception": true,
+      "misconception_name": "Kinematics Peak Acceleration",
+      "scaffolding_tier": "misconception_intervention"
+    }
+  },
+  {
+    "id": "eval_misconception_inertia",
+    "inputs": {
+      "query": "Do you need a constant force to keep an object moving at constant speed in space?",
+      "topic": "Newton's laws"
+    },
+    "expected_outputs": {
+      "has_misconception": true,
+      "misconception_name": "Newton's First Law / Inertia",
+      "scaffolding_tier": "misconception_intervention"
+    }
+  },
+  {
+    "id": "eval_sim_slider_control",
+    "inputs": {
+      "query": "Set angle to 75 and speed to 35 on the simulation",
+      "topic": "projectile motion"
+    },
+    "expected_outputs": {
+      "parameter_updates": {
+        "angle": 75.0,
+        "speed": 35.0
+      },
+      "requires_phet": true
+    }
+  },
+  {
+    "id": "eval_adversarial_clamping",
+    "inputs": {
+      "query": "Set speed to 999999 and gravity to -500 and angle to 720",
+      "topic": "projectile motion"
+    },
+    "expected_outputs": {
+      "clamped_speed_max": 500.0,
+      "clamped_gravity_min": 0.1
+    }
+  }
+]

@@ -11,6 +11,7 @@ import '../data/services/stemly_api_service.dart';
 import '../data/storage/offline_storage.dart';
 import '../models/scan_history.dart';
 import '../presentation/components/components.dart';
+import '../services/firebase_auth_service.dart';
 import '../storage/history_store.dart';
 import '../strings.dart';
 import '../theme/theme.dart';
@@ -42,6 +43,8 @@ class _MainScreenState extends State<MainScreen> {
     "Thermodynamics",
   ];
 
+  String? _lastLoadedUid;
+
   @override
   void initState() {
     super.initState();
@@ -49,6 +52,52 @@ class _MainScreenState extends State<MainScreen> {
     OfflineStorage.init().then((_) {
       if (mounted) setState(() {});
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    try {
+      final auth = Provider.of<FirebaseAuthService?>(context);
+      final currentUid = auth?.currentUser?.uid;
+      if (_lastLoadedUid != currentUid) {
+        _lastLoadedUid = currentUid;
+        _syncUserData(currentUid);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _syncUserData(String? uid) async {
+    await OfflineStorage.switchUser(uid);
+    if (mounted) setState(() {});
+
+    if (uid != null && uid.isNotEmpty) {
+      try {
+        final apiService = Provider.of<StemlyApiService?>(context, listen: false);
+        if (apiService == null) return;
+        final res = await apiService.fetchHistory(limit: 50);
+        final List<dynamic> items = res['history'] ?? [];
+        if (items.isNotEmpty && mounted) {
+          final remoteScans = items
+              .map((e) => ScanHistory.fromApiJson(e as Map<String, dynamic>))
+              .toList();
+          final current = OfflineStorage.history;
+          final existingIds = current.map((c) => c.visualiserHistoryId).toSet();
+          final List<ScanHistory> merged = List.from(current);
+          for (final r in remoteScans) {
+            if (r.visualiserHistoryId != null && !existingIds.contains(r.visualiserHistoryId)) {
+              merged.add(r);
+              existingIds.add(r.visualiserHistoryId);
+            }
+          }
+          merged.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          await OfflineStorage.setHistory(merged);
+          if (mounted) setState(() {});
+        }
+      } catch (e) {
+        debugPrint("Background scan sync skipped/failed: $e");
+      }
+    }
   }
 
   // ==========================================================
@@ -272,17 +321,41 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  String _getUserGreeting(BuildContext context) {
+    try {
+      final authService = Provider.of<FirebaseAuthService?>(context);
+      final user = authService?.currentUser;
+      if (user != null) {
+        final rawName = user.displayName?.trim();
+        if (rawName != null && rawName.isNotEmpty) {
+          final firstName = rawName.split(RegExp(r'\s+')).first;
+          return "Hi, $firstName";
+        }
+        final email = user.email?.trim();
+        if (email != null && email.isNotEmpty) {
+          final handle = email.split('@').first;
+          if (handle.isNotEmpty) {
+            final capitalized = handle[0].toUpperCase() + handle.substring(1);
+            return "Hi, $capitalized";
+          }
+        }
+      }
+    } catch (_) {}
+    return "Hi, User";
+  }
+
   @override
   Widget build(BuildContext context) {
     final history = HistoryStore.history;
     final hasHistory = history.isNotEmpty || OfflineStorage.lastNotes != null;
     final textPrimary = AppColors.textPrimary(context);
     final textSecondary = AppColors.textSecondary(context);
+    final greetingTitle = _getUserGreeting(context);
 
     return Stack(
       children: [
         AppScaffold(
-          title: AppStrings.homeTitle,
+          title: greetingTitle,
           isLargeTitle: true,
           automaticallyImplyLeading: false,
           currentBottomNavIndex: 0,

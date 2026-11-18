@@ -84,9 +84,6 @@ class AppColors {
   static const Color errorLight = Color(0xFFB3261E);
   static const Color errorDark = Color(0xFFFF8A80);
 
-  static const Color warningLight = Color(0xFFB25000);
-  static const Color warningDark = Color(0xFFFF9F0A);
-
   // ---------------------------------------------------------------------------
   // CONTEXT-AWARE RESOLVERS
   // ---------------------------------------------------------------------------
@@ -139,9 +136,6 @@ class AppColors {
 
   static Color error(BuildContext context) =>
       isDark(context) ? errorDark : errorLight;
-
-  static Color warning(BuildContext context) =>
-      isDark(context) ? warningDark : warningLight;
 
   static Color divider(BuildContext context) =>
       isDark(context) ? dividerDark : dividerLight;

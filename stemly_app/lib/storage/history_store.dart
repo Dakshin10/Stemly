@@ -1,13 +1,23 @@
 import '../data/storage/offline_storage.dart';
 import '../models/scan_history.dart';
 
-/// Legacy facade wrapping OfflineStorage for backward compatibility.
+/// Legacy facade wrapping OfflineStorage for backward compatibility and multi-tenant scoping.
 class HistoryStore {
   HistoryStore._();
 
-  static Future<void> init() async {
-    await OfflineStorage.init();
+  static Future<void> init({String? userUid}) async {
+    await OfflineStorage.init(userUid: userUid);
   }
+
+  static Future<void> switchUser(String? newUid) async {
+    await OfflineStorage.switchUser(newUid);
+  }
+
+  static void flushMemory() {
+    OfflineStorage.flushMemory();
+  }
+
+  static String get activeScope => OfflineStorage.activeScope;
 
   static Future<void> add(ScanHistory scan) async {
     await OfflineStorage.addHistory(scan);

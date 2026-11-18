@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,11 @@ from core.parameter_sanitizer import sanitize_simulation_parameters
 from core.rate_limiter import LIMIT_CHAT, limiter
 from core.usage_limiter import check_and_increment_daily_usage
 from services.llm import stream_tutor_chat, tutor_chat
+from services.agents import (
+    run_orchestrated_tutor,
+    stream_orchestrated_tutor,
+    transcribe_audio,
+)
 
 logger = logging.getLogger("stemly.routers.chat")
 
@@ -50,6 +55,13 @@ class ChatResponse(BaseModel):
         default_factory=list, description="3 dynamic one-tap follow-up question chips"
     )
     degraded: bool = Field(default=False)
+
+
+class TranscriptionResponse(BaseModel):
+    text: str = Field(description="Transcribed student audio text")
+    duration: Optional[float] = Field(default=None, description="Audio duration in seconds")
+    language: Optional[str] = Field(default="en", description="Detected or requested language code")
+    degraded: bool = Field(default=False, description="Whether fallback transcription was engaged")
 
 
 @router.post("/ask", response_model=ChatResponse)
@@ -101,7 +113,7 @@ async def chat_stream(
     x_session_id: Optional[str] = Header(None, alias="X-Session-ID"),
 ):
     """
-    ChatGPT/Claude-grade Server-Sent Events (SSE) token-by-token streaming endpoint.
+    Server-Sent Events (SSE) token-by-token streaming endpoint.
     Streaming Protocol v2 Envelope:
       {v: 1, id: str, seq: int, type: str, data: dict}
     Headers:
@@ -170,6 +182,98 @@ async def chat_stream(
             "X-Accel-Buffering": "no",
             "Content-Encoding": "identity",
         },
+    )
+
+
+@router.post("/agent", response_model=ChatResponse)
+@limiter.limit(LIMIT_CHAT)
+async def chat_agent(
+    request: Request,
+    req: ChatRequest,
+):
+    """
+    Executes the Parallel LangGraph multi-agent pipeline.
+    Runs Math Engine, Simulation Controller, and Pedagogy Assessor concurrently
+    before synthesizing the final Socratic guidance.
+    """
+    user_id = request.state.user.get("uid", "anonymous")
+    await check_and_increment_daily_usage(user_id=user_id)
+
+    result = await run_orchestrated_tutor(
+        query=req.user_prompt,
+        topic=req.topic,
+        student_id=user_id,
+        template_id=req.template_id,
+        current_params=req.current_params,
+    )
+
+    return ChatResponse(
+        response=result.get("final_response", ""),
+        parameter_updates=result.get("parameter_updates", {}),
+        update_type="both" if result.get("parameter_updates") else "explanation",
+        suggested_followups=result.get("suggested_followups", []),
+        degraded=result.get("degraded", False),
+    )
+
+
+@router.post("/agent-stream")
+@limiter.limit(LIMIT_CHAT)
+async def chat_agent_stream(
+    request: Request,
+    req: ChatRequest,
+):
+    """
+    SSE Streaming endpoint powered by the Parallel LangGraph agent pipeline.
+    Pushes simulation actions as soon as the simulation worker finishes,
+    followed by Socratic tutor tokens and follow-up chips.
+    """
+    user_id = request.state.user.get("uid", "anonymous")
+    await check_and_increment_daily_usage(user_id=user_id)
+
+    return StreamingResponse(
+        stream_orchestrated_tutor(
+            query=req.user_prompt,
+            topic=req.topic,
+            student_id=user_id,
+            template_id=req.template_id,
+            current_params=req.current_params,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Content-Encoding": "identity",
+        },
+    )
+
+
+@router.post("/transcribe", response_model=TranscriptionResponse)
+@limiter.limit(LIMIT_CHAT)
+async def chat_transcribe(
+    request: Request,
+    file: UploadFile = File(..., description="Audio recording file (e.g. m4a, wav, mp3, webm)"),
+):
+    """
+    Transcribes student audio questions into text using Groq Whisper Large V3 Turbo ($0.04/hr, 400 RPM).
+    Enables low-latency voice interaction for STEM problems.
+    """
+    user_id = request.state.user.get("uid", "anonymous")
+    await check_and_increment_daily_usage(user_id=user_id)
+
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Empty audio file provided.")
+
+    result = await transcribe_audio(
+        file_bytes=audio_bytes,
+        filename=file.filename or "recording.m4a",
+    )
+    return TranscriptionResponse(
+        text=result.get("text", ""),
+        duration=result.get("duration"),
+        language=result.get("language", "en"),
+        degraded=result.get("degraded", False),
     )
 
 

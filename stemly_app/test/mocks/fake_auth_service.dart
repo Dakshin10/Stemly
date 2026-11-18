@@ -43,5 +43,23 @@ class FakeAuthService extends ChangeNotifier implements FirebaseAuthService {
   Future<UserCredential?> signInWithGoogle() async => null;
 
   @override
+  Future<UserCredential> signInWithEmail(String email, String password) =>
+      throw UnimplementedError();
+
+  @override
+  Future<UserCredential> signUpWithEmail(
+    String email,
+    String password, {
+    String? displayName,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> sendPasswordReset(String email) async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
+  @override
   Future<void> signOut() async {}
 }

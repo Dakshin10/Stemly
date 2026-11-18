@@ -122,6 +122,7 @@ class _PrimaryButtonState extends State<PrimaryButton> {
             curve: AppMotion.curve,
             child: AnimatedContainer(
               duration: AppMotion.pressDuration,
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 borderRadius: radius,
                 gradient: LinearGradient(
@@ -141,61 +142,45 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                   ),
                 ],
               ),
-              child: Stack(
-                fit: StackFit.passthrough,
-                children: [
-                  // 1 dp inner top highlight (white 30%)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 1.0,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.30),
-                        borderRadius: BorderRadius.vertical(
-                          top: radius.topLeft,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.space16,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (widget.icon != null) ...[
+                        IconTheme(
+                          data: const IconThemeData(
+                            color: AppColors.onOrange,
+                            size: 20,
+                          ),
+                          child: widget.icon!,
+                        ),
+                        const SizedBox(width: AppSpacing.space8),
+                      ],
+                      Flexible(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          transitionBuilder: (child, animation) =>
+                              FadeTransition(opacity: animation, child: child),
+                          child: Text(
+                            widget.label,
+                            key: ValueKey<String>(widget.label),
+                            style: AppTypography.headline(context).copyWith(
+                              color: AppColors.onOrange,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-
-                  // Button Content (Always BLACK text on orange for 7:1 contrast)
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.space16,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (widget.icon != null) ...[
-                            IconTheme(
-                              data: const IconThemeData(
-                                color: AppColors.onOrange,
-                                size: 20,
-                              ),
-                              child: widget.icon!,
-                            ),
-                            const SizedBox(width: AppSpacing.space8),
-                          ],
-                          Flexible(
-                            child: Text(
-                              widget.label,
-                              style: AppTypography.headline(context).copyWith(
-                                color: AppColors.onOrange,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

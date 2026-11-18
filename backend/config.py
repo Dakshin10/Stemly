@@ -20,14 +20,26 @@ class Settings(BaseSettings):
         description="Groq Vision model identifier.",
     )
 
-    # Groq Text Model Configuration
+    # Groq Text Model Configuration (Tutor, Socratic Agent, Notes)
     GROQ_TEXT_API_KEY: str = Field(
         default="",
         description="API key for Groq Text models. Never log or leak this value.",
     )
     GROQ_TEXT_MODEL: str = Field(
         default="openai/gpt-oss-120b",
-        description="Groq Text model identifier.",
+        description="Groq Text model identifier for deep reasoning (500 T/s).",
+    )
+    GROQ_FAST_MODEL: str = Field(
+        default="openai/gpt-oss-20b",
+        description="Groq Fast model for quizzes, parameter extraction, and equation parsing (1000 T/s).",
+    )
+    GROQ_CODE_MODEL: str = Field(
+        default="llama-3.3-70b-versatile",
+        description="Groq Code model for HTML5 Canvas simulation sandbox generation.",
+    )
+    GROQ_AUDIO_MODEL: str = Field(
+        default="whisper-large-v3-turbo",
+        description="Groq Whisper model for low-latency speech-to-text transcription.",
     )
 
     # LLM Operational Constraints
@@ -78,6 +90,24 @@ class Settings(BaseSettings):
         ge=500,
         le=32000,
         description="Token budget for conversation history window before rolling summary.",
+    )
+
+    # LangSmith Observability & Evaluation
+    LANGCHAIN_TRACING_V2: bool = Field(
+        default=False,
+        description="Enable LangSmith tracing for LangGraph agent pipeline.",
+    )
+    LANGCHAIN_API_KEY: str = Field(
+        default="",
+        description="LangSmith API Key for tracing and evaluations.",
+    )
+    LANGCHAIN_PROJECT: str = Field(
+        default="stemly-agent",
+        description="LangSmith project identifier.",
+    )
+    LANGCHAIN_ENDPOINT: str = Field(
+        default="https://api.smith.langchain.com",
+        description="LangSmith API endpoint.",
     )
 
     # Database Configuration & Connection Pool

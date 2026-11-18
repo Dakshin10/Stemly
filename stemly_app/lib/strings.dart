@@ -39,6 +39,22 @@ class AppStrings {
   static const String loginTitle = "Welcome to STEMLY";
   static const String loginSubtitle =
       "Scan problems, explore simulations, and keep your notes in sync.";
+  static const String signIn = "Sign In";
+  static const String signUp = "Create Account";
+  static const String email = "Email";
+  static const String emailHint = "student@example.com";
+  static const String password = "Password";
+  static const String passwordHint = "••••••••";
+  static const String confirmPassword = "Confirm Password";
+  static const String confirmPasswordHint = "Re-enter your password";
+  static const String fullName = "Full Name";
+  static const String fullNameHint = "Your name";
+  static const String forgotPassword = "Forgot password?";
+  static const String resetPasswordSent = "Password reset email sent. Check your inbox.";
+  static const String passwordsDoNotMatch = "Passwords do not match.";
+  static const String enterValidEmail = "Please enter a valid email address.";
+  static const String passwordLengthError = "Password must be at least 6 characters.";
+  static const String orContinueWith = "or continue with";
   static const String whySignInTitle = "Why sign in?";
   static const String benefitSync = "Sync across devices";
   static const String benefitPasswordFree = "Password-free sign-in";

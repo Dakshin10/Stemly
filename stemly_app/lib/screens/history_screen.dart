@@ -1,9 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../data/services/stemly_api_service.dart';
 import '../models/scan_history.dart';
 import '../presentation/components/components.dart';
+import '../services/firebase_auth_service.dart';
 import '../storage/history_store.dart';
 import '../strings.dart';
 import '../theme/theme.dart';
@@ -34,6 +37,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void initState() {
     super.initState();
     _cleanupOldHistory();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncHistory();
+    });
+  }
+
+  Future<void> _syncHistory() async {
+    try {
+      final auth = Provider.of<FirebaseAuthService?>(context, listen: false);
+      if (auth?.currentUser == null) return;
+      final apiService = Provider.of<StemlyApiService?>(context, listen: false);
+      if (apiService == null) return;
+      final res = await apiService.fetchHistory(limit: 50);
+      final List<dynamic> items = res['history'] ?? [];
+      if (items.isNotEmpty && mounted) {
+        final remoteScans = items
+            .map((e) => ScanHistory.fromApiJson(e as Map<String, dynamic>))
+            .toList();
+        final current = HistoryStore.history;
+        final existingIds = current.map((c) => c.visualiserHistoryId).toSet();
+        final List<ScanHistory> merged = List.from(current);
+        for (final r in remoteScans) {
+          if (r.visualiserHistoryId != null && !existingIds.contains(r.visualiserHistoryId)) {
+            merged.add(r);
+            existingIds.add(r.visualiserHistoryId);
+          }
+        }
+        merged.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        HistoryStore.setHistory(merged);
+        if (mounted) setState(() {});
+      }
+    } catch (_) {}
   }
 
   void _cleanupOldHistory() {

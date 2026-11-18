@@ -22,7 +22,7 @@ from database.db import check_db_connection
 from database.indexes import init_db_indexes
 from routers import chat, notes, scan, visualiser, visualiser_engine
 from routers.quiz_router import router as quiz_router
-from services.llm import llm_clients
+from services.agents import get_orchestrator, llm_clients
 
 # Initialize Sentry telemetry early if configured
 init_sentry()
@@ -39,6 +39,9 @@ async def lifespan(app: FastAPI):
 
     # Initialize MongoDB performance and TTL indexes (graceful on DB downtime)
     await init_db_indexes()
+
+    # Pre-warm LangGraph multi-agent pipeline for zero-latency execution
+    get_orchestrator()
 
     yield
     # Shutdown: Cleanly close connection pools

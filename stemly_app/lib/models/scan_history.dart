@@ -62,4 +62,32 @@ class ScanHistory {
       latexFormula: json["latexFormula"],
     );
   }
+
+  factory ScanHistory.fromApiJson(Map<String, dynamic> json) {
+    DateTime ts;
+    final rawTs = json["timestamp"];
+    if (rawTs is String) {
+      ts = DateTime.tryParse(rawTs) ?? DateTime.now();
+    } else {
+      ts = DateTime.now();
+    }
+
+    return ScanHistory(
+      topic: json["topic"] ?? "Unknown",
+      variables: List<String>.from(json["variables"] ?? []),
+      imagePath: json["image_path"] ?? json["imagePath"] ?? "",
+      notesJson: json["notes"] is Map ? Map<String, dynamic>.from(json["notes"]) : {},
+      isStarred: json["isStarred"] ?? false,
+      timestamp: ts,
+      quizResults: const [],
+      visualiserHistoryId: json["_id"]?.toString(),
+      structuredVariables: List<Map<String, dynamic>>.from(
+        (json["structured_variables"] ?? []).map(
+          (x) => Map<String, dynamic>.from(x),
+        ),
+      ),
+      targetQuestion: json["target_question"] ?? json["targetQuestion"],
+      latexFormula: json["latex_formula"] ?? json["latexFormula"],
+    );
+  }
 }

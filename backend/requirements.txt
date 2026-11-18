@@ -17,6 +17,10 @@ sentry-sdk[fastapi]
 httpx
 groq
 
+# LangGraph Multi-Agent Orchestration
+langgraph
+langchain-core
+
 # Image Processing & Cloud Storage
 pillow
 python-multipart

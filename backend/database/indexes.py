@@ -94,6 +94,18 @@ async def init_db_indexes(database: Optional[AsyncIOMotorDatabase] = None) -> bo
             background=True,
         )
 
+        # 6. Chat Sessions Collection (Multi-Tenant Isolation & Fast Indexing)
+        await target_db["chat_sessions"].create_index(
+            [("user_id", 1), ("updated_at", -1)],
+            name="idx_chat_sessions_user_updated",
+            background=True,
+        )
+        await target_db["chat_sessions"].create_index(
+            [("session_id", 1)],
+            name="idx_chat_sessions_session_id",
+            background=True,
+        )
+
         logger.info("MongoDB indexes successfully created/verified.")
         return True
 
