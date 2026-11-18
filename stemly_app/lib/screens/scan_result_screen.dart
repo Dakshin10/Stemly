@@ -1870,8 +1870,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                     ),
                     child: Slider(
                       min: 3,
-                      max: 10,
-                      divisions: 7,
+                      max: 20,
+                      divisions: 17,
                       value: _quizQuestionCount,
                       activeColor: AppColors.primary(context),
                       inactiveColor: AppColors.surface2(context),
@@ -1886,15 +1886,36 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                       size: 22,
                     ),
                     title: AppStrings.difficulty,
-                    trailing: AppSegmentedControl<int>(
-                      children: const {
-                        0: AppStrings.difficultyEasy,
-                        1: AppStrings.difficultyMedium,
-                        2: AppStrings.difficultyHard,
-                      },
-                      groupValue: _selectedDifficulty,
-                      onValueChanged: (val) =>
-                          setQuizState(() => _selectedDifficulty = val),
+                    trailing: Text(
+                      _selectedDifficulty == 0
+                          ? AppStrings.difficultyEasy
+                          : _selectedDifficulty == 1
+                              ? AppStrings.difficultyMedium
+                              : AppStrings.difficultyHard,
+                      style: AppTypography.subhead(context).copyWith(
+                        color: AppColors.primary(context),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.xs,
+                      AppSpacing.md,
+                      AppSpacing.md,
+                    ),
+                    child: Center(
+                      child: AppSegmentedControl<int>(
+                        children: const {
+                          0: AppStrings.difficultyEasy,
+                          1: AppStrings.difficultyMedium,
+                          2: AppStrings.difficultyHard,
+                        },
+                        groupValue: _selectedDifficulty,
+                        onValueChanged: (val) =>
+                            setQuizState(() => _selectedDifficulty = val),
+                      ),
                     ),
                   ),
                 ],
